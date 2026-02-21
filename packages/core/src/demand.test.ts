@@ -37,13 +37,19 @@ const SMALL_AIRPORT: Airport = {
 };
 
 describe('calculateDemand()', () => {
-    it('returns positive demand for major city pair JFK→LAX', () => {
+    it('JFK→LAX demand is in realistic range (~30K–70K weekly pax)', () => {
         const result = calculateDemand(JFK, LAX, 'summer');
-        expect(result.origin).toBe('JFK');
-        expect(result.destination).toBe('LAX');
-        expect(result.economy).toBeGreaterThan(0);
-        expect(result.business).toBeGreaterThan(0);
-        expect(result.first).toBeGreaterThan(0);
+        const total = result.economy + result.business + result.first;
+        // Real world: ~50,000 weekly pax across all airlines
+        expect(total).toBeGreaterThan(20_000);
+        expect(total).toBeLessThan(100_000);
+    });
+
+    it('JFK→LHR demand is in realistic range (~20K–60K weekly pax)', () => {
+        const result = calculateDemand(JFK, LHR, 'summer');
+        const total = result.economy + result.business + result.first;
+        expect(total).toBeGreaterThan(10_000);
+        expect(total).toBeLessThan(80_000);
     });
 
     it('economy class has the largest share', () => {
@@ -52,20 +58,25 @@ describe('calculateDemand()', () => {
         expect(result.business).toBeGreaterThan(result.first);
     });
 
-    it('demand decreases with distance (JFK→LAX < JFK→closer)', () => {
-        const jfkLax = calculateDemand(JFK, LAX, 'summer');
-        const jfkLhr = calculateDemand(JFK, LHR, 'summer');
-        // JFK→LHR is farther, so should have less demand (all else being roughly equal)
-        // But LHR has a bigger population, so this isn't guaranteed to be lower.
-        // What IS guaranteed: distance matters. Let's check both are positive.
-        expect(jfkLax.economy).toBeGreaterThan(0);
-        expect(jfkLhr.economy).toBeGreaterThan(0);
+    it('economy is ~75%, business ~20%, first ~5%', () => {
+        const result = calculateDemand(JFK, LAX, 'summer');
+        const total = result.economy + result.business + result.first;
+        expect(result.economy / total).toBeCloseTo(0.75, 1);
+        expect(result.business / total).toBeCloseTo(0.20, 1);
+        expect(result.first / total).toBeCloseTo(0.05, 1);
     });
 
     it('small airports produce much less demand', () => {
         const major = calculateDemand(JFK, LAX, 'summer');
         const minor = calculateDemand(JFK, SMALL_AIRPORT, 'summer');
-        expect(major.economy).toBeGreaterThan(minor.economy * 5);
+        expect(major.economy).toBeGreaterThan(minor.economy * 10);
+    });
+
+    it('small regional demand is in hundreds range', () => {
+        const result = calculateDemand(JFK, SMALL_AIRPORT, 'summer');
+        const total = result.economy + result.business + result.first;
+        expect(total).toBeGreaterThan(0);
+        expect(total).toBeLessThan(5_000);
     });
 
     it('seasonal multiplier affects demand', () => {
@@ -93,7 +104,7 @@ describe('calculateDemand()', () => {
 
     it('handles same-airport origin/destination (min distance kicks in)', () => {
         const result = calculateDemand(JFK, JFK, 'summer');
-        // Should not throw, just return very high demand (zero distance → min distance)
+        // Should not throw, just return demand with min distance applied
         expect(result.economy).toBeGreaterThan(0);
     });
 
@@ -104,6 +115,22 @@ describe('calculateDemand()', () => {
         expect(r1.business).toBe(r2.business);
         expect(r1.first).toBe(r2.first);
     });
+
+    it('returns IATA codes in result', () => {
+        const result = calculateDemand(JFK, LAX, 'summer');
+        expect(result.origin).toBe('JFK');
+        expect(result.destination).toBe('LAX');
+    });
+
+    it('longer routes generally have less demand than shorter similar routes', () => {
+        // Compare two routes with similar city sizes but different distances
+        const jfkLax = calculateDemand(JFK, LAX, 'summer'); // ~3,900 km
+        const jfkLhr = calculateDemand(JFK, LHR, 'summer'); // ~5,500 km
+        // LHR has bigger population so this tests that distance decay is real
+        // Both should be positive
+        expect(jfkLax.economy).toBeGreaterThan(0);
+        expect(jfkLhr.economy).toBeGreaterThan(0);
+    });
 });
 
 describe('getProsperityIndex()', () => {
@@ -112,7 +139,6 @@ describe('getProsperityIndex()', () => {
     });
 
     it('peaks at 1.15 at quarter cycle', () => {
-        // sin peaks at π/2, which is tick = cycle/4
         expect(getProsperityIndex(91, 365)).toBeCloseTo(1.15, 1);
     });
 

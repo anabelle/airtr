@@ -20,7 +20,7 @@ Demand(A→B) = K × (Pop_A^α × Pop_B^β × GDP_A^γ × GDP_B^δ) / Distance(A
 
 | Symbol | Name | Value | Notes |
 |--------|------|-------|-------|
-| K | Calibration constant | 0.001 | Tuned to produce realistic weekly pax numbers |
+| K | Calibration constant | 6.4e-7 | Tuned against BTS data: JFK→LAX ≈ 50K weekly pax |
 | α | Origin population exponent | 0.8 | Sub-linear: doubling pop doesn't double demand |
 | β | Destination population exponent | 0.8 | Same as origin |
 | γ | Origin GDP-per-capita exponent | 0.6 | Wealth drives travel propensity |

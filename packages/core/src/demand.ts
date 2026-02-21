@@ -10,8 +10,9 @@ import { getSeasonalMultiplier } from './season.js';
 
 // --- Model Parameters (from ECONOMIC_MODEL.md §1.2) ---
 
-/** Calibration constant */
-const K = 0.001;
+/** Calibration constant — tuned against BTS real-world data:
+ *  JFK→LAX ≈ 50,000 weekly pax, small regional ≈ 500–1,000 */
+const K = 6.4e-7;
 /** Origin population exponent */
 const ALPHA = 0.8;
 /** Destination population exponent */
