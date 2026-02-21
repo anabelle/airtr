@@ -14,6 +14,8 @@
     "@airtr/core": "workspace:*",
     "@airtr/data": "workspace:*",
     "@airtr/map": "workspace:*",
+    "@airtr/store": "workspace:*",
+    "@tanstack/react-virtual": "^3.13.18",
     "maplibre-gl": "^5.18.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

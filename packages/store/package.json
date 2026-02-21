@@ -1,0 +1,20 @@
+{
+    "name": "@airtr/store",
+    "version": "0.1.0",
+    "type": "module",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "build": "tsc",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint src --ext ts"
+    },
+    "dependencies": {
+        "@airtr/core": "workspace:*",
+        "@airtr/data": "workspace:*",
+        "zustand": "^5.0.11"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.3"
+    }
+}

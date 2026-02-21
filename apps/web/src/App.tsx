@@ -1,57 +1,13 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import {
-  calculateDemand,
-  getProsperityIndex,
-  haversineDistance,
-  getSeason,
-  fpFormat,
-  fp,
-  fpScale,
-} from '@airtr/core';
-import type { Airport, Season, FixedPoint } from '@airtr/core';
-
+import { useEffect } from 'react';
+import { fpFormat, haversineDistance } from '@airtr/core';
+import type { Airport } from '@airtr/core';
 import { airports as AIRPORTS } from '@airtr/data';
 import { Globe } from '@airtr/map';
+import { useEngineStore } from '@airtr/store';
+import type { UserLocation } from '@airtr/store';
 
-interface RouteData {
-  origin: Airport;
-  destination: Airport;
-  distance: number;
-  demand: { economy: number; business: number; first: number };
-  estimatedDailyRevenue: FixedPoint;
-  season: Season;
-}
-
-interface UserLocation {
-  latitude: number;
-  longitude: number;
-  source: 'gps' | 'timezone' | 'manual';
-}
-
-/**
- * Use the IANA timezone name (e.g. "America/Bogota") to find
- * the best matching airport. This is WAY more precise than UTC offset
- * because Bogotá and New York share UTC-5 but have different IANA names.
- */
-function findAirportByTimezone(): Airport | null {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // Exact match on IANA timezone
-    const exact = AIRPORTS.find(a => a.timezone === tz);
-    if (exact) return exact;
-
-    // Try matching the city part of the timezone (e.g. "Bogota" from "America/Bogota")
-    const tzCity = tz.split('/').pop()?.replace(/_/g, ' ').toLowerCase();
-    if (tzCity) {
-      const cityMatch = AIRPORTS.find(a => a.city.toLowerCase() === tzCity);
-      if (cityMatch) return cityMatch;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+import { HubPicker } from './components/HubPicker.js';
+import { Ticker } from './components/Ticker.js';
 
 /** Fallback: estimate location from UTC offset */
 function estimateLocationFromOffset(): UserLocation {
@@ -75,157 +31,35 @@ function findNearestAirport(lat: number, lon: number): Airport {
   return nearest;
 }
 
-/** Generate interesting routes from a home airport */
-function generateRoutes(home: Airport, tick: number): RouteData[] {
-  const now = new Date();
-  const prosperity = getProsperityIndex(tick);
+/** IANA timezone detection */
+function findAirportByTimezone(): Airport | null {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const exact = AIRPORTS.find(a => a.timezone === tz);
+    if (exact) return exact;
 
-  const others = AIRPORTS
-    .filter(a => a.iata !== home.iata)
-    .map(a => ({
-      airport: a,
-      distance: haversineDistance(home.latitude, home.longitude, a.latitude, a.longitude),
-    }))
-    .sort((a, b) => a.distance - b.distance);
-
-  // Pick: 2 short-haul, 2 medium, 2 long-haul
-  const picks: Airport[] = [];
-  if (others.length >= 2) picks.push(others[0].airport, others[1].airport);
-  const midIdx = Math.floor(others.length * 0.4);
-  const midIdx2 = Math.floor(others.length * 0.5);
-  if (others.length >= 6) picks.push(others[midIdx].airport, others[midIdx2].airport);
-  if (others.length >= 4) picks.push(others[others.length - 2].airport, others[others.length - 1].airport);
-
-  return picks.map(dest => {
-    const season = getSeason(dest.latitude, now);
-    const distance = haversineDistance(home.latitude, home.longitude, dest.latitude, dest.longitude);
-    const demand = calculateDemand(home, dest, season, prosperity);
-    const avgFarePerKm = 0.12;
-    const baseFare = Math.max(80, Math.round(distance * avgFarePerKm));
-    const totalPax = demand.economy + demand.business + demand.first;
-    const estimatedDailyRevenue = fpScale(fp(baseFare), totalPax / 7);
-    return { origin: home, destination: dest, distance, demand, estimatedDailyRevenue, season };
-  });
-}
-
-// --- Hub Picker Component ---
-
-function HubPicker({
-  currentHub,
-  onSelect,
-}: {
-  currentHub: Airport;
-  onSelect: (airport: Airport) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (open && inputRef.current) inputRef.current.focus();
-  }, [open]);
-
-  const filtered = useMemo(() => {
-    if (!search) return AIRPORTS;
-    const q = search.toLowerCase();
-    return AIRPORTS.filter(
-      a =>
-        a.iata.toLowerCase().includes(q) ||
-        a.city.toLowerCase().includes(q) ||
-        a.name.toLowerCase().includes(q) ||
-        a.country.toLowerCase().includes(q),
-    );
-  }, [search]);
-
-  if (!open) {
-    return (
-      <button
-        className="hub-change-btn"
-        onClick={() => setOpen(true)}
-        title="Change your hub airport"
-        id="hub-change-btn"
-      >
-        Change hub
-      </button>
-    );
+    const tzCity = tz.split('/').pop()?.replace(/_/g, ' ').toLowerCase();
+    if (tzCity) {
+      const cityMatch = AIRPORTS.find(a => a.city.toLowerCase() === tzCity);
+      if (cityMatch) return cityMatch;
+    }
+    return null;
+  } catch {
+    return null;
   }
-
-  return (
-    <>
-      <button
-        className="hub-change-btn"
-        onClick={() => setOpen(true)}
-        title="Change your hub airport"
-        id="hub-change-btn"
-      >
-        Change hub
-      </button>
-      {createPortal(
-        <div className="hub-picker-overlay" onClick={() => setOpen(false)}>
-          <div className="hub-picker" onClick={e => e.stopPropagation()}>
-            <div className="hub-picker-header">
-              <h2>Choose Your Hub Airport</h2>
-              <button className="hub-picker-close" onClick={() => setOpen(false)}>✕</button>
-            </div>
-            <input
-              ref={inputRef}
-              className="hub-picker-search"
-              type="text"
-              placeholder="Search by city, IATA code, or airport name..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              id="hub-search-input"
-            />
-            <div className="hub-picker-list">
-              {filtered.map(airport => (
-                <button
-                  key={airport.iata}
-                  className={`hub-picker-item ${airport.iata === currentHub.iata ? 'active' : ''}`}
-                  onClick={() => {
-                    onSelect(airport);
-                    setOpen(false);
-                    setSearch('');
-                  }}
-                  id={`hub-pick-${airport.iata}`}
-                >
-                  <span className="hub-picker-iata">{airport.iata}</span>
-                  <span className="hub-picker-info">
-                    <span className="hub-picker-city">{airport.city}</span>
-                    <span className="hub-picker-name">{airport.name}</span>
-                  </span>
-                  <span className="hub-picker-country">{airport.country}</span>
-                </button>
-              ))}
-              {filtered.length === 0 && (
-                <div className="hub-picker-empty">No airports match "{search}"</div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </>
-  );
 }
-
-// --- Main App ---
 
 function App() {
-  const [tick, setTick] = useState(0);
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [homeAirport, setHomeAirport] = useState<Airport | null>(null);
-  const [routes, setRoutes] = useState<RouteData[]>([]);
-  const [locationMethod, setLocationMethod] = useState<string>('');
+  const tick = useEngineStore(s => s.tick);
+  const homeAirport = useEngineStore(s => s.homeAirport);
+  const userLocation = useEngineStore(s => s.userLocation);
+  const locationMethod = useEngineStore(s => s.locationMethod);
+  const routes = useEngineStore(s => s.routes);
+  const setHub = useEngineStore(s => s.setHub);
+  const startEngine = useEngineStore(s => s.startEngine);
 
-  // Detect user location — try GPS, then IANA timezone, then UTC offset
+  // Initialize hub from location
   useEffect(() => {
-    const setHub = (airport: Airport, loc: UserLocation, method: string) => {
-      setUserLocation(loc);
-      setHomeAirport(airport);
-      setRoutes(generateRoutes(airport, 0));
-      setLocationMethod(method);
-    };
-
     // Strategy 1: Try GPS
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -237,6 +71,7 @@ function App() {
           };
           const home = findNearestAirport(loc.latitude, loc.longitude);
           setHub(home, loc, 'GPS');
+          startEngine();
         },
         () => {
           // GPS failed — try IANA timezone
@@ -249,11 +84,11 @@ function App() {
             };
             setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
           } else {
-            // Last resort: UTC offset
             const loc = estimateLocationFromOffset();
             const home = findNearestAirport(loc.latitude, loc.longitude);
             setHub(home, loc, 'UTC offset (imprecise)');
           }
+          startEngine();
         },
         { timeout: 3000 },
       );
@@ -271,37 +106,24 @@ function App() {
         const home = findNearestAirport(loc.latitude, loc.longitude);
         setHub(home, loc, 'UTC offset');
       }
+      startEngine();
     }
-  }, []);
+  }, [setHub, startEngine]);
 
-  // Tick the simulation
-  useEffect(() => {
-    if (!homeAirport) return;
-    const interval = setInterval(() => {
-      setTick(t => {
-        const next = t + 1;
-        setRoutes(generateRoutes(homeAirport, next));
-        return next;
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [homeAirport]);
-
-  // Manual hub change
   const handleHubChange = (airport: Airport | null) => {
     if (!airport) return;
-    setHomeAirport(airport);
-    setUserLocation({
-      latitude: airport.latitude,
-      longitude: airport.longitude,
-      source: 'manual',
-    });
-    setLocationMethod('manual selection');
-    setRoutes(generateRoutes(airport, tick));
+    setHub(
+      airport,
+      { latitude: airport.latitude, longitude: airport.longitude, source: 'manual' },
+      'manual selection'
+    );
   };
 
-  const prosperity = getProsperityIndex(tick);
-  const season = userLocation ? getSeason(userLocation.latitude, new Date()) : 'winter';
+  const formatPax = (n: number) => n.toLocaleString();
+  const formatDist = (km: number) => {
+    if (km < 1000) return `${Math.round(km)} km`;
+    return `${(km / 1000).toFixed(1)}K km`;
+  };
 
   if (!homeAirport || !userLocation) {
     return (
@@ -309,7 +131,7 @@ function App() {
         <div className="main-content">
           <div className="hero">
             <h1 className="hero-title">
-              <span className="hero-title-accent">Locating you...</span>
+              <span className="hero-title-accent">Locating you…</span>
             </h1>
             <p className="hero-subtitle">Finding your nearest airport to build your airline.</p>
           </div>
@@ -318,11 +140,7 @@ function App() {
     );
   }
 
-  const formatPax = (n: number) => n.toLocaleString();
-  const formatDist = (km: number) => {
-    if (km < 1000) return `${Math.round(km)} km`;
-    return `${(km / 1000).toFixed(1)}K km`;
-  };
+  const season = routes[0]?.season ?? 'winter';
 
   return (
     <div className="app">
@@ -412,34 +230,11 @@ function App() {
             </div>
           </div>
 
-          <div className="ticker">
-            <div className="ticker-item">
-              <span className="ticker-label">Your Season</span>
-              <span className="ticker-value info">{season}</span>
-            </div>
-            <div className="ticker-item">
-              <span className="ticker-label">Prosperity</span>
-              <span className={`ticker-value ${prosperity >= 1 ? 'positive' : 'accent'}`}>
-                {(prosperity * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="ticker-item">
-              <span className="ticker-label">Airports</span>
-              <span className="ticker-value info">{AIRPORTS.length} loaded</span>
-            </div>
-            <div className="ticker-item">
-              <span className="ticker-label">Hub</span>
-              <span className="ticker-value accent">{homeAirport.iata}</span>
-            </div>
-            <div className="ticker-item">
-              <span className="ticker-label">Engine</span>
-              <span className="ticker-value positive">deterministic ✓</span>
-            </div>
-          </div>
+          <Ticker />
         </section>
 
         <div className="tech-stack fade-in fade-in-delay-2">
-          {['TypeScript', 'Vite', 'React 19', 'Vitest', 'pnpm', 'Nostr', 'MapLibre', 'CesiumJS', 'Web Audio'].map(t => (
+          {['TypeScript', 'Vite', 'React 19', 'Vitest', 'pnpm', 'Nostr', 'MapLibre', 'CesiumJS', 'Zustand'].map(t => (
             <span className="tech-pill" key={t}>{t}</span>
           ))}
         </div>
