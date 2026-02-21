@@ -19,10 +19,21 @@ export async function setupSigner(): Promise<boolean> {
         }
     }
 
-    // Generate local keys
-    const tempSigner = NDKPrivateKeySigner.generate();
+    // Generate or load local keys
+    let tempSigner: NDKPrivateKeySigner;
+    const storedKey = typeof window !== 'undefined' ? window.localStorage.getItem('airtr_dev_privkey') : null;
+
+    if (storedKey) {
+        tempSigner = new NDKPrivateKeySigner(storedKey);
+    } else {
+        tempSigner = NDKPrivateKeySigner.generate();
+        if (typeof window !== 'undefined' && tempSigner.privateKey) {
+            window.localStorage.setItem('airtr_dev_privkey', tempSigner.privateKey);
+        }
+    }
+
     ndk.signer = tempSigner;
-    return false; // Local keys generated
+    return false; // Local keys generated/loaded
 }
 
 /**
