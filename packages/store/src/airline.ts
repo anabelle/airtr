@@ -23,17 +23,22 @@ export const useAirlineStore = create<AirlineState>((set, get) => ({
     initializeIdentity: async () => {
         set({ isLoading: true, error: null });
         try {
-            await connectNDK();
+            // Setup identity immediately (NIP-07 or cached keys) without waiting for network relays
             const hasNip07 = await setupSigner();
-
             const pubkey = await getUserPubkey();
+
+            // Background connect to NDK relays
+            connectNDK().catch(console.warn);
+
             if (pubkey) {
+                // Now await the load mapping since we have the pubkey
                 const existing = await loadAirline(pubkey);
                 if (existing) {
                     set({ airline: existing, isKeyConfigured: true, isLoading: false });
                     return;
                 }
             }
+
             // If we got here, we have a signer but no airline found
             set({ isKeyConfigured: true, isLoading: false, airline: null });
         } catch (error: any) {
