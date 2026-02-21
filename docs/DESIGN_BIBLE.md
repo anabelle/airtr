@@ -12,6 +12,7 @@
 6. [Internationalization](#6-internationalization)
 7. [Audience Strategy](#7-audience-strategy)
 8. [Forever Architecture](#8-forever-architecture)
+9. [Scalability & The "Millions" Constraint](#9-scalability--the-millions-constraint)
 
 ---
 
@@ -34,6 +35,13 @@
 3. **Your world grows** — Like Transport Fever, your routes should visibly affect demand, airport growth, and the world economy.
 4. **Zen and tension** — Like Mini Metro's calm aesthetic with underlying pressure, the game should feel relaxing yet engaging.
 5. **The one-more-turn trap** — Like Factorio/Civilization, each tick should reveal something that demands "just one more..."
+
+### The Ambition: Planetary Scale
+This game is designed to be a **trendsetter in Nostr game development** and the premier real-world persistent simulation on the protocol. It must be built to eventually support **millions of players trading tens of thousands of active flights** concurrently.
+Every single technical and game design decision MUST respect this reality.
+*   **No $O(N^2)$ Loops**: If your math or logic requires iterating over every passenger or every route every tick, it will fail at scale. We use macro-economic formulas (like the Gravity Model and QSI) that resolve in $O(1)$ time regardless of passenger volume.
+*   **No Central Database**: We do not use PostgreSQL or Redis. All state is a deterministic reduction of a decentralized Nostr event log. The client does the heavy lifting.
+*   **Virtualize Everything in UI**: We cannot render 10,000 DOM nodes. All lists, maps, and tables must use WebGL instancing or React virtualization.
 
 ---
 
@@ -739,3 +747,27 @@ Simulation Tests (deterministic replay):
 | **Emergent stories** | "Remember when SkyNova tried to undercut us on LAX→NRT and we both nearly went bankrupt?" |
 | **Infinite mastery** | The economy is complex enough that there's always a better strategy to find. |
 | **Real-world grounding** | Real airports, real weather, real day/night. The world feels ALIVE. |
+
+---
+
+## 9. Scalability & The "Millions" Constraint
+
+To achieve our goal of supporting **millions of concurrent players** operating **tens of thousands of planes**, AirTR uses a **Macro-Economic Deterministic Architecture**.
+
+### 9.1 Math vs Micro-Agents
+We do NOT simulate individual passengers pathfinding through networks (which burns CPU). We use top-down formulas:
+- **Gravity Model**: `Demand = K * (Pop_A * Pop_B) / Distance^1.2`. Calculates total route demand in $O(1)$ time.
+- **QSI (Quality Service Index)**: Acts as a market-share multiplier. If an airline's QSI yields 30% share, they instantly get 30% of the route demand.
+
+### 9.2 Event Sourcing via Nostr
+We avoid centralized database meltdowns by pushing the write-load to the decentralized Nostr protocol:
+- Purchasing planes or opening routes simply broadcasts signed NIP-33 events.
+- The game client pulls the events and reduces them deterministically.
+- **Scale property**: The read/write load is horizontally distributed natively by the protocol.
+
+### 9.3 Overcoming UI and Floating-Point Bottlenecks
+- **React/DOM Thrashing**: Prevented by relying on MapLibre GL for the globe array (WebGL handles 100k+ instances easily) and `@tanstack/react-virtual` for any UI lists.
+- **Floating-Point Desync**: Because state is processed client-side, $10.01 + $5.00 cannot yield $15.0100000001 on some machines. ALL financial math is strictly enforced as **Fixed-Point Arithmetic** using integers (e.g., $10.50 is stored as `105000`).
+- **Tick Loop O(N²)**: The engine's tick processor must rely on highly indexed structures (`Map<Route, Airline[]>`) instead of deeply nested array scanning.
+
+*When an agent works on this codebase, they must evaluate every new feature through the lens: "Does this break if 10,000 airlines fire it at once?"*
