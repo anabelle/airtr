@@ -72,8 +72,14 @@ export function HubPicker({
                 Change hub
             </button>
             {createPortal(
-                <div className="hub-picker-overlay" onClick={() => setOpen(false)}>
-                    <div className="hub-picker" onClick={e => e.stopPropagation()}>
+                <div className="hub-picker-overlay">
+                    <button
+                        className="hub-picker-overlay-bg"
+                        onClick={() => setOpen(false)}
+                        aria-label="Close hub picker background"
+                        tabIndex={-1}
+                    />
+                    <div className="hub-picker" role="dialog" aria-modal="true">
                         <div className="hub-picker-header">
                             <h2>Choose Your Hub Airport</h2>
                             <button
@@ -91,6 +97,7 @@ export function HubPicker({
                             type="text"
                             name="hub-search"
                             autoComplete="off"
+                            spellCheck={false}
                             placeholder="Search by city, IATA code, or airport name…"
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
@@ -141,7 +148,7 @@ export function HubPicker({
                                 })}
                             </div>
                             {filtered.length === 0 && !isPending && (
-                                <div className="hub-picker-empty">No airports match "{search}"</div>
+                                <div className="hub-picker-empty">No airports match “{search}”</div>
                             )}
                             {isPending && (
                                 <div className="hub-picker-empty">Searching…</div>
