@@ -23,24 +23,26 @@ export const useAirlineStore = create<AirlineState>((set, get) => ({
     initializeIdentity: async () => {
         set({ isLoading: true, error: null });
         try {
-            // Setup identity immediately (NIP-07 or cached keys) without waiting for network relays
+            // Setup identity immediately (NIP-07 or cached keys) without waiting for network relays.
+            // This MUST be the very first async call to ensure the browser extension popup recognizes the user gesture!
             const hasNip07 = await setupSigner();
             const pubkey = await getUserPubkey();
 
-            // Background connect to NDK relays
-            connectNDK().catch(console.warn);
+            let existing: Airline | null = null;
 
             if (pubkey) {
-                // Now await the load mapping since we have the pubkey
-                const existing = await loadAirline(pubkey);
-                if (existing) {
-                    set({ airline: existing, isKeyConfigured: true, isLoading: false });
-                    return;
-                }
+                // Now that the extension has authorized us, connect to relays
+                await connectNDK();
+
+                // Fetch the airline mapping natively since we have relays + pubkey
+                existing = await loadAirline(pubkey);
             }
 
-            // If we got here, we have a signer but no airline found
-            set({ isKeyConfigured: true, isLoading: false, airline: null });
+            if (existing) {
+                set({ airline: existing, isKeyConfigured: true, isLoading: false });
+            } else {
+                set({ isKeyConfigured: true, isLoading: false, airline: null });
+            }
         } catch (error: any) {
             set({ error: error.message, isKeyConfigured: false, isLoading: false, airline: null });
         }

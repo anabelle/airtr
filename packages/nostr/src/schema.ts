@@ -47,10 +47,17 @@ export async function loadAirline(pubkey: string): Promise<Airline | null> {
 
     let event: NDKEvent | null = null;
     try {
-        event = await Promise.race([
-            ndk.fetchEvent(filter),
-            new Promise<null>((_, reject) => setTimeout(() => reject(new Error("fetch timeout")), 3000))
-        ]);
+        event = await new Promise<NDKEvent | null>((resolve) => {
+            const timer = setTimeout(() => resolve(null), 3000);
+
+            ndk.fetchEvent(filter).then(e => {
+                clearTimeout(timer);
+                resolve(e);
+            }).catch(() => {
+                clearTimeout(timer);
+                resolve(null);
+            });
+        });
     } catch {
         return null;
     }
