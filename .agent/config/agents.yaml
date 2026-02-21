@@ -1,0 +1,81 @@
+# Agent Registry
+# Defines the roles, capabilities, and preferences of each agent.
+# Any AI model can fulfill any role — this is model-agnostic.
+
+agents:
+  - id: agent-core
+    name: "Core Engine Agent"
+    description: "Handles pure game logic, economics, simulation, math"
+    capabilities:
+      - typescript
+      - algorithms
+      - math
+      - testing
+      - fixed-point-arithmetic
+      - deterministic-systems
+    preferred_zones:
+      - core
+      - data
+    max_concurrent_tasks: 1
+    max_retries: 3
+
+  - id: agent-ui
+    name: "UI Component Agent"
+    description: "Builds React components, panels, design system"
+    capabilities:
+      - react
+      - css
+      - accessibility
+      - responsive-design
+      - i18n
+    preferred_zones:
+      - ui
+      - i18n
+      - app
+    max_concurrent_tasks: 1
+    max_retries: 3
+
+  - id: agent-map
+    name: "Map & Visualization Agent"
+    description: "MapLibre GL, CesiumJS, WebGL, geospatial layers"
+    capabilities:
+      - webgl
+      - maplibre
+      - cesiumjs
+      - geospatial
+      - threejs
+      - gltf
+    preferred_zones:
+      - map
+      - 3d
+    max_concurrent_tasks: 1
+    max_retries: 3
+
+  - id: agent-infra
+    name: "Infrastructure Agent"
+    description: "Nostr integration, state management, build tools, CI/CD"
+    capabilities:
+      - nostr
+      - ndk
+      - zustand
+      - networking
+      - build-tools
+      - ci-cd
+    preferred_zones:
+      - nostr
+      - store
+    max_concurrent_tasks: 1
+    max_retries: 3
+
+  - id: agent-creative
+    name: "Audio & Creative Agent"
+    description: "Web Audio API, sound design, animation, sensory UX"
+    capabilities:
+      - web-audio-api
+      - sound-design
+      - animation
+      - procedural-audio
+    preferred_zones:
+      - audio
+    max_concurrent_tasks: 1
+    max_retries: 3

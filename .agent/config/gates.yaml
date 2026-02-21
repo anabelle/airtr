@@ -1,0 +1,74 @@
+# Gate Configuration  
+# All gates must pass before a branch is merged to trunk.
+# Gates run in sequence — a failure stops the pipeline.
+
+gates:
+  - id: lint
+    name: "Lint & Format"
+    command: "pnpm lint"
+    timeout_seconds: 30
+    description: "ESLint + Prettier conformance"
+    required: true
+
+  - id: typecheck
+    name: "Type Check"
+    command: "pnpm typecheck"
+    timeout_seconds: 60
+    description: "TypeScript strict mode compilation"
+    required: true
+
+  - id: unit-test
+    name: "Unit Tests"
+    command: "pnpm test --run"
+    timeout_seconds: 120
+    description: "Zone-scoped unit tests via Vitest"
+    required: true
+
+  - id: contract-check
+    name: "Contract Verification"
+    command: "pnpm run verify:contracts"
+    timeout_seconds: 30
+    description: "Verify exports match CONTRACT.md specifications"
+    required: true
+
+  - id: boundary-check
+    name: "Boundary Verification"
+    command: "pnpm run verify:boundaries"
+    timeout_seconds: 15
+    description: "Verify agent only modified files within owned zone"
+    required: true
+
+  - id: integration-test
+    name: "Integration Tests"
+    command: "pnpm test:integration --run"
+    timeout_seconds: 180
+    description: "Cross-zone integration tests"
+    required: true
+
+  - id: build-check
+    name: "Build Verification"
+    command: "pnpm build"
+    timeout_seconds: 180
+    description: "Full production build"
+    required: true
+
+  - id: determinism-check
+    name: "Determinism Verification"
+    command: "pnpm run verify:determinism"
+    timeout_seconds: 120
+    description: "Replay 100 ticks and compare state hash (core zone only)"
+    required: false  # Only runs when @airtr/core is modified
+    condition: "zone == 'core'"
+
+# Pipeline behavior
+pipeline:
+  stop_on_first_failure: true
+  max_retries_per_task: 3
+  feedback_dir: ".agent/feedback"
+  
+# Post-merge smoke test
+smoke_test:
+  enabled: true
+  command: "pnpm run smoke"
+  timeout_seconds: 300
+  revert_on_failure: true

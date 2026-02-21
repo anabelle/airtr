@@ -1,0 +1,70 @@
+# Zone Configuration
+# Each zone is a bounded context with clear ownership boundaries.
+# An agent may only modify files within its owned zone.
+
+zones:
+  core:
+    path: packages/@airtr/core
+    description: "Pure game logic — economy, simulation, validation"
+    max_diff_lines: 500
+    has_determinism_check: true
+
+  data:
+    path: packages/@airtr/data
+    description: "Static datasets — airports, aircraft, routes"
+    max_diff_lines: 1000  # Data files can be large
+    has_determinism_check: false
+
+  nostr:
+    path: packages/@airtr/nostr
+    description: "Nostr protocol adapter — NDK, events, identity"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  map:
+    path: packages/@airtr/map
+    description: "2D/2.5D map renderer — MapLibre GL layers"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  3d:
+    path: packages/@airtr/3d
+    description: "3D renderer — CesiumJS, glTF models, follow camera"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  ui:
+    path: packages/@airtr/ui
+    description: "Shared React components — panels, controls, design system"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  store:
+    path: packages/@airtr/store
+    description: "Zustand state management — multiple domain stores"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  audio:
+    path: packages/@airtr/audio
+    description: "Web Audio API engine — sounds, ambient, procedural"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  i18n:
+    path: packages/@airtr/i18n
+    description: "Internationalization — i18next, translations, types"
+    max_diff_lines: 1000
+    has_determinism_check: false
+
+  app:
+    path: apps/web
+    description: "Main Vite+React application — layout, routing, composition"
+    max_diff_lines: 500
+    has_determinism_check: false
+
+  docs:
+    path: docs
+    description: "Documentation — design bible, ADRs, guides"
+    max_diff_lines: 2000
+    has_determinism_check: false
