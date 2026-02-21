@@ -46,3 +46,9 @@ export { getSeason, getSeasonalMultiplier } from './season.js';
 
 // Demand
 export { calculateDemand, getProsperityIndex } from './demand.js';
+
+// QSI
+export { calculateShares, allocatePassengers } from './qsi.js';
+
+// Finance
+export { calculateFlightRevenue, calculateFlightCost } from './finance.js';
