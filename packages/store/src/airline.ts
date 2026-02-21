@@ -25,19 +25,19 @@ export const useAirlineStore = create<AirlineState>((set, get) => ({
         try {
             await connectNDK();
             const hasNip07 = await setupSigner();
-            set({ isKeyConfigured: true });
 
             const pubkey = await getUserPubkey();
             if (pubkey) {
                 const existing = await loadAirline(pubkey);
                 if (existing) {
-                    set({ airline: existing, isLoading: false });
+                    set({ airline: existing, isKeyConfigured: true, isLoading: false });
                     return;
                 }
             }
-            set({ isLoading: false, airline: null });
+            // If we got here, we have a signer but no airline found
+            set({ isKeyConfigured: true, isLoading: false, airline: null });
         } catch (error: any) {
-            set({ error: error.message, isLoading: false, airline: null });
+            set({ error: error.message, isKeyConfigured: false, isLoading: false, airline: null });
         }
     },
 
