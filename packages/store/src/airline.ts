@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Airline } from '@airtr/core';
-import { loadAirline, publishAirline, getUserPubkey, setupSigner } from '@airtr/nostr';
+import { loadAirline, publishAirline, getUserPubkey, setupSigner, connectNDK } from '@airtr/nostr';
 import { fp } from '@airtr/core';
 
 export interface AirlineState {
@@ -23,6 +23,7 @@ export const useAirlineStore = create<AirlineState>((set, get) => ({
     initializeIdentity: async () => {
         set({ isLoading: true, error: null });
         try {
+            await connectNDK();
             const hasNip07 = await setupSigner();
             set({ isKeyConfigured: true });
 
