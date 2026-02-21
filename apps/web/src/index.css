@@ -694,3 +694,88 @@ body {
   animation-delay: 0.3s;
   opacity: 0;
 }.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+
+/* Airline Creator */
+.airline-creator {
+  background: rgba(30, 30, 46, 0.8);
+  padding: 2rem;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.airline-creator h2 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0;
+}
+
+.airline-creator label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.airline-creator input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 6px;
+  color: #fff;
+  font-family: inherit;
+}
+
+.airline-creator input[type="color"] {
+  height: 40px;
+  padding: 0;
+  cursor: pointer;
+  border: none;
+}
+
+.airline-creator input:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.airline-creator .colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.airline-creator button {
+  background: #e94560;
+  color: #fff;
+  border: none;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.airline-creator button:hover:not(:disabled) {
+  background: #ff5271;
+  transform: translateY(-2px);
+}
+
+.airline-creator button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.airline-creator .error {
+  color: #ff4444;
+  font-size: 0.9rem;
+  background: rgba(255, 68, 68, 0.1);
+  padding: 0.5rem;
+  border-radius: 4px;
+}

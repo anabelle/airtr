@@ -8,6 +8,8 @@ import type { UserLocation } from '@airtr/store';
 
 import { HubPicker } from './components/HubPicker.js';
 import { Ticker } from './components/Ticker.js';
+import { AirlineCreator } from './components/AirlineCreator.js';
+import { useAirlineStore } from '@airtr/store';
 
 /** Fallback: estimate location from UTC offset */
 function estimateLocationFromOffset(): UserLocation {
@@ -53,10 +55,14 @@ function App() {
   const tick = useEngineStore(s => s.tick);
   const homeAirport = useEngineStore(s => s.homeAirport);
   const userLocation = useEngineStore(s => s.userLocation);
-  const locationMethod = useEngineStore(s => s.locationMethod);
   const routes = useEngineStore(s => s.routes);
   const setHub = useEngineStore(s => s.setHub);
   const startEngine = useEngineStore(s => s.startEngine);
+  const { airline, initializeIdentity } = useAirlineStore();
+
+  useEffect(() => {
+    initializeIdentity();
+  }, [initializeIdentity]);
 
   // Initialize hub from location
   useEffect(() => {
@@ -147,7 +153,9 @@ function App() {
       <header className="header">
         <div className="header-brand">
           <span className="header-logo">AirTR</span>
-          <span className="header-badge">Phase 0</span>
+          <span className="header-badge" style={{ backgroundColor: airline?.livery.primary, color: airline?.livery.secondary }}>
+            {airline ? airline.name : 'Phase 2'}
+          </span>
         </div>
         <div className="header-status">
           <div className="status-dot" />
@@ -164,18 +172,21 @@ function App() {
 
       <main className="main-content has-map">
         <section className="hero fade-in">
-          <h1 className="hero-title">
-            Your hub:&nbsp;
-            <span className="hero-title-accent">{homeAirport.iata}</span>
-          </h1>
-          <p className="hero-subtitle">
-            {homeAirport.name}, {homeAirport.city}.
-            <br />
-            Detected via {locationMethod}.
-            <br />
-            It's <strong>{season}</strong> here — {routes.length} routes computing.
-          </p>
-          <HubPicker currentHub={homeAirport} onSelect={handleHubChange} />
+          {!airline ? (
+            <AirlineCreator />
+          ) : (
+            <>
+              <h1 className="hero-title">
+                Welcome, CEO of <span className="hero-title-accent">{airline.name}</span>
+              </h1>
+              <p className="hero-subtitle">
+                Your hub is <strong>{airline.hubIata}</strong> ({homeAirport.name}).
+                <br />
+                It's <strong>{season}</strong> — {routes.length} routes computing.
+              </p>
+              <HubPicker currentHub={homeAirport} onSelect={handleHubChange} />
+            </>
+          )}
         </section>
 
         <section className="engine-demo fade-in fade-in-delay-1">
