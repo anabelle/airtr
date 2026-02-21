@@ -16,6 +16,7 @@
     "@airtr/map": "workspace:*",
     "@airtr/nostr": "workspace:^",
     "@airtr/store": "workspace:*",
+    "@nostr-dev-kit/ndk": "2.10.1",
     "@tanstack/react-virtual": "^3.13.18",
     "maplibre-gl": "^5.18.0",
     "react": "^19.2.0",
