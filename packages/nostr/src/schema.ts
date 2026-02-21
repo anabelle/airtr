@@ -1,5 +1,5 @@
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk';
-import { getNDK } from './ndk.js';
+import { getNDK, ensureConnected } from './ndk.js';
 import { type Airline, fp } from '@airtr/core';
 
 const AIRLINE_KIND = 30078;
@@ -9,10 +9,11 @@ const AIRLINE_D_TAG = 'airtr:airline';
  * Publishes an airline creation or update event to Nostr.
  */
 export async function publishAirline(airline: Omit<Airline, 'pubkey' | 'brandScore' | 'balance' | 'tier'>): Promise<NDKEvent> {
+    ensureConnected();
     const ndk = getNDK();
 
     if (!ndk.signer) {
-        throw new Error("No signer available. Call setupSigner() first.");
+        throw new Error("No signer available. Call attachSigner() first.");
     }
 
     const event = new NDKEvent(ndk);
@@ -36,6 +37,7 @@ export async function publishAirline(airline: Omit<Airline, 'pubkey' | 'brandSco
  * Tries to fetch an existing airline configuration for the given pubkey.
  */
 export async function loadAirline(pubkey: string): Promise<Airline | null> {
+    ensureConnected();
     const ndk = getNDK();
 
     const filter: NDKFilter = {
@@ -47,17 +49,10 @@ export async function loadAirline(pubkey: string): Promise<Airline | null> {
 
     let event: NDKEvent | null = null;
     try {
-        event = await new Promise<NDKEvent | null>((resolve) => {
-            const timer = setTimeout(() => resolve(null), 3000);
-
-            ndk.fetchEvent(filter).then(e => {
-                clearTimeout(timer);
-                resolve(e);
-            }).catch(() => {
-                clearTimeout(timer);
-                resolve(null);
-            });
-        });
+        event = await Promise.race([
+            ndk.fetchEvent(filter),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
+        ]);
     } catch {
         return null;
     }

@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 
 export function AirlineCreator() {
-    const { createAirline, isKeyConfigured, initializeIdentity, isLoading, error } = useAirlineStore();
+    const { createAirline, identityStatus, initializeIdentity, isLoading, error } = useAirlineStore();
     const homeAirport = useEngineStore(s => s.homeAirport);
     const [name, setName] = useState('');
     const [icao, setIcao] = useState('');
@@ -27,13 +27,28 @@ export function AirlineCreator() {
         });
     };
 
-    if (!isKeyConfigured) {
+    if (identityStatus === 'checking') {
         return (
             <div className="airline-creator">
-                <h2>Welcome to AirTR</h2>
-                <p>We need to configure your Nostr identity to store your airline.</p>
+                <h2>Connecting…</h2>
+                <p>Checking for Nostr extension…</p>
+            </div>
+        );
+    }
+
+    if (identityStatus === 'no-extension') {
+        return (
+            <div className="airline-creator">
+                <h2>Nostr Extension Required</h2>
+                <p>
+                    AirTR uses Nostr for decentralized airline identity.
+                    Install a NIP-07 browser extension to play.
+                </p>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Recommended: <strong>nos2x</strong>, <strong>Alby</strong>, or <strong>Nostr Connect</strong>
+                </p>
                 <button onClick={initializeIdentity} disabled={isLoading}>
-                    {isLoading ? 'Connecting…' : 'Connect Identity'}
+                    {isLoading ? 'Retrying…' : 'Retry Connection'}
                 </button>
                 {error && <p className="error">{error}</p>}
             </div>

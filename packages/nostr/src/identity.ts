@@ -1,47 +1,49 @@
-import { NDKPrivateKeySigner, NDKNip07Signer } from '@nostr-dev-kit/ndk';
+import { NDKNip07Signer } from '@nostr-dev-kit/ndk';
 import { getNDK } from './ndk.js';
 
 /**
- * Attempt to connect to the NIP-07 browser extension for signing.
- * Falls back to generating a new local key signer.
+ * Check if a NIP-07 extension (nos2x, Alby, etc.) is available.
  */
-export async function setupSigner(): Promise<boolean> {
-    const ndk = getNDK();
-
-    // Check if NIP-07 extension is available
-    if (typeof window !== 'undefined' && (window as any).nostr) {
-        try {
-            const nip07Signer = new NDKNip07Signer();
-            ndk.signer = nip07Signer;
-            return true; // Extension used
-        } catch (e) {
-            console.warn("Failed connecting to NIP-07 extension. Falling back to generated keys.", e);
-        }
-    }
-
-    // Generate or load local keys
-    let tempSigner: NDKPrivateKeySigner;
-    const storedKey = typeof window !== 'undefined' ? window.localStorage.getItem('airtr_dev_privkey') : null;
-
-    if (storedKey) {
-        tempSigner = new NDKPrivateKeySigner(storedKey);
-    } else {
-        tempSigner = NDKPrivateKeySigner.generate();
-        if (typeof window !== 'undefined' && tempSigner.privateKey) {
-            window.localStorage.setItem('airtr_dev_privkey', tempSigner.privateKey);
-        }
-    }
-
-    ndk.signer = tempSigner;
-    return false; // Local keys generated/loaded
+export function hasNip07(): boolean {
+    return typeof window !== 'undefined' && typeof (window as any).nostr?.getPublicKey === 'function';
 }
 
 /**
- * Returns the active user's pubkey, or undefined if no signer is set.
+ * Get the current user's pubkey from the NIP-07 extension.
+ * 
+ * This calls window.nostr.getPublicKey() directly with a timeout
+ * to avoid the NDKNip07Signer caching issue where .user() caches
+ * _userPromise and never re-checks after identity switches.
+ * 
+ * Returns the hex pubkey, or null if unavailable/timeout.
  */
-export async function getUserPubkey(): Promise<string | undefined> {
+export async function getPubkey(): Promise<string | null> {
+    if (!hasNip07()) return null;
+
+    try {
+        const pubkey = await Promise.race([
+            (window as any).nostr.getPublicKey() as Promise<string>,
+            new Promise<null>((_, reject) =>
+                setTimeout(() => reject(new Error('NIP-07 timeout')), 4000)
+            ),
+        ]);
+        return pubkey ?? null;
+    } catch (e) {
+        console.warn('NIP-07 getPublicKey failed:', e);
+        return null;
+    }
+}
+
+/**
+ * Attach the NIP-07 signer to NDK for event signing.
+ * Must be called after confirming NIP-07 is available.
+ * 
+ * We create a NEW signer each time to avoid the cached _userPromise
+ * issue when users switch identities in their extension.
+ */
+export function attachSigner(): void {
+    if (!hasNip07()) return;
     const ndk = getNDK();
-    if (!ndk.signer) return undefined;
-    const user = await ndk.signer.user();
-    return user?.pubkey;
+    // Always create a fresh signer to avoid cached identity
+    ndk.signer = new NDKNip07Signer(4000);
 }
