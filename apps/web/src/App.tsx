@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   calculateDemand,
   getProsperityIndex,
@@ -23,6 +23,10 @@ const AIRPORTS: Airport[] = [
   { id: '2650', name: 'Ministro Pistarini', iata: 'EZE', icao: 'SAEZ', latitude: -34.8222, longitude: -58.5358, altitude: 67, timezone: 'America/Argentina/Buenos_Aires', country: 'AR', city: 'Buenos Aires', population: 3_075_646, gdpPerCapita: 13_650, tags: ['general'] },
   { id: '2816', name: 'El Dorado Intl', iata: 'BOG', icao: 'SKBO', latitude: 4.70159, longitude: -74.1469, altitude: 8361, timezone: 'America/Bogota', country: 'CO', city: 'Bogotá', population: 7_412_566, gdpPerCapita: 6_104, tags: ['general'] },
   { id: '2762', name: 'Arturo Merino Benítez', iata: 'SCL', icao: 'SCEL', latitude: -33.393, longitude: -70.7858, altitude: 1555, timezone: 'America/Santiago', country: 'CL', city: 'Santiago', population: 6_310_000, gdpPerCapita: 15_356, tags: ['general'] },
+  { id: '2851', name: 'Jorge Chávez Intl', iata: 'LIM', icao: 'SPJC', latitude: -12.0219, longitude: -77.1143, altitude: 113, timezone: 'America/Lima', country: 'PE', city: 'Lima', population: 10_391_000, gdpPerCapita: 6_977, tags: ['general'] },
+  { id: '2599', name: 'Tocumen Intl', iata: 'PTY', icao: 'MPTO', latitude: 9.0714, longitude: -79.3835, altitude: 135, timezone: 'America/Panama', country: 'PA', city: 'Panama City', population: 1_673_000, gdpPerCapita: 14_617, tags: ['business'] },
+  { id: '2851', name: 'José María Córdova', iata: 'MDE', icao: 'SKRG', latitude: 6.16454, longitude: -75.4231, altitude: 6955, timezone: 'America/Bogota', country: 'CO', city: 'Medellín', population: 2_569_000, gdpPerCapita: 6_104, tags: ['general'] },
+  { id: '2835', name: 'Rafael Núñez Intl', iata: 'CTG', icao: 'SKCG', latitude: 10.4424, longitude: -75.513, altitude: 4, timezone: 'America/Bogota', country: 'CO', city: 'Cartagena', population: 1_028_736, gdpPerCapita: 6_104, tags: ['beach'] },
 
   // Europe
   { id: '507', name: 'Heathrow', iata: 'LHR', icao: 'EGLL', latitude: 51.4706, longitude: -0.461941, altitude: 83, timezone: 'Europe/London', country: 'GB', city: 'London', population: 8_982_000, gdpPerCapita: 46_510, tags: ['business'] },
@@ -52,21 +56,38 @@ interface RouteData {
 interface UserLocation {
   latitude: number;
   longitude: number;
-  source: 'gps' | 'timezone' | 'default';
+  source: 'gps' | 'timezone' | 'manual';
 }
 
-/** Estimate user location from timezone offset as fallback */
-function estimateLocationFromTimezone(): UserLocation {
+/**
+ * Use the IANA timezone name (e.g. "America/Bogota") to find
+ * the best matching airport. This is WAY more precise than UTC offset
+ * because Bogotá and New York share UTC-5 but have different IANA names.
+ */
+function findAirportByTimezone(): Airport | null {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Exact match on IANA timezone
+    const exact = AIRPORTS.find(a => a.timezone === tz);
+    if (exact) return exact;
+
+    // Try matching the city part of the timezone (e.g. "Bogota" from "America/Bogota")
+    const tzCity = tz.split('/').pop()?.replace(/_/g, ' ').toLowerCase();
+    if (tzCity) {
+      const cityMatch = AIRPORTS.find(a => a.city.toLowerCase() === tzCity);
+      if (cityMatch) return cityMatch;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fallback: estimate location from UTC offset */
+function estimateLocationFromOffset(): UserLocation {
   const offsetMinutes = new Date().getTimezoneOffset();
-  // Rough longitude estimate from UTC offset (15° per hour)
   const longitude = -(offsetMinutes / 60) * 15;
-  // Rough latitude based on common assumptions
-  // Most population lives between 20°N and 50°N
-  const latitude = longitude > -100 && longitude < -30 ? 20 : // Americas → ~20°N
-    longitude > -15 && longitude < 40 ? 45 :   // Europe → ~45°N
-      longitude > 40 && longitude < 80 ? 30 :    // Middle East/South Asia → ~30°N
-        longitude > 80 && longitude < 150 ? 35 :   // East Asia → ~35°N
-          30;                                         // fallback
+  const latitude = 30; // rough global average
   return { latitude, longitude, source: 'timezone' };
 }
 
@@ -89,7 +110,6 @@ function generateRoutes(home: Airport, tick: number): RouteData[] {
   const now = new Date();
   const prosperity = getProsperityIndex(tick);
 
-  // Find closest airports and farthest airports — mix of short/medium/long
   const others = AIRPORTS
     .filter(a => a.iata !== home.iata)
     .map(a => ({
@@ -100,34 +120,130 @@ function generateRoutes(home: Airport, tick: number): RouteData[] {
 
   // Pick: 2 short-haul, 2 medium, 2 long-haul
   const picks: Airport[] = [];
-  if (others.length >= 2) picks.push(others[0].airport, others[1].airport); // closest
-  if (others.length >= 6) picks.push(others[Math.floor(others.length * 0.4)].airport, others[Math.floor(others.length * 0.5)].airport); // medium
-  if (others.length >= 4) picks.push(others[others.length - 2].airport, others[others.length - 1].airport); // farthest
+  if (others.length >= 2) picks.push(others[0].airport, others[1].airport);
+  const midIdx = Math.floor(others.length * 0.4);
+  const midIdx2 = Math.floor(others.length * 0.5);
+  if (others.length >= 6) picks.push(others[midIdx].airport, others[midIdx2].airport);
+  if (others.length >= 4) picks.push(others[others.length - 2].airport, others[others.length - 1].airport);
 
   return picks.map(dest => {
     const season = getSeason(dest.latitude, now);
     const distance = haversineDistance(home.latitude, home.longitude, dest.latitude, dest.longitude);
     const demand = calculateDemand(home, dest, season, prosperity);
-
-    // Revenue estimate: realistic fares scale with distance
-    const avgFarePerKm = 0.12; // ~$0.12/km average yield
+    const avgFarePerKm = 0.12;
     const baseFare = Math.max(80, Math.round(distance * avgFarePerKm));
     const totalPax = demand.economy + demand.business + demand.first;
     const estimatedDailyRevenue = fpScale(fp(baseFare), totalPax / 7);
-
     return { origin: home, destination: dest, distance, demand, estimatedDailyRevenue, season };
   });
 }
+
+// --- Hub Picker Component ---
+
+function HubPicker({
+  currentHub,
+  onSelect,
+}: {
+  currentHub: Airport;
+  onSelect: (airport: Airport) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && inputRef.current) inputRef.current.focus();
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!search) return AIRPORTS;
+    const q = search.toLowerCase();
+    return AIRPORTS.filter(
+      a =>
+        a.iata.toLowerCase().includes(q) ||
+        a.city.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.country.toLowerCase().includes(q),
+    );
+  }, [search]);
+
+  if (!open) {
+    return (
+      <button
+        className="hub-change-btn"
+        onClick={() => setOpen(true)}
+        title="Change your hub airport"
+        id="hub-change-btn"
+      >
+        Change hub
+      </button>
+    );
+  }
+
+  return (
+    <div className="hub-picker-overlay" onClick={() => setOpen(false)}>
+      <div className="hub-picker" onClick={e => e.stopPropagation()}>
+        <div className="hub-picker-header">
+          <h2>Choose Your Hub Airport</h2>
+          <button className="hub-picker-close" onClick={() => setOpen(false)}>✕</button>
+        </div>
+        <input
+          ref={inputRef}
+          className="hub-picker-search"
+          type="text"
+          placeholder="Search by city, IATA code, or airport name..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          id="hub-search-input"
+        />
+        <div className="hub-picker-list">
+          {filtered.map(airport => (
+            <button
+              key={airport.iata}
+              className={`hub-picker-item ${airport.iata === currentHub.iata ? 'active' : ''}`}
+              onClick={() => {
+                onSelect(airport);
+                setOpen(false);
+                setSearch('');
+              }}
+              id={`hub-pick-${airport.iata}`}
+            >
+              <span className="hub-picker-iata">{airport.iata}</span>
+              <span className="hub-picker-info">
+                <span className="hub-picker-city">{airport.city}</span>
+                <span className="hub-picker-name">{airport.name}</span>
+              </span>
+              <span className="hub-picker-country">{airport.country}</span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="hub-picker-empty">No airports match "{search}"</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Main App ---
 
 function App() {
   const [tick, setTick] = useState(0);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [homeAirport, setHomeAirport] = useState<Airport | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
-  const [locationError, setLocationError] = useState(false);
+  const [locationMethod, setLocationMethod] = useState<string>('');
 
-  // Detect user location
+  // Detect user location — try GPS, then IANA timezone, then UTC offset
   useEffect(() => {
+    const setHub = (airport: Airport, loc: UserLocation, method: string) => {
+      setUserLocation(loc);
+      setHomeAirport(airport);
+      setRoutes(generateRoutes(airport, 0));
+      setLocationMethod(method);
+    };
+
+    // Strategy 1: Try GPS
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -136,28 +252,42 @@ function App() {
             longitude: pos.coords.longitude,
             source: 'gps',
           };
-          setUserLocation(loc);
           const home = findNearestAirport(loc.latitude, loc.longitude);
-          setHomeAirport(home);
-          setRoutes(generateRoutes(home, 0));
+          setHub(home, loc, 'GPS');
         },
         () => {
-          // Geolocation denied or failed — use timezone fallback
-          setLocationError(true);
-          const loc = estimateLocationFromTimezone();
-          setUserLocation(loc);
-          const home = findNearestAirport(loc.latitude, loc.longitude);
-          setHomeAirport(home);
-          setRoutes(generateRoutes(home, 0));
+          // GPS failed — try IANA timezone
+          const tzAirport = findAirportByTimezone();
+          if (tzAirport) {
+            const loc: UserLocation = {
+              latitude: tzAirport.latitude,
+              longitude: tzAirport.longitude,
+              source: 'timezone',
+            };
+            setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
+          } else {
+            // Last resort: UTC offset
+            const loc = estimateLocationFromOffset();
+            const home = findNearestAirport(loc.latitude, loc.longitude);
+            setHub(home, loc, 'UTC offset (imprecise)');
+          }
         },
-        { timeout: 5000 },
+        { timeout: 3000 },
       );
     } else {
-      const loc = estimateLocationFromTimezone();
-      setUserLocation(loc);
-      const home = findNearestAirport(loc.latitude, loc.longitude);
-      setHomeAirport(home);
-      setRoutes(generateRoutes(home, 0));
+      const tzAirport = findAirportByTimezone();
+      if (tzAirport) {
+        const loc: UserLocation = {
+          latitude: tzAirport.latitude,
+          longitude: tzAirport.longitude,
+          source: 'timezone',
+        };
+        setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
+      } else {
+        const loc = estimateLocationFromOffset();
+        const home = findNearestAirport(loc.latitude, loc.longitude);
+        setHub(home, loc, 'UTC offset');
+      }
     }
   }, []);
 
@@ -173,6 +303,18 @@ function App() {
     }, 3000);
     return () => clearInterval(interval);
   }, [homeAirport]);
+
+  // Manual hub change
+  const handleHubChange = (airport: Airport) => {
+    setHomeAirport(airport);
+    setUserLocation({
+      latitude: airport.latitude,
+      longitude: airport.longitude,
+      source: 'manual',
+    });
+    setLocationMethod('manual selection');
+    setRoutes(generateRoutes(airport, tick));
+  };
 
   const prosperity = getProsperityIndex(tick);
   const season = userLocation ? getSeason(userLocation.latitude, new Date()) : 'winter';
@@ -219,12 +361,12 @@ function App() {
           </h1>
           <p className="hero-subtitle">
             {homeAirport.name}, {homeAirport.city}.
-            {userLocation.source === 'gps' ? ' Located via GPS.' : ' Estimated from timezone.'}
-            {locationError && ' (Enable location for exact airport)'}
             <br />
-            It's <strong>{season}</strong> here.
-            The gravity engine is computing demand for {routes.length} routes from your hub.
+            Detected via {locationMethod}.
+            <br />
+            It's <strong>{season}</strong> here — {routes.length} routes computing.
           </p>
+          <HubPicker currentHub={homeAirport} onSelect={handleHubChange} />
         </section>
 
         <section className="engine-demo fade-in fade-in-delay-1">
@@ -295,10 +437,8 @@ function App() {
               <span className="ticker-value info">{AIRPORTS.length} loaded</span>
             </div>
             <div className="ticker-item">
-              <span className="ticker-label">Location</span>
-              <span className="ticker-value accent">
-                {userLocation.latitude.toFixed(1)}°, {userLocation.longitude.toFixed(1)}°
-              </span>
+              <span className="ticker-label">Hub</span>
+              <span className="ticker-value accent">{homeAirport.iata}</span>
             </div>
             <div className="ticker-item">
               <span className="ticker-label">Engine</span>
