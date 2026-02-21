@@ -34,9 +34,10 @@ export interface AirlineState {
     // Actions
     initializeIdentity: () => Promise<void>;
     createAirline: (params: Omit<Airline, 'pubkey' | 'brandScore' | 'balance' | 'tier'>) => Promise<void>;
+    updateHub: (newHubIata: string) => Promise<void>;
 }
 
-export const useAirlineStore = create<AirlineState>((set) => ({
+export const useAirlineStore = create<AirlineState>((set, get) => ({
     airline: null,
     pubkey: null,
     identityStatus: 'checking',
@@ -110,6 +111,30 @@ export const useAirlineStore = create<AirlineState>((set) => ({
             set({ airline: newAirline, pubkey, isLoading: false });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
+        }
+    },
+
+    updateHub: async (newHubIata: string) => {
+        const { airline } = get();
+        if (!airline) return;
+
+        const updated = { ...airline, hubIata: newHubIata };
+        set({ airline: updated });
+
+        // Republish to Nostr so the hub change persists
+        try {
+            attachSigner();
+            ensureConnected();
+            await publishAirline({
+                name: updated.name,
+                icaoCode: updated.icaoCode,
+                callsign: updated.callsign,
+                hubIata: updated.hubIata,
+                livery: updated.livery,
+            });
+        } catch (error: any) {
+            console.warn('Failed to publish hub change to Nostr:', error);
+            // Optimistic update already applied — will sync next publish
         }
     },
 }));

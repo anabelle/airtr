@@ -58,7 +58,7 @@ function App() {
   const routes = useEngineStore(s => s.routes);
   const setHub = useEngineStore(s => s.setHub);
   const startEngine = useEngineStore(s => s.startEngine);
-  const { airline, initializeIdentity } = useAirlineStore();
+  const { airline, initializeIdentity, updateHub } = useAirlineStore();
 
   useEffect(() => {
     initializeIdentity();
@@ -137,6 +137,10 @@ function App() {
       { latitude: airport.latitude, longitude: airport.longitude, source: 'manual' },
       'manual selection'
     );
+    // If airline exists, persist hub change to Nostr
+    if (airline) {
+      updateHub(airport.iata);
+    }
   };
 
   const formatPax = (n: number) => n.toLocaleString();
