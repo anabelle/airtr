@@ -204,6 +204,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
   justify-content: center;
   padding: var(--space-3xl) var(--space-xl);
   gap: var(--space-2xl);
@@ -213,8 +214,6 @@ body {
 .hero {
   text-align: center;
   max-width: 640px;
-  position: relative;
-  z-index: 10;
 }
 
 .hero-title {

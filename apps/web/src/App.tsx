@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   calculateDemand,
   getProsperityIndex,
@@ -181,47 +182,60 @@ function HubPicker({
   }
 
   return (
-    <div className="hub-picker-overlay" onClick={() => setOpen(false)}>
-      <div className="hub-picker" onClick={e => e.stopPropagation()}>
-        <div className="hub-picker-header">
-          <h2>Choose Your Hub Airport</h2>
-          <button className="hub-picker-close" onClick={() => setOpen(false)}>✕</button>
-        </div>
-        <input
-          ref={inputRef}
-          className="hub-picker-search"
-          type="text"
-          placeholder="Search by city, IATA code, or airport name..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          id="hub-search-input"
-        />
-        <div className="hub-picker-list">
-          {filtered.map(airport => (
-            <button
-              key={airport.iata}
-              className={`hub-picker-item ${airport.iata === currentHub.iata ? 'active' : ''}`}
-              onClick={() => {
-                onSelect(airport);
-                setOpen(false);
-                setSearch('');
-              }}
-              id={`hub-pick-${airport.iata}`}
-            >
-              <span className="hub-picker-iata">{airport.iata}</span>
-              <span className="hub-picker-info">
-                <span className="hub-picker-city">{airport.city}</span>
-                <span className="hub-picker-name">{airport.name}</span>
-              </span>
-              <span className="hub-picker-country">{airport.country}</span>
-            </button>
-          ))}
-          {filtered.length === 0 && (
-            <div className="hub-picker-empty">No airports match "{search}"</div>
-          )}
-        </div>
-      </div>
-    </div>
+    <>
+      <button
+        className="hub-change-btn"
+        onClick={() => setOpen(true)}
+        title="Change your hub airport"
+        id="hub-change-btn"
+      >
+        Change hub
+      </button>
+      {createPortal(
+        <div className="hub-picker-overlay" onClick={() => setOpen(false)}>
+          <div className="hub-picker" onClick={e => e.stopPropagation()}>
+            <div className="hub-picker-header">
+              <h2>Choose Your Hub Airport</h2>
+              <button className="hub-picker-close" onClick={() => setOpen(false)}>✕</button>
+            </div>
+            <input
+              ref={inputRef}
+              className="hub-picker-search"
+              type="text"
+              placeholder="Search by city, IATA code, or airport name..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              id="hub-search-input"
+            />
+            <div className="hub-picker-list">
+              {filtered.map(airport => (
+                <button
+                  key={airport.iata}
+                  className={`hub-picker-item ${airport.iata === currentHub.iata ? 'active' : ''}`}
+                  onClick={() => {
+                    onSelect(airport);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  id={`hub-pick-${airport.iata}`}
+                >
+                  <span className="hub-picker-iata">{airport.iata}</span>
+                  <span className="hub-picker-info">
+                    <span className="hub-picker-city">{airport.city}</span>
+                    <span className="hub-picker-name">{airport.name}</span>
+                  </span>
+                  <span className="hub-picker-country">{airport.country}</span>
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <div className="hub-picker-empty">No airports match "{search}"</div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
