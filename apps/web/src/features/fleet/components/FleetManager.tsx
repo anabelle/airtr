@@ -222,11 +222,31 @@ export function FleetManager() {
                                                 </div>
                                             )}
 
-                                            <div className="flex gap-2 mt-1">
+                                            <div className="flex gap-2 mt-1 w-full">
                                                 {ac.status === 'delivery' && (
                                                     <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-500 border border-yellow-500/20">
                                                         <Timer className="h-4 w-4 animate-spin-slow" />
                                                         Arriving in {Math.max(0, (ac.deliveryAtTick || 0) - tick)} ticks
+                                                    </div>
+                                                )}
+                                                {ac.status === 'enroute' && ac.flight && (
+                                                    <div className="flex-1 flex flex-col gap-1 rounded-lg bg-primary/10 px-3 py-2 border border-primary/20">
+                                                        <div className="flex justify-between items-center text-[10px] font-black uppercase text-primary">
+                                                            <span>Enroute &rarr; {ac.flight.destinationIata}</span>
+                                                            <span>{Math.round(((tick - ac.flight.departureTick) / (ac.flight.arrivalTick - ac.flight.departureTick)) * 100)}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1 bg-primary/20 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-primary"
+                                                                style={{ width: `${Math.max(0, Math.min(100, ((tick - ac.flight.departureTick) / (ac.flight.arrivalTick - ac.flight.departureTick)) * 100))}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {ac.status === 'turnaround' && (
+                                                    <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-500 border border-yellow-500/20">
+                                                        <Timer className="h-4 w-4" />
+                                                        Turnaround: {Math.max(0, (ac.turnaroundEndTick || 0) - tick)} ticks left
                                                     </div>
                                                 )}
                                                 <button className="flex items-center justify-center p-2 rounded-lg bg-background border border-border/50 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors tooltip-trigger" title="Settings" disabled={ac.status === 'delivery'}>

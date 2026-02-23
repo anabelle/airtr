@@ -1,71 +1,106 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { Airport } from '@airtr/core';
+import type { Airport, AircraftInstance } from '@airtr/core';
 
 export interface GlobeProps {
     airports: Airport[];
     selectedAirport: Airport | null;
     onAirportSelect: (airport: Airport | null) => void;
     fleetBaseCounts?: Record<string, number>;
+    fleet?: AircraftInstance[];
+    tick?: number;
+    tickProgress?: number;
     className?: string;
     style?: React.CSSProperties;
 }
 
-export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCounts, className = '', style }: GlobeProps) {
+export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCounts, fleet = [], tick = 0, tickProgress = 0, className = '', style }: GlobeProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
+    const hasInitialFlied = useRef(false);
 
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return;
 
-        // Dark base map from Carto (voyager, positron, dark_matter)
+        // Load saved view state
+        const savedView = localStorage.getItem('airtr_map_view');
+        let initialCenter: [number, number] = [0, 20];
+        let initialZoom = 1.5;
+
+        if (savedView) {
+            try {
+                const { center, zoom } = JSON.parse(savedView);
+                initialCenter = center;
+                initialZoom = zoom;
+                hasInitialFlied.current = true; // Don't override user's saved view with auto-fly
+            } catch (e) {
+                console.warn("Failed to parse saved map view", e);
+            }
+        }
+
         const map = new maplibregl.Map({
             container: mapContainer.current,
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-            center: [0, 20],
-            zoom: 1.5,
-            pitch: 0,
+            center: initialCenter,
+            zoom: initialZoom,
+            pitch: 0
         });
 
-        // Disable double click zoom for better selection UX
         map.doubleClickZoom.disable();
+
+        // Persist view changes
+        const saveView = () => {
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            localStorage.setItem('airtr_map_view', JSON.stringify({
+                center: [center.lng, center.lat],
+                zoom
+            }));
+        };
+
+        map.on('moveend', saveView);
+        map.on('zoomend', saveView);
 
         map.on('load', () => {
             setMapLoaded(true);
+            // ... (Sources and Layers remain same)
 
-            // Add a source for all airports
-            map.addSource('airports', {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: [], // Data injected via effect later
-                },
+            // Sources
+            map.addSource('airports', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource('flights', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource('arcs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+            // Layers: Arcs (Flight Paths)
+            map.addLayer({
+                id: 'arcs-layer',
+                type: 'line',
+                source: 'arcs',
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: {
+                    'line-color': '#e94560',
+                    'line-width': 1,
+                    'line-opacity': 0.3,
+                    'line-dasharray': [2, 2]
+                }
             });
 
-            // Add circle layer for airports
+            // Layers: Airports
             map.addLayer({
                 id: 'airports-layer',
                 type: 'circle',
                 source: 'airports',
                 paint: {
-                    'circle-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        1, 1.5,
-                        6, 4,
-                        10, 8
-                    ],
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 1, 6, 2, 10, 4],
                     'circle-color': '#e94560',
-                    'circle-opacity': 0.8,
+                    'circle-opacity': 0.6,
                     'circle-stroke-width': 0.5,
                     'circle-stroke-color': '#fff'
                 },
             });
 
-            // Add fleet parked icons layer
+            // Layers: Fleet Parked
             map.addLayer({
                 id: 'fleet-layer',
                 type: 'symbol',
@@ -85,63 +120,136 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                 }
             });
 
-            // Add interaction
-            map.on('click', 'airports-layer', (e) => {
-                if (!e.features || e.features.length === 0) return;
-                const feature = e.features[0];
-                // Ensure proper prop type from feature properties
-                const id = feature.properties?.id;
-                if (id) {
-                    // Callback invoked with IATA -> actually, our feature should keep the full property payload
-                    onAirportSelect(feature.properties as unknown as Airport);
+            // Layers: Active Flights (Moving)
+            map.addLayer({
+                id: 'flights-layer',
+                type: 'symbol',
+                source: 'flights',
+                layout: {
+                    'text-field': '✈️',
+                    'text-size': 26,
+                    'text-allow-overlap': true,
+                    'text-ignore-placement': true,
+                    'text-rotate': ['get', 'bearing'],
+                    'text-anchor': 'center'
+                },
+                paint: {
+                    'text-color': '#fff',
+                    'text-halo-color': '#4ade80',
+                    'text-halo-width': 3
                 }
             });
 
-            // Change cursor on hover
-            map.on('mouseenter', 'airports-layer', () => {
-                map.getCanvas().style.cursor = 'pointer';
+            // Add a glow/dot under the plane for better visibility
+            map.addLayer({
+                id: 'flight-glow',
+                type: 'circle',
+                source: 'flights',
+                paint: {
+                    'circle-radius': 14,
+                    'circle-color': '#4ade80',
+                    'circle-opacity': 0.6,
+                    'circle-blur': 1.5
+                }
+            }, 'flights-layer'); // Place below the emoji
+
+            map.on('click', 'airports-layer', (e) => {
+                if (!e.features || e.features.length === 0) return;
+                onAirportSelect(e.features[0].properties as unknown as Airport);
             });
-            map.on('mouseleave', 'airports-layer', () => {
-                map.getCanvas().style.cursor = '';
-            });
+
+            map.on('mouseenter', 'airports-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'airports-layer', () => { map.getCanvas().style.cursor = ''; });
         });
 
         mapRef.current = map;
-
-        return () => {
-            map.remove();
-            mapRef.current = null;
-        };
+        return () => { map.remove(); mapRef.current = null; };
     }, []);
 
-    // Sync airport data into MapLibre
+    // Sync airports & Arcs (Now reactive to full fleet state)
     useEffect(() => {
         if (!mapLoaded || !mapRef.current) return;
         const map = mapRef.current;
 
-        const geojson: GeoJSON.FeatureCollection = {
+        const airportGeojson: GeoJSON.FeatureCollection = {
             type: 'FeatureCollection',
             features: airports.map((a) => ({
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] },
-                properties: {
-                    ...a,
-                    fleetCount: fleetBaseCounts?.[a.iata] || 0
-                }, // Spread all properties so select works
+                properties: { ...a, fleetCount: fleetBaseCounts?.[a.iata] || 0 },
             })),
         };
 
-        const source = map.getSource('airports') as maplibregl.GeoJSONSource;
-        if (source) {
-            source.setData(geojson);
-        }
-    }, [airports, mapLoaded, fleetBaseCounts]);
+        const arcFeatures: GeoJSON.Feature[] = [];
+        fleet.forEach(ac => {
+            if (ac.status === 'enroute' && ac.flight) {
+                const origin = airports.find(a => a.iata === ac.flight?.originIata);
+                const dest = airports.find(a => a.iata === ac.flight?.destinationIata);
+                if (origin && dest) {
+                    arcFeatures.push({
+                        type: 'Feature',
+                        geometry: { type: 'LineString', coordinates: [[origin.longitude, origin.latitude], [dest.longitude, dest.latitude]] },
+                        properties: {}
+                    });
+                }
+            }
+        });
 
-    // Sync selection
+        (map.getSource('airports') as maplibregl.GeoJSONSource)?.setData(airportGeojson);
+        (map.getSource('arcs') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: arcFeatures });
+    }, [airports, mapLoaded, fleetBaseCounts, fleet]); // FULL fleet dependency
+
+    // REAL-TIME MOVEMENT (Smooth interpolation)
     useEffect(() => {
-        if (!mapLoaded || !mapRef.current) return;
-        // Potentially draw a highlight or fly to
-        // Not implementing fly-to here to avoid forced camera hijack, just an example
+        if (!mapLoaded || !mapRef.current || !fleet.length) return;
+        const map = mapRef.current;
+
+        const flightFeatures = fleet
+            .filter(ac => ac.status === 'enroute' && ac.flight)
+            .map(ac => {
+                const f = ac.flight!;
+                const origin = airports.find(a => a.iata === f.originIata);
+                const dest = airports.find(a => a.iata === f.destinationIata);
+                if (!origin || !dest) return null;
+
+                const duration = Math.max(1, f.arrivalTick - f.departureTick);
+                const elapsed = (tick - f.departureTick) + tickProgress;
+                const progress = Math.max(0, Math.min(1, elapsed / duration));
+
+                // Great Circle is complex, keeping linear but ensuring anti-meridian safety
+                let dLng = dest.longitude - origin.longitude;
+                if (dLng > 180) dLng -= 360;
+                if (dLng < -180) dLng += 360;
+
+                const lng = origin.longitude + dLng * progress;
+                const lat = origin.latitude + (dest.latitude - origin.latitude) * progress;
+
+                // Simple bearing
+                const bearing = Math.atan2(dest.latitude - origin.latitude, dLng) * (180 / Math.PI);
+
+                return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [lng, lat] },
+                    properties: { id: ac.id, bearing: bearing + 90 }
+                };
+            })
+            .filter(Boolean) as GeoJSON.Feature[];
+
+        (map.getSource('flights') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: flightFeatures });
+    }, [mapLoaded, fleet, tick, tickProgress, airports]);
+
+    useEffect(() => {
+        if (!mapLoaded || !mapRef.current || !selectedAirport) return;
+
+        if (!hasInitialFlied.current) {
+            hasInitialFlied.current = true;
+            mapRef.current.flyTo({
+                center: [selectedAirport.longitude, selectedAirport.latitude],
+                zoom: 4.5,
+                essential: true,
+                duration: 2000
+            });
+        }
     }, [selectedAirport, mapLoaded]);
 
     return (

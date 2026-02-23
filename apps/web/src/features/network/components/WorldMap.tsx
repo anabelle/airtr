@@ -6,6 +6,8 @@ import { useMemo } from 'react';
 
 export function WorldMap() {
     const homeAirport = useEngineStore(s => s.homeAirport);
+    const tick = useEngineStore(s => s.tick);
+    const tickProgress = useEngineStore(s => s.tickProgress);
     const setHub = useEngineStore(s => s.setHub);
     const { airline, updateHub, fleet } = useAirlineStore();
 
@@ -41,6 +43,9 @@ export function WorldMap() {
                 selectedAirport={homeAirport}
                 onAirportSelect={handleHubChange}
                 fleetBaseCounts={fleetBaseCounts}
+                fleet={fleet}
+                tick={tick}
+                tickProgress={tickProgress}
             />
             {/* Map vignette overlay */}
             <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] z-10" />

@@ -1,9 +1,8 @@
 // ============================================================
-// @airtr/core — Type Definitions
-// ============================================================
-// These types are the PUBLIC CONTRACT of this package.
-// See CONTRACT.md before modifying any export.
-// ============================================================
+// --- Constants ---
+export const GENESIS_TIME = 1740333600000;
+export const TICK_DURATION = 3000; // ms
+export const TICKS_PER_HOUR = 3600 / (TICK_DURATION / 1000); // 1200 ticks per hour
 
 // --- Fixed-Point Financial Type ---
 
@@ -108,16 +107,30 @@ export interface AircraftModel {
     deliveryTimeTicks: number;
 }
 
+export interface FlightState {
+    originIata: string;
+    destinationIata: string;
+    departureTick: number;
+    arrivalTick: number;
+    direction: 'outbound' | 'inbound';
+}
+
 export interface AircraftInstance {
     id: string;               // Unique universally
     ownerPubkey: string;      // The airline's Nostr pubkey
     modelId: string;          // Reference to AircraftModel.id
     name: string;             // User-assigned name
-    status: 'idle' | 'assigned' | 'maintenance' | 'delivery'; // 'delivery' added
+    status: 'idle' | 'enroute' | 'turnaround' | 'maintenance' | 'delivery';
     assignedRouteId: string | null;
-    baseAirportIata: string;  // Where the aircraft is physically parked
+    baseAirportIata: string;  // Where the aircraft is physically parked (Last or current)
     purchasedAtTick: number;
     deliveryAtTick?: number;  // When it arrives at truth
+
+    // Flight state
+    flight: FlightState | null;
+    lastTickProcessed?: number;
+    turnaroundEndTick?: number;
+    arrivalTickProcessed?: number;
 
     // Acquisition
     purchaseType: 'buy' | 'lease';

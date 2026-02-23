@@ -6,6 +6,8 @@ import {
     getSeason,
     fpScale,
     fp,
+    GENESIS_TIME,
+    TICK_DURATION,
 } from '@airtr/core';
 import type { Airport, Season, FixedPoint } from '@airtr/core';
 import { airports as AIRPORTS } from '@airtr/data';
@@ -57,18 +59,7 @@ function generateRoutes(home: Airport, tick: number): RouteData[] {
     });
 }
 
-// --- Universal Clock Configuration ---
-const env = (import.meta as any).env;
-
-/** 
- * Launch Epoch: When the simulation first started. 
- */
-const GENESIS_TIME = env?.VITE_GENESIS_TIME ? parseInt(env.VITE_GENESIS_TIME, 10) : 1740333600000;
-
-/** 
- * How many milliseconds represent 1 simulation "tick". 
- */
-const TICK_DURATION = env?.VITE_TICK_DURATION ? parseInt(env.VITE_TICK_DURATION, 10) : 3000;
+// --- Universal Clock Configuration is now handled in @airtr/core ---
 
 function calculateGlobalTick(): number {
     const now = Date.now();

@@ -3,6 +3,12 @@
 // ============================================================
 
 // Types
+export {
+    GENESIS_TIME,
+    TICK_DURATION,
+    TICKS_PER_HOUR,
+} from './types.js';
+
 export type {
     FixedPoint,
     Airport,
