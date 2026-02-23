@@ -11,6 +11,8 @@ import {
     publishAirline,
     publishUsedAircraft,
     loadMarketplace,
+    NDKEvent,
+    getNDK,
     type AirlineConfig
 } from '@airtr/nostr';
 import { useEngineStore } from './engine';
@@ -43,6 +45,7 @@ export interface AirlineState {
     updateHub: (newHubIata: string) => Promise<void>;
     purchaseAircraft: (model: AircraftModel, deliveryHubIata?: string, configuration?: { economy: number; business: number; first: number; cargoKg: number; }, customName?: string) => Promise<void>;
     sellAircraft: (aircraftId: string) => Promise<void>;
+    purchaseUsedAircraft: (listing: any) => Promise<void>;
     processTick: (tick: number) => void;
 }
 
@@ -288,8 +291,90 @@ export const useAirlineStore = create<AirlineState>((set, get) => ({
             console.error('Failed to sync aircraft selling or marketplace listing to Nostr:', e);
             alert("Failed to sync sale to Nostr. The local state is updated, but the global marketplace listing may be missing.");
         }
+    },
 
+    purchaseUsedAircraft: async (listing: any) => {
+        const { airline, pubkey, fleet } = get();
+        if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
+        const price = listing.marketplacePrice;
+        if (airline.corporateBalance < price) {
+            throw new Error(`Insufficient corporate balance to purchase this aircraft.`);
+        }
+
+        const engineStore = useEngineStore.getState();
+        const homeAirport = engineStore.homeAirport;
+        const targetHubIata = homeAirport?.iata || (airline.hubs.length > 0 ? airline.hubs[0] : null);
+
+        if (!targetHubIata) {
+            throw new Error("You must establish a Hub airport before purchasing aircraft.");
+        }
+
+        // 1. Prepare the instance for its new life
+        const newInstanceId = `ac-resale-${Date.now().toString(36)}`;
+        const newInstance: AircraftInstance = {
+            ...listing,
+            id: newInstanceId,
+            ownerPubkey: pubkey,
+            status: 'delivery',
+            baseAirportIata: targetHubIata,
+            purchasedAtTick: engineStore.tick,
+            deliveryAtTick: engineStore.tick + 20,
+        };
+
+        // Remove marketplace metadata
+        delete (newInstance as any).marketplacePrice;
+        delete (newInstance as any).listedAt;
+        delete (newInstance as any).sellerPubkey;
+        delete (newInstance as any).isOptimistic;
+        delete (newInstance as any).source;
+
+        const updatedBalance = fpSub(airline.corporateBalance, price);
+        const updatedAirline = {
+            ...airline,
+            corporateBalance: updatedBalance,
+            fleetIds: [...airline.fleetIds, newInstance.id]
+        };
+
+        const updatedFleet = [...fleet, newInstance];
+
+        set({
+            airline: updatedAirline,
+            fleet: updatedFleet
+        });
+
+        // 2. Persist state to Nostr
+        try {
+            console.info('[Marketplace] Purchasing used aircraft...', newInstance.id);
+            attachSigner();
+            ensureConnected();
+
+            // A. Update airline fleet and balance
+            await publishAirline({
+                name: updatedAirline.name,
+                icaoCode: updatedAirline.icaoCode,
+                callsign: updatedAirline.callsign,
+                hubs: updatedAirline.hubs,
+                livery: updatedAirline.livery,
+                corporateBalance: updatedAirline.corporateBalance,
+                fleet: updatedFleet,
+                lastTick: engineStore.tick,
+            });
+
+            // B. Deletion request for the marketplace listing (Kind 5)
+            const eventIdToDelete = listing.id;
+            if (eventIdToDelete && !eventIdToDelete.startsWith('local-')) {
+                const ndk = getNDK();
+                const deletionEvent = new NDKEvent(ndk);
+                deletionEvent.kind = 5;
+                deletionEvent.tags = [['e', eventIdToDelete]];
+                deletionEvent.content = "Aircraft Sold (AirTR Marketplace)";
+                await deletionEvent.publish();
+                console.info('[Marketplace] Listing deleted from Network.');
+            }
+        } catch (e) {
+            console.error('Failed to sync purchase to Nostr:', e);
+        }
     },
 
     processTick: (tick: number) => {

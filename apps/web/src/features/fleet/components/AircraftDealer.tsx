@@ -13,6 +13,20 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     const [selectedModel, setSelectedModel] = useState<AircraftModel | null>(null);
     const [usedListings, setUsedListings] = useState<any[]>([]);
     const [isLoadingUsed, setIsLoadingUsed] = useState(false);
+    const purchaseUsed = useAirlineStore(state => state.purchaseUsedAircraft);
+
+    const handleBuyUsed = async (listing: any) => {
+        if (!confirm(`Are you sure you want to purchase this used aircraft for ${fpFormat(listing.marketplacePrice, 0)}?`)) return;
+
+        try {
+            await purchaseUsed(listing);
+            alert('Aircraft purchased successfully! It is now being delivered to your hub.');
+            fetchUsed(); // Refresh the list
+            if (onPurchaseSuccess) onPurchaseSuccess();
+        } catch (e: any) {
+            alert(`Purchase failed: ${e.message}`);
+        }
+    };
 
     const filteredFactory = useMemo(() => {
         let list = aircraftModels;
@@ -32,26 +46,44 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
 
     const fetchUsed = async () => {
         setIsLoadingUsed(true);
+        console.log('[AircraftDealer] fetchUsed triggered');
         try {
             const listings = await loadMarketplace();
+            console.log(`[AircraftDealer] fetchUsed raw count: ${listings.length}`);
+            listings.forEach(l => {
+                const model = getAircraftById(l.modelId);
+                console.log(` - Listing ${l.instanceId}: Model ${l.modelId} (${model ? 'Found' : 'NOT FOUND'})`);
+            });
             setUsedListings(listings);
         } catch (e) {
-            console.error(e);
+            console.error('[AircraftDealer] fetchUsed error:', e);
         } finally {
             setIsLoadingUsed(false);
         }
     };
 
     const filteredUsed = useMemo(() => {
+        let list = usedListings;
+
+        // Tier filter
+        if (selectedTier && selectedTier !== 'all') {
+            list = list.filter(l => {
+                const model = getAircraftById(l.modelId);
+                return model?.unlockTier === selectedTier;
+            });
+        }
+
+        // Search filter
         if (search) {
             const q = search.toLowerCase();
-            return usedListings.filter(l =>
+            list = list.filter(l =>
                 l.modelId.toLowerCase().includes(q) ||
                 l.name.toLowerCase().includes(q)
             );
         }
-        return usedListings;
-    }, [search, usedListings]);
+
+        return list;
+    }, [search, usedListings, selectedTier]);
 
     return (
         <div className="flex flex-col h-full space-y-6">
@@ -148,7 +180,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
                                 <UsedAircraftCard
                                     key={listing.id}
                                     listing={listing}
-                                    onBuy={() => alert('Used purchase flow coming soon! This would transfer funds and update fleet.')}
+                                    onBuy={() => handleBuyUsed(listing)}
                                 />
                             ))
                         ) : (
@@ -262,7 +294,7 @@ function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel, onSelec
 }
 
 // ...
-function UsedAircraftCard({ listing, onBuy }: { listing: AircraftInstance & { marketplacePrice: FixedPoint, sellerPubkey: string, isOptimistic?: boolean }, onBuy: () => void }) {
+function UsedAircraftCard({ listing, onBuy }: { listing: AircraftInstance & { marketplacePrice: FixedPoint, sellerPubkey: string }, onBuy: () => void }) {
     const model = getAircraftById(listing.modelId);
     if (!model) return null;
 
@@ -273,7 +305,7 @@ function UsedAircraftCard({ listing, onBuy }: { listing: AircraftInstance & { ma
             <div className={`h-28 w-full bg-gradient-to-br ${bgGradient} relative flex items-center justify-center border-b border-orange-500/10`}>
                 <div className="absolute top-3 left-3 flex gap-2">
                     <span className="inline-flex items-center rounded-full bg-orange-500/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-orange-400 border border-orange-500/20 uppercase">
-                        {listing.isOptimistic ? 'Syncing...' : 'Used'}
+                        Used
                     </span>
                     <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/50">
                         Tier {model.unlockTier}
