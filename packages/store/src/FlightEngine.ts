@@ -1,6 +1,5 @@
 import {
     AircraftInstance,
-    AirlineEntity,
     Route,
     fpAdd,
     fpSub,
@@ -39,7 +38,7 @@ export function processFlightEngine(
 
 
     // 1. Process each aircraft
-    for (const [id, ac] of updatedFleetMap) {
+    for (const ac of updatedFleetMap.values()) {
         // Optimization: Already processed this tick?
         if (ac.lastTickProcessed === tick) continue;
         ac.lastTickProcessed = tick;

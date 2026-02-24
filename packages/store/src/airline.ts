@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AirlineEntity, AircraftInstance, AircraftModel, Route, FixedPoint } from '@airtr/core';
+import type { AirlineEntity, AircraftInstance, AircraftModel, Route } from '@airtr/core';
 import {
     fp,
     fpSub,
@@ -7,10 +7,6 @@ import {
     calculateBookValue,
     fpScale,
     fpFormat,
-    calculateFlightRevenue,
-    calculateFlightCost,
-    TICKS_PER_HOUR,
-    TICK_DURATION,
     GENESIS_TIME
 } from '@airtr/core';
 import { getAircraftById } from '@airtr/data';
@@ -22,7 +18,6 @@ import {
     loadAirline,
     publishAirline,
     publishUsedAircraft,
-    loadMarketplace,
     NDKEvent,
     getNDK,
     type AirlineConfig

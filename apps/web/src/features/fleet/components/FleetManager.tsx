@@ -104,11 +104,10 @@ export function FleetManager() {
                                 <div key={ac.id} className="group relative flex flex-col rounded-3xl border border-border/50 bg-card overflow-hidden shadow-sm hover:shadow-xl hover:border-primary/30 transition-all duration-300">
                                     <div className="relative h-40 bg-zinc-900/40 p-6 perspective-1000 overflow-hidden">
                                         <div className="absolute top-4 right-4 z-10">
-                                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${ac.status === 'idle' ? 'bg-primary/20 text-primary border border-primary/30' :
-                                                ac.status === 'assigned' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                                                    'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${ac.status === 'idle' ? (ac.assignedRouteId ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-primary/20 text-primary border border-primary/30') :
+                                                'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                                                 }`}>
-                                                {ac.status}
+                                                {ac.status === 'idle' && ac.assignedRouteId ? 'assigned' : ac.status}
                                             </span>
                                         </div>
 
@@ -352,11 +351,10 @@ export function FleetManager() {
                                             )}
                                         </div>
                                         <div className="col-span-1">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter ${ac.status === 'idle' ? 'bg-zinc-500/10 text-zinc-400' :
-                                                ac.status === 'assigned' ? 'bg-blue-500/20 text-blue-400' :
-                                                    'bg-orange-500/20 text-orange-400'
+                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter ${ac.status === 'idle' ? (ac.assignedRouteId ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-500/10 text-zinc-400') :
+                                                'bg-orange-500/20 text-orange-400'
                                                 }`}>
-                                                {ac.status}
+                                                {ac.status === 'idle' && ac.assignedRouteId ? 'assigned' : ac.status}
                                             </span>
                                         </div>
                                         <div className="col-span-2 flex items-center gap-2">
