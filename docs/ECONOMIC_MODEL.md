@@ -81,6 +81,8 @@ prosperityIndex(tick) = 1.0 + 0.15 × sin(2π × tick / TICKS_PER_ECONOMIC_CYCLE
 Where `TICKS_PER_ECONOMIC_CYCLE` = 10,512,000 (one real-world year, assuming 1200 ticks per hour).
 Range: 0.85 (recession) to 1.15 (boom).
 
+**UI Visualization**: SURFACED in the `RouteManager` as the "Global Prosperity Index." Includes a dynamic sentiment indicator (Boom/Recession) and a sparkline visualization to guide strategic expansion.
+
 ### 1.7 Maintenance & Grounding (Tycoon Realism)
 
 Aircraft health directly limits operational capacity.
@@ -91,6 +93,8 @@ Aircraft health directly limits operational capacity.
 | **Hours since check > 600h** | **INTERVAL GROUNDING** | Routine Maintenance (A-Check) |
 
 Grounded aircraft remain `idle` at their current airport and generate a **[SAFETY ALERT]** event in the Operations Ledger once per simulated day until serviced.
+
+**UI Visualization**: SURFACED in the `FleetManager` as a "Maintenance Debt" progress bar for each aircraft, highlighting the risk of grounding as condition approaches 20%.
 
 ---
 
@@ -241,6 +245,7 @@ If any airline prices more than 30% below the route average:
 If total seats offered on a route exceed demand by more than 150%:
 - All airlines on the route receive a load factor penalty of -5%
 - This simulates excess capacity depressing the market
+- **UI Visualization**: SURFACED in the `RouteManager` as the "Supply / Demand Saturation" meter on active route cards. Alerts users when a route is "Over-Supplied."
 
 ### 6.3 Brand Score Evolution
 
@@ -276,6 +281,7 @@ All of the above calculations are:
 - All financial values use **fixed-point arithmetic** (4 decimal places, integer internally).
   See ADR-002.
 - **Time Scale**: 1 Real-World Hour = 1,200 Ticks (1 Tick = 3.0 Seconds). The simulation is 1:1 real-time. All progression is anchored to the global GENESIS_TIME (Unix Epoch).
+- **User Interface Formatting**: To maintain immersion, the unit "Ticks" is **never** shown to the user. All time-durations are displayed in human-readable `minutes:seconds` (e.g., "Ready in 2:45"), and all ledger timestamps use **Relative Time** (e.g., "5m ago").
 - All random values use the **seeded PRNG** (`prng.ts`), seeded by tick number.
 - Distance calculations use the **Haversine formula** (implemented in `@airtr/core`).
 - The tick processor processes ALL airlines simultaneously per tick (hourly).

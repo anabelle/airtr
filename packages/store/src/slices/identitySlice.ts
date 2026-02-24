@@ -24,6 +24,7 @@ export interface IdentitySlice {
     timeline: TimelineEvent[];
     initializeIdentity: () => Promise<void>;
     createAirline: (params: AirlineConfig) => Promise<void>;
+    updateAirlineHubs: (hubs: string[]) => Promise<void>;
 }
 
 export const createIdentitySlice: StateCreator<
@@ -31,7 +32,7 @@ export const createIdentitySlice: StateCreator<
     [],
     [],
     IdentitySlice
-> = (set) => ({
+> = (set, get) => ({
     pubkey: null,
     identityStatus: 'checking',
     isLoading: false,
@@ -142,6 +143,24 @@ export const createIdentitySlice: StateCreator<
             };
 
             set({ airline, isLoading: false, fleet: [], routes: [], timeline: [] });
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    updateAirlineHubs: async (hubs: string[]) => {
+        const { airline, fleet, routes } = get();
+        if (!airline) return;
+
+        set({ isLoading: true });
+        try {
+            const updatedAirline = { ...airline, hubs };
+            await publishAirline({
+                ...updatedAirline,
+                fleet,
+                routes
+            });
+            set({ airline: updatedAirline, isLoading: false });
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
         }

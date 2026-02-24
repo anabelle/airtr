@@ -116,7 +116,7 @@
 | T-092 | Cabin chime sound on route creation | audio | T-009, T-080 |
 | T-093 | Revenue tick sound (cash register) | audio | T-009, T-065 |
 
-**Estimated effort**: 14 tasks, ~3 days with 4 agents. **STATUS: 95% COMPLETE ⚡**
+**Estimated effort**: 14 tasks, ~3 days with 4 agents. **STATUS: 100% COMPLETE ✅**
 
 ---
 
@@ -144,9 +144,9 @@
 | Key Features |
 |-------------|
 | Seasonal demand modulation (summer beach routes, winter ski routes) |
-| Economic cycles (prosperity index oscillation) |
+| Economic cycles (prosperity index oscillation) **(IMPLEMENTED & SURFACED ✅)** |
 | Brand score evolution (performance → reputation) |
-| Market saturation penalties |
+| Market saturation penalties **(IMPLEMENTED & SURFACED ✅)** |
 | Weather integration (Open-Meteo API → delays → cascading disruptions) |
 | Day/night cycle with real terminator line |
 | Airport growth (demand increases based on service quality) |

@@ -1,18 +1,41 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { PanelLayout } from '@/shared/components/layout/PanelLayout';
-import { useAirlineStore } from '@airtr/store';
+import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { fpFormat } from '@airtr/core';
-import { Building2, Landmark, Users, MapPin, Palette } from 'lucide-react';
+import { Building2, Landmark, Users, MapPin, Palette, CheckCircle2 } from 'lucide-react';
 import { AirlineTimeline } from '@/features/airline/components/Timeline';
+import { HubPicker } from '@/features/network/components/HubPicker';
+import type { Airport } from '@airtr/core';
 
 export const Route = createFileRoute('/corporate')({
   component: CorporateDashboard,
 });
 
 function CorporateDashboard() {
-  const { airline } = useAirlineStore();
+  const { airline, updateAirlineHubs } = useAirlineStore();
+  const { homeAirport, setHub } = useEngineStore();
 
   if (!airline) return null;
+
+  const handleAddHub = async (airport: Airport | null) => {
+    if (!airport || airline.hubs.includes(airport.iata)) return;
+    const newHubs = [...airline.hubs, airport.iata];
+    await updateAirlineHubs(newHubs);
+  };
+
+  const handleSwitchActiveHub = (iata: string) => {
+    // Note: In a production app, we would fetch the full Airport object from @airtr/data 
+    // but since we already have the IATA, we can find it.
+    const { airports } = require('@airtr/data');
+    const airport = airports.find((a: any) => a.iata === iata);
+    if (airport) {
+      setHub(
+        airport,
+        { latitude: airport.latitude, longitude: airport.longitude, source: 'manual' },
+        'manual switch'
+      );
+    }
+  };
 
   return (
     <PanelLayout>
@@ -62,17 +85,37 @@ function CorporateDashboard() {
         <div className="space-y-6">
           {/* Hubs Section */}
           <div className="space-y-3">
-            <div className="flex items-center space-x-2 text-muted-foreground px-1">
-              <MapPin className="h-4 w-4" />
-              <span className="text-[10px] uppercase font-bold tracking-wider">Operations Centers (Hubs)</span>
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center space-x-2 text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                <span className="text-[10px] uppercase font-bold tracking-wider">Operations Centers (Hubs)</span>
+              </div>
+              <HubPicker currentHub={null} onSelect={handleAddHub} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {airline.hubs.map((hub) => (
-                <div key={hub} className="rounded-lg border border-border/30 bg-background/30 px-4 py-3 flex items-center justify-between">
-                  <span className="font-mono text-lg font-bold text-primary">{hub}</span>
-                  <span className="text-[10px] uppercase text-muted-foreground font-semibold px-2 py-0.5 rounded border border-border/30 bg-muted/20">Primary</span>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {airline.hubs.map((hub) => {
+                const isActive = homeAirport?.iata === hub;
+                return (
+                  <div key={hub} className={`rounded-lg border p-4 flex items-center justify-between transition-all ${isActive ? 'bg-primary/5 border-primary/40' : 'bg-background/30 border-border/30 grayscale opacity-80'}`}>
+                    <div className="flex items-center space-x-3">
+                      <span className="font-mono text-xl font-black text-foreground">{hub}</span>
+                      {isActive && (
+                        <span className="flex items-center text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> Active Hub
+                        </span>
+                      )}
+                    </div>
+                    {!isActive && (
+                      <button
+                        onClick={() => handleSwitchActiveHub(hub)}
+                        className="text-[10px] font-bold uppercase text-muted-foreground hover:text-foreground hover:bg-white/5 border border-white/10 px-3 py-1.5 rounded transition-all"
+                      >
+                        Establish Here
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

@@ -179,7 +179,7 @@ During a tick:
 6. Increases `flightHoursTotal` and `flightHoursSinceCheck` for the aircraft.
 7. Degrades the aircraft `condition` proportionally to the hours flown.
 
-### 4.2 Maintenance & Grounding Mechanics (IMPLEMENTED ✅)
+### 4.2 Maintenance & Grounding Mechanics (IMPLEMENTED & SURFACED ✅)
 Aircraft are depreciating assets that require constant upkeep. If ignored, they cost you passengers and money.
 
 1. **Condition Degradation**: Every hour flown slightly lowers the `condition` score.
@@ -520,8 +520,9 @@ The user interface must feel premium, aviation-authentic, and highly tactical.
 - **Detailed View**: Full maintenance history, condition report, hours/cycles
 - **Auction System**: Time-limited bidding on bankruptcy liquidations (inspired by AirlineSim's used market)
 
-### 5.4 Performance Analytics Panel
+### 5.4 Performance Analytics Panel (IMPLEMENTED & SURFACED ✅)
 Key metrics visible at a glance (inspired by real airline dashboards):
+- **Last Flight Outcome**: PROFIT/LOSS visualization for each aircraft, pulling data directly from the most recent landing event. (IMPLEMENTED)
 - **CASM vs RASM**: Cost vs Revenue per Available Seat Mile
 - **Break-Even Load Factor**: What % of seats must fill to cover costs
 - **Utilization by Aircraft Type**: Identify underperforming assets
@@ -609,3 +610,8 @@ Key metrics visible at a glance (inspired by real airline dashboards):
 ---
 
 This architecture ensures that if the Nostr relay drops, the local engine handles the state deterministically, and upon reconnection, the true event ledger synchronizes perfectly.
+
+### **Update Checklist (Latest Progress)**
+- [x] **Human-Readable Operations**: Removed "Ticks" from all aircraft statuses, delivery cards, and ledger timestamps.
+- [x] **Visual Maintenance Strategy**: Maintenance debt and grounding thresholds are now exposed as tactical bars.
+- [x] **Per-Plane Profitability**: The "Last Flight Outcome" provides immediate feedback on route performance.

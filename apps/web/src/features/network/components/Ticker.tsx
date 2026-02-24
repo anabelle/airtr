@@ -1,4 +1,4 @@
-import { useEngineStore } from '@airtr/store';
+import { useEngineStore, useAirlineStore } from '@airtr/store';
 import { airports as AIRPORTS } from '@airtr/data';
 import { getProsperityIndex } from '@airtr/core';
 
@@ -7,6 +7,14 @@ export function Ticker() {
     const tick = useEngineStore((s) => s.tick);
     const homeAirport = useEngineStore((s) => s.homeAirport);
     const progress = useEngineStore((s) => s.tickProgress);
+
+    const {
+        competitors,
+        globalFleet,
+        globalRoutes,
+        fleet,
+        routes
+    } = useAirlineStore();
 
     const prosperity = getProsperityIndex(tick);
 
@@ -18,13 +26,13 @@ export function Ticker() {
                 <div className="relative h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_5px_currentColor] shrink-0">
                     <div className="absolute -inset-1 rounded-full bg-primary/20 animate-ping"></div>
                 </div>
-                <span className="font-semibold uppercase tracking-wider text-[10px]">SYNC_LIVE</span>
+                <span className="font-semibold uppercase tracking-wider text-[10px]">Live Data</span>
             </div>
 
             <div className="flex items-center space-x-3 border-r border-border pr-6 min-w-[120px]">
-                <span className="shrink-0 text-[10px] text-muted-foreground/70">EPOCH_TICK</span>
+                <span className="shrink-0 text-[10px] text-muted-foreground/70">Game Time</span>
                 <div className="flex flex-col flex-1">
-                    <span className="text-foreground leading-none mb-1">{tick}</span>
+                    <span className="text-foreground leading-none mb-1">Cycle {tick}</span>
                     <div className="h-0.5 w-full bg-border rounded-full overflow-hidden">
                         <div
                             className="h-full bg-primary transition-all duration-1000 ease-linear"
@@ -35,26 +43,41 @@ export function Ticker() {
             </div>
 
             <div className="flex items-center space-x-2 border-r border-border pr-6">
-                <span>HUB</span>
+                <span>Airlines</span>
+                <span className="text-foreground font-bold">{1 + competitors.size}</span>
+            </div>
+
+            <div className="flex items-center space-x-2 border-r border-border pr-6">
+                <span>Total Planes</span>
+                <span className="text-foreground font-bold">{(fleet?.length || 0) + (globalFleet?.length || 0)}</span>
+            </div>
+
+            <div className="flex items-center space-x-2 border-r border-border pr-6">
+                <span>Active Routes</span>
+                <span className="text-foreground font-bold">{(routes?.length || 0) + (globalRoutes?.length || 0)}</span>
+            </div>
+
+            <div className="flex items-center space-x-2 border-r border-border pr-6">
+                <span>Hub</span>
                 <span className="text-accent">{homeAirport.iata}</span>
             </div>
             <div className="flex items-center space-x-2 border-r border-border pr-6">
-                <span>SEASON</span>
+                <span>Season</span>
                 <span className="text-info text-blue-400 capitalize">{season}</span>
             </div>
             <div className="flex items-center space-x-2 border-r border-border pr-6">
-                <span>G-PROSIdx</span>
+                <span>Market Economy</span>
                 <span className={`font-semibold ${prosperity >= 1 ? 'text-green-500' : 'text-orange-400'}`}>
                     {(prosperity * 100).toFixed(1)}%
                 </span>
             </div>
             <div className="flex items-center space-x-2 border-r border-border pr-6">
-                <span>AIRPORTS</span>
-                <span className="text-foreground">{AIRPORTS.length} DB</span>
+                <span>Database</span>
+                <span className="text-foreground">{AIRPORTS.length} Airports</span>
             </div>
             <div className="flex items-center space-x-2">
-                <span>ENGINE</span>
-                <span className="text-green-500">DETERMINISTIC_OK</span>
+                <span>Status</span>
+                <span className="text-green-500">Normal Operations</span>
             </div>
         </div>
     );

@@ -13,8 +13,20 @@ function estimateLocationFromOffset(): UserLocation {
     return { latitude, longitude, source: 'timezone' };
 }
 
-/** Find the nearest airport to a given location */
+/** Find the best hub near a location (prioritizing population) */
 function findNearestAirport(lat: number, lon: number): Airport {
+    const RADIUS_KM = 150;
+    const candidates = AIRPORTS.filter(airport => {
+        const dist = haversineDistance(lat, lon, airport.latitude, airport.longitude);
+        return dist <= RADIUS_KM;
+    });
+
+    if (candidates.length > 0) {
+        // Sort by population descending
+        return candidates.sort((a, b) => (b.population || 0) - (a.population || 0))[0];
+    }
+
+    // Fallback if no airports within radius: absolute nearest
     let nearest = AIRPORTS[0];
     let minDist = Infinity;
     for (const airport of AIRPORTS) {

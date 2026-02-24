@@ -16,7 +16,7 @@ export interface AirlineState {
     // Actions
     initializeIdentity: () => Promise<void>;
     createAirline: (params: AirlineConfig) => Promise<void>;
-    updateHub: (newHubIata: string) => Promise<void>;
+    updateAirlineHubs: (hubs: string[]) => Promise<void>;
     purchaseAircraft: (model: AircraftModel, deliveryHubIata?: string, configuration?: { economy: number; business: number; first: number; cargoKg: number; }, customName?: string, purchaseType?: 'buy' | 'lease') => Promise<void>;
     sellAircraft: (aircraftId: string) => Promise<void>;
     buyoutAircraft: (aircraftId: string) => Promise<void>;
