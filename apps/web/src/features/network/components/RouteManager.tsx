@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
-import { fpFormat, fpAdd, FP_ZERO, getSuggestedFares, calculateShares, haversineDistance, calculateDemand, getSeason, getProsperityIndex, fpScale, fp } from '@airtr/core';
+import { fpFormat, getSuggestedFares, calculateShares, haversineDistance, calculateDemand, getSeason, getProsperityIndex, fpScale, fp } from '@airtr/core';
 import { airports as ALL_AIRPORTS } from '@airtr/data';
-import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, DollarSign, MapPin, Search } from 'lucide-react';
+import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, MapPin, Search } from 'lucide-react';
 
 export function RouteManager() {
     const {
@@ -96,18 +96,24 @@ export function RouteManager() {
                     <p className="text-xs text-muted-foreground">across {activeRoutes.length} active routes</p>
                 </div>
 
-                <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+                <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm overflow-hidden relative">
                     <div className="flex justify-between items-start mb-2">
-                        <p className="text-xs uppercase text-muted-foreground font-bold tracking-wider">Projected Revenue</p>
-                        <DollarSign className="h-4 w-4 text-green-400" />
+                        <p className="text-xs uppercase text-muted-foreground font-bold tracking-wider">Prosperity Index</p>
+                        <TrendingUp className={`h-4 w-4 ${getProsperityIndex(tick) > 1 ? 'text-emerald-400' : 'text-rose-400'}`} />
                     </div>
-                    <p className="text-2xl font-bold text-green-400 font-mono">
-                        {fpFormat(activeRoutes.reduce((acc, r) => {
-                            const p = prospectiveRoutes.find(pr => pr.destination.iata === r.destinationIata);
-                            return p ? fpAdd(acc, p.estimatedDailyRevenue) : acc;
-                        }, FP_ZERO), 0)}
+                    <p className={`text-2xl font-bold ${getProsperityIndex(tick) > 1 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {(getProsperityIndex(tick) * 100).toFixed(1)}%
                     </p>
-                    <p className="text-xs text-muted-foreground">Est. daily gross profit</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {getProsperityIndex(tick) > 1 ? 'Market Boom - High Demand' : 'Market Recession - Low Demand'}
+                    </p>
+                    {/* Tiny sparkline-like background */}
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-muted/20">
+                        <div
+                            className={`h-full opacity-50 ${getProsperityIndex(tick) > 1 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                            style={{ width: `${Math.min(100, (getProsperityIndex(tick) - 0.85) / 0.3 * 100)}%` }}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -277,19 +283,72 @@ export function RouteManager() {
                                                 )}
 
                                                 <button
-                                                    className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all"
+                                                    className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all font-mono"
                                                 >
-                                                    Manage Assignments
+                                                    {assignedCount} Planes
                                                 </button>
                                             </div>
                                         </div>
 
+                                        {/* Supply/Demand Saturation Bar */}
+                                        {market && (
+                                            <div className="mt-4 bg-muted/20 rounded-xl p-3 border border-border/30">
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+                                                        <TrendingUp className="h-3 w-3" /> Supply / Demand Saturation
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-foreground">
+                                                        {Math.round(((assignedCount * 1200) / (market.demand.economy + market.demand.business + market.demand.first)) * 100)}% Saturation
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-background rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${((assignedCount * 1200) / (market.demand.economy + market.demand.business + market.demand.first)) > 0.9 ? 'bg-rose-500' : 'bg-primary'}`}
+                                                        style={{ width: `${Math.min(100, ((assignedCount * 1200) / (market.demand.economy + market.demand.business + market.demand.first)) * 100)}%` }}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between mt-1">
+                                                    <p className="text-[9px] text-muted-foreground">
+                                                        Weekly Demand: <span className="text-foreground font-mono">{(market.demand.economy + market.demand.business + market.demand.first).toLocaleString()}</span>
+                                                    </p>
+                                                    <p className={`text-[9px] font-bold uppercase ${((assignedCount * 1200) / (market.demand.economy + market.demand.business + market.demand.first)) > 1 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                        {((assignedCount * 1200) / (market.demand.economy + market.demand.business + market.demand.first)) > 1 ? 'Over-Supplied' : 'Healthy Load Factor'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Market Analysis Tab */}
                                         <div className="mt-5 pt-5 border-t border-border/50">
-                                            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3 flex items-center gap-2">
-                                                <TrendingUp className="h-3 w-3" />
-                                                Market Analysis
-                                            </h4>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                                    <Globe className="h-3 w-3" />
+                                                    Market Health
+                                                </h4>
+                                                <div className="flex gap-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                                                        <span className="text-[8px] text-muted-foreground font-bold uppercase">Econ</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                        <span className="text-[8px] text-muted-foreground font-bold uppercase">Bus</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                                        <span className="text-[8px] text-muted-foreground font-bold uppercase">First</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Demand class breakdown visualization */}
+                                            {market && (
+                                                <div className="flex h-1 w-full rounded-full bg-muted/30 overflow-hidden mb-3">
+                                                    <div className="h-full bg-zinc-500" style={{ width: `${(market.demand.economy / (market.demand.economy + market.demand.business + market.demand.first)) * 100}%` }} />
+                                                    <div className="h-full bg-blue-500" style={{ width: `${(market.demand.business / (market.demand.economy + market.demand.business + market.demand.first)) * 100}%` }} />
+                                                    <div className="h-full bg-yellow-500" style={{ width: `${(market.demand.first / (market.demand.economy + market.demand.business + market.demand.first)) * 100}%` }} />
+                                                </div>
+                                            )}
 
                                             {(() => {
                                                 const routeKey = `${route.originIata}-${route.destinationIata}`;

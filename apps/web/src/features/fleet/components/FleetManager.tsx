@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { getAircraftById } from '@airtr/data';
-import { calculateBookValue, fpFormat, fpScale, fp, fpToNumber } from '@airtr/core';
+import { calculateBookValue, fpFormat, fpScale, fp, fpToNumber, TICK_DURATION, FP_ZERO } from '@airtr/core';
 import { AircraftDealer } from './AircraftDealer';
 import { Plane, Settings, Search, PlusCircle, Trash2, Timer, Tag, XCircle } from 'lucide-react';
 
 export function FleetManager() {
-    const { fleet, routes, sellAircraft, buyoutAircraft, assignAircraftToRoute, listAircraft, cancelListing } = useAirlineStore(state => state);
-    const tick = useEngineStore(state => state.tick);
+    const { fleet, routes, timeline, sellAircraft, buyoutAircraft, assignAircraftToRoute, listAircraft, cancelListing } = useAirlineStore(state => state);
+    const { tick, tickProgress } = useEngineStore(state => state);
     const [view, setView] = useState<'owned' | 'dealer'>('owned');
     const [search, setSearch] = useState('');
 
@@ -142,7 +142,21 @@ export function FleetManager() {
                                             </div>
                                             <div>
                                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">Flight Hours</p>
-                                                <p className="font-mono text-xs">{ac.flightHoursTotal.toLocaleString()}</p>
+                                                <p className="font-mono text-xs">{ac.flightHoursTotal.toLocaleString()}h</p>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-1 flex justify-between">
+                                                    <span>Maintenance Debt</span>
+                                                    <span className={ac.condition < 0.3 ? 'text-red-400' : 'text-muted-foreground'}>
+                                                        Grounding at 20%
+                                                    </span>
+                                                </p>
+                                                <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${ac.condition < 0.3 ? 'bg-red-500' : 'bg-primary'}`}
+                                                        style={{ width: `${Math.max(0, (ac.condition - 0.2) / 0.8 * 100)}%` }}
+                                                    />
+                                                </div>
                                             </div>
                                             {ac.purchasePrice && (
                                                 <div>
@@ -152,9 +166,44 @@ export function FleetManager() {
                                             )}
                                             <div>
                                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">{ac.purchaseType === 'lease' ? 'Buyout Price' : 'Appraisal'}</p>
-                                                <p className="font-mono text-xs">{fpFormat(marketVal, 0)}</p>
+                                                <p className="font-mono text-xs text-emerald-400">{fpFormat(marketVal, 0)}</p>
                                             </div>
                                         </div>
+
+                                        {/* Performance Section */}
+                                        {(() => {
+                                            const lastLanding = [...timeline]
+                                                .reverse()
+                                                .find(e => e.type === 'landing' && e.aircraftId === ac.id);
+
+                                            if (!lastLanding) return null;
+
+                                            // Since we don't store "actualPassengers" in TimelineEvent yet, we use profit as a signal
+                                            const isProfitable = (lastLanding.profit || FP_ZERO) > 0;
+
+                                            return (
+                                                <div className="bg-muted/20 rounded-2xl p-4 border border-border/40">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Last Flight Outcome</span>
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isProfitable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                            {isProfitable ? 'Profitable' : 'Loss Making'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-end">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-muted-foreground uppercase font-semibold">Route</span>
+                                                            <span className="text-xs font-bold text-foreground">{lastLanding.originIata} &rarr; {lastLanding.destinationIata}</span>
+                                                        </div>
+                                                        <div className="flex flex-col text-right">
+                                                            <span className="text-[10px] text-muted-foreground uppercase font-semibold">Net Profit</span>
+                                                            <span className={`text-sm font-mono font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                {fpFormat(lastLanding.profit || FP_ZERO, 0)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
 
                                         <div className="h-px w-full bg-border/50 mb-2" />
 
@@ -205,7 +254,13 @@ export function FleetManager() {
                                                 {ac.status === 'delivery' && (
                                                     <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-yellow-500/10 px-3 py-2 text-xs font-semibold text-yellow-500 border border-yellow-500/20">
                                                         <Timer className="h-4 w-4 animate-spin-slow" />
-                                                        Arriving soon...
+                                                        {(() => {
+                                                            const remainingTicks = (ac.deliveryAtTick || 0) - tick - tickProgress;
+                                                            const totalSeconds = Math.max(0, Math.floor(remainingTicks * (TICK_DURATION / 1000)));
+                                                            const mins = Math.floor(totalSeconds / 60);
+                                                            const secs = totalSeconds % 60;
+                                                            return `Delivering: ${mins}:${secs.toString().padStart(2, '0')}`;
+                                                        })()}
                                                     </div>
                                                 )}
 

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { aircraftModels, getAircraftById } from '@airtr/data';
 import type { AircraftModel, AircraftInstance, FixedPoint } from '@airtr/core';
-import { fpFormat, FP_ZERO } from '@airtr/core';
+import { fpFormat, FP_ZERO, TICK_DURATION } from '@airtr/core';
 import { useAirlineStore } from '@airtr/store';
 import { loadMarketplace } from '@airtr/nostr';
 import { Search, Plane, Users, ArrowRight, Coins, Check, Timer, X, MapPin, Tag, ShoppingBag, History } from 'lucide-react';
@@ -265,7 +265,9 @@ function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel, onSelec
                         </div>
                         <div>
                             <p className="text-[10px] uppercase text-muted-foreground font-semibold">Factory Lead Time</p>
-                            <p className="text-sm font-medium text-yellow-500">{aircraft.deliveryTimeTicks} Engine Ticks</p>
+                            <p className="text-sm font-medium text-yellow-500">
+                                ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)} minutes
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -338,6 +340,12 @@ function UsedAircraftCard({ listing, onBuy }: { listing: AircraftInstance & { ma
                     <div>
                         <p className="text-[9px] uppercase text-muted-foreground font-bold">Flight Hours</p>
                         <p className="text-xs font-mono font-bold">{(listing.flightHoursTotal || 0).toLocaleString()}h</p>
+                    </div>
+                    <div className="col-span-2 pt-1 border-t border-border/10 mt-1 flex items-center justify-between">
+                        <p className="text-[9px] uppercase text-muted-foreground font-bold flex items-center gap-1">
+                            <Timer className="h-3 w-3" /> Delivery Time
+                        </p>
+                        <p className="text-[10px] font-bold text-orange-400">~1:00m</p>
                     </div>
                 </div>
 
@@ -602,7 +610,7 @@ function PurchaseModal({ aircraft, onClose, onPurchaseSuccess }: { aircraft: Air
                             </p>
                         )}
                         <p className="text-xs text-yellow-500 font-medium mt-1 flex items-center gap-1">
-                            <Timer className="h-3 w-3" /> Delivery in {aircraft.deliveryTimeTicks} Ticks
+                            <Timer className="h-3 w-3" /> Ready in ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}:00
                         </p>
                     </div>
 

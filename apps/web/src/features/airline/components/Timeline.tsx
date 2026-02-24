@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAirlineStore } from '@airtr/store';
+import { useAirlineStore, useEngineStore } from '@airtr/store';
 import {
     PlaneTakeoff,
     PlaneLanding,
@@ -12,7 +12,7 @@ import {
     TrendingDown,
     Clock
 } from 'lucide-react';
-import { fpFormat, TimelineEvent } from '@airtr/core';
+import { fpFormat, TimelineEvent, TICK_DURATION } from '@airtr/core';
 
 const EventIcon = ({ type }: { type: TimelineEvent['type'] }) => {
     switch (type) {
@@ -43,8 +43,18 @@ const DetailRow = ({ label, value, color }: { label: string; value: string; colo
 );
 
 const EventCard = ({ event }: { event: TimelineEvent }) => {
+    const tick = useEngineStore((state) => state.tick);
     const [isExpanded, setIsExpanded] = React.useState(false);
     const hasDetails = !!event.details;
+
+    const getRelativeTime = (eventTick: number, currentTick: number) => {
+        const diffSecs = Math.max(0, (currentTick - eventTick) * (TICK_DURATION / 1000));
+        if (diffSecs < 10) return "Just now";
+        if (diffSecs < 60) return `${Math.floor(diffSecs)}s ago`;
+        if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m ago`;
+        if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h ago`;
+        return `${Math.floor(diffSecs / 86400)}d ago`;
+    };
 
     return (
         <div
@@ -63,7 +73,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
                             {event.type.replace('_', ' ')}
                         </span>
                         <span className="text-[10px] font-mono text-white/20">
-                            TICK {event.tick}
+                            {getRelativeTime(event.tick, tick)}
                         </span>
                     </div>
 
