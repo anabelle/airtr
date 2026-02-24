@@ -1,5 +1,6 @@
 import { fp, fpToNumber, fpMul, fpSub } from './fixed-point.js';
 import type { AircraftModel, FixedPoint } from './types.js';
+import { TICKS_PER_HOUR } from './types.js';
 
 /**
  * Calculates the current book value of an aircraft based on straight-line depreciation,
@@ -12,9 +13,11 @@ export function calculateBookValue(
     purchasedAtTick: number,
     currentTick: number
 ): FixedPoint {
-    // Determine age in ticks and years
-    // Assume 1 year = 365 ticks for this calculation if ticks are interpreted as days
-    const ticksPerYear = 365;
+    // Correctly determine age using the 1:1 real-time tick scale
+    // 1 tick = 3 seconds; 1200 ticks = 1 hour.
+    const ticksPerDay = TICKS_PER_HOUR * 24;
+    const ticksPerYear = ticksPerDay * 365.25;
+
     const ageTicks = Math.max(0, currentTick - purchasedAtTick);
     const ageYears = ageTicks / ticksPerYear;
 

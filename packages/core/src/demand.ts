@@ -5,6 +5,7 @@
 // ============================================================
 
 import type { Airport, DemandResult, Season } from './types.js';
+import { TICKS_PER_HOUR } from './types.js';
 import { haversineDistance } from './geo.js';
 import { getSeasonalMultiplier } from './season.js';
 
@@ -92,6 +93,6 @@ export function calculateDemand(
  * Calculate prosperity index for a given tick.
  * Oscillates between 0.85 (recession) and 1.15 (boom).
  */
-export function getProsperityIndex(tick: number, ticksPerCycle: number = 365): number {
+export function getProsperityIndex(tick: number, ticksPerCycle: number = TICKS_PER_HOUR * 24 * 365.25): number {
     return 1.0 + 0.15 * Math.sin((2 * Math.PI * tick) / ticksPerCycle);
 }
