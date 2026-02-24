@@ -3,6 +3,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Airport, AircraftInstance } from '@airtr/core';
 
+const AIRPLANE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`;
+
 export interface GlobeProps {
     airports: Airport[];
     selectedAirport: Airport | null;
@@ -102,7 +104,15 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
 
         map.on('load', () => {
             setMapLoaded(true);
-            // ... (Sources and Layers remain same)
+
+            // Add airplane icon as SDF for dynamic coloring
+            const img = new Image();
+            img.onload = () => {
+                if (!map.hasImage('airplane-icon')) {
+                    map.addImage('airplane-icon', img, { sdf: true });
+                }
+            };
+            img.src = 'data:image/svg+xml;base64,' + btoa(AIRPLANE_SVG);
 
             // Sources
             map.addSource('airports', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -144,13 +154,17 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                 source: 'airports',
                 filter: ['>', ['get', 'fleetCount'], 0],
                 layout: {
-                    'text-field': '✈️ {fleetCount}',
-                    'text-size': 14,
-                    'text-anchor': 'bottom',
-                    'text-offset': [0, -0.5],
+                    'icon-image': 'airplane-icon',
+                    'icon-size': 0.7,
+                    'icon-allow-overlap': true,
+                    'text-field': '{fleetCount}',
+                    'text-size': 11,
+                    'text-anchor': 'top',
+                    'text-offset': [0, 0.4],
                     'text-allow-overlap': true
                 },
                 paint: {
+                    'icon-color': '#4ade80',
                     'text-halo-color': '#000000',
                     'text-halo-width': 2,
                     'text-color': '#4ade80'
@@ -163,17 +177,16 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                 type: 'symbol',
                 source: 'flights',
                 layout: {
-                    'text-field': '✈️',
-                    'text-size': 26,
-                    'text-allow-overlap': true,
-                    'text-ignore-placement': true,
-                    'text-rotate': ['get', 'bearing'],
-                    'text-anchor': 'center'
+                    'icon-image': 'airplane-icon',
+                    'icon-size': 1.1,
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                    'icon-anchor': 'center'
                 },
                 paint: {
-                    'text-color': '#fff',
-                    'text-halo-color': '#4ade80',
-                    'text-halo-width': 3
+                    'icon-color': '#ffffff',
                 }
             });
 
