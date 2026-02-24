@@ -7,6 +7,8 @@ import { getAircraftById } from '@airtr/data';
 export interface WorldSlice {
     competitors: Map<string, AirlineEntity>;
     globalRouteRegistry: Map<string, FlightOffer[]>;
+    globalFleet: AircraftInstance[];
+    globalRoutes: Route[];
     syncWorld: () => Promise<void>;
 }
 
@@ -18,19 +20,25 @@ export const createWorldSlice: StateCreator<
 > = (set, get) => ({
     competitors: new Map(),
     globalRouteRegistry: new Map(),
+    globalFleet: [],
+    globalRoutes: [],
 
     syncWorld: async () => {
         try {
             const results = await loadGlobalAirlines();
             const competitors = new Map<string, AirlineEntity>();
             const registry = new Map<string, FlightOffer[]>();
+            const allGlobalFleet: AircraftInstance[] = [];
+            const allGlobalRoutes: Route[] = [];
 
-            // Process results into maps
+            // Process results into maps and flat arrays
             for (const { airline, fleet, routes } of results) {
                 // Skip our own airline if it's in the global results
                 if (airline.ceoPubkey === get().pubkey) continue;
 
                 competitors.set(airline.ceoPubkey, airline);
+                allGlobalFleet.push(...fleet);
+                allGlobalRoutes.push(...routes);
 
                 // For each route, create a FlightOffer
                 for (const route of routes) {
@@ -39,11 +47,7 @@ export const createWorldSlice: StateCreator<
                     const key = `${route.originIata}-${route.destinationIata}`;
                     const offers = registry.get(key) || [];
 
-                    // Calculate offer details
-                    // Frequency is based on how many aircraft are assigned to this route
-                    // If no aircraft assigned, it's effectively 0 frequency (or dummy 1 for now if we want to simulate)
-                    // Let's assume each assigned aircraft flies 7 times a week for now to match engine logic
-                    const frequency = route.assignedAircraftIds.length * 7;
+                    const frequency = Math.max(0, route.assignedAircraftIds.length * 7);
                     if (frequency === 0) continue;
 
                     // Estimate travel time
@@ -56,10 +60,10 @@ export const createWorldSlice: StateCreator<
 
                         const times = modelIds.map((mid: string | undefined) => {
                             const model = getAircraftById(mid!);
-                            if (!model) return 480; // Default 8h
-                            return (route.distanceKm / model.speedKmh) * 60;
+                            if (!model) return 480;
+                            return (route.distanceKm / (model.speedKmh || 800)) * 60;
                         });
-                        avgTravelTime = times.reduce((a: number, b: number) => a + b, 0) / times.length;
+                        avgTravelTime = times.length > 0 ? times.reduce((a: number, b: number) => a + b, 0) / times.length : 480;
                     }
 
                     const offer: FlightOffer = {
@@ -69,8 +73,8 @@ export const createWorldSlice: StateCreator<
                         fareFirst: route.fareFirst,
                         frequencyPerWeek: frequency,
                         travelTimeMinutes: Math.round(avgTravelTime) || 480,
-                        stops: 0, // Simplified for now
-                        serviceScore: 0.7, // Manual override until cabin service logic is in
+                        stops: 0,
+                        serviceScore: 0.7,
                         brandScore: airline.brandScore || 0.5,
                     };
 
@@ -79,7 +83,12 @@ export const createWorldSlice: StateCreator<
                 }
             }
 
-            set({ competitors, globalRouteRegistry: registry });
+            set({
+                competitors,
+                globalRouteRegistry: registry,
+                globalFleet: allGlobalFleet,
+                globalRoutes: allGlobalRoutes
+            });
         } catch (error) {
             console.error('[WorldSlice] Failed to sync world:', error);
         }

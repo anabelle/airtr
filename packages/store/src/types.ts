@@ -31,6 +31,8 @@ export interface AirlineState {
     // World / Multi-player
     competitors: Map<string, AirlineEntity>;
     globalRouteRegistry: Map<string, FlightOffer[]>;
+    globalFleet: AircraftInstance[];
+    globalRoutes: Route[];
     syncWorld: () => Promise<void>;
 }
 

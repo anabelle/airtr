@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { Airport, AircraftInstance } from '@airtr/core';
+import type { Airport, AircraftInstance, Route } from '@airtr/core';
 
 const AIRPLANE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`;
 
@@ -11,6 +11,8 @@ export interface GlobeProps {
     onAirportSelect: (airport: Airport | null) => void;
     fleetBaseCounts?: Record<string, number>;
     fleet?: AircraftInstance[];
+    globalFleet?: AircraftInstance[];
+    globalRoutes?: Route[];
     tick?: number;
     tickProgress?: number;
     className?: string;
@@ -54,7 +56,7 @@ function getBearing(p1: [number, number], p2: [number, number]): number {
     return (brng * 180 / Math.PI + 360) % 360;
 }
 
-export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCounts, fleet = [], tick = 0, tickProgress = 0, className = '', style }: GlobeProps) {
+export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCounts, fleet = [], globalFleet = [], globalRoutes = [], tick = 0, tickProgress = 0, className = '', style }: GlobeProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
@@ -118,6 +120,21 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
             map.addSource('airports', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('flights', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addSource('arcs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource('global-flights', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addSource('global-arcs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+            // Layers: Global Arcs
+            map.addLayer({
+                id: 'global-arcs-layer',
+                type: 'line',
+                source: 'global-arcs',
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: {
+                    'line-color': '#475569',
+                    'line-width': 0.5,
+                    'line-opacity': 0.2
+                }
+            });
 
             // Layers: Arcs (Flight Paths)
             map.addLayer({
@@ -168,6 +185,26 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                     'text-halo-color': '#000000',
                     'text-halo-width': 2,
                     'text-color': '#4ade80'
+                }
+            });
+
+            // Layers: Global Flights
+            map.addLayer({
+                id: 'global-flights-layer',
+                type: 'symbol',
+                source: 'global-flights',
+                layout: {
+                    'icon-image': 'airplane-icon',
+                    'icon-size': 0.8,
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                    'icon-anchor': 'center'
+                },
+                paint: {
+                    'icon-color': '#64748b',
+                    'icon-opacity': 0.8
                 }
             });
 
@@ -236,7 +273,6 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                 const origin = airports.find(a => a.iata === ac.flight?.originIata);
                 const dest = airports.find(a => a.iata === ac.flight?.destinationIata);
                 if (origin && dest) {
-                    // Generate Great Circle Arc points
                     const points: [number, number][] = [];
                     const SEGMENTS = 50;
                     for (let i = 0; i <= SEGMENTS; i++) {
@@ -246,7 +282,6 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
                             i / SEGMENTS
                         ));
                     }
-
                     arcFeatures.push({
                         type: 'Feature',
                         geometry: { type: 'LineString', coordinates: points },
@@ -256,54 +291,81 @@ export function Globe({ airports, selectedAirport, onAirportSelect, fleetBaseCou
             }
         });
 
+        const globalArcFeatures: GeoJSON.Feature[] = [];
+        globalRoutes.forEach(route => {
+            const origin = airports.find(a => a.iata === route.originIata);
+            const dest = airports.find(a => a.iata === route.destinationIata);
+            if (origin && dest) {
+                const points: [number, number][] = [];
+                const SEGMENTS = 40;
+                for (let i = 0; i <= SEGMENTS; i++) {
+                    points.push(getGreatCircleInterpolation(
+                        [origin.longitude, origin.latitude],
+                        [dest.longitude, dest.latitude],
+                        i / SEGMENTS
+                    ));
+                }
+                globalArcFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: points },
+                    properties: {}
+                });
+            }
+        });
+
         (map.getSource('airports') as maplibregl.GeoJSONSource)?.setData(airportGeojson);
         (map.getSource('arcs') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: arcFeatures });
-    }, [airports, mapLoaded, fleetBaseCounts, fleet]); // FULL fleet dependency
+        (map.getSource('global-arcs') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: globalArcFeatures });
+    }, [airports, mapLoaded, fleetBaseCounts, fleet, globalRoutes]);
 
     // REAL-TIME MOVEMENT (Smooth interpolation)
     useEffect(() => {
-        if (!mapLoaded || !mapRef.current || !fleet.length) return;
+        if (!mapLoaded || !mapRef.current) return;
         const map = mapRef.current;
 
-        const flightFeatures = fleet
-            .filter(ac => ac.status === 'enroute' && ac.flight)
-            .map(ac => {
-                const f = ac.flight!;
-                const origin = airports.find(a => a.iata === f.originIata);
-                const dest = airports.find(a => a.iata === f.destinationIata);
-                if (!origin || !dest) return null;
+        const processFleet = (targetFleet: AircraftInstance[]) => {
+            return targetFleet
+                .filter(ac => ac.status === 'enroute' && ac.flight)
+                .map(ac => {
+                    const f = ac.flight!;
+                    const origin = airports.find(a => a.iata === f.originIata);
+                    const dest = airports.find(a => a.iata === f.destinationIata);
+                    if (!origin || !dest) return null;
 
-                const duration = Math.max(1, f.arrivalTick - f.departureTick);
-                const elapsed = (tick - f.departureTick) + tickProgress;
-                const progress = Math.max(0, Math.min(1, elapsed / duration));
+                    const duration = Math.max(1, f.arrivalTick - f.departureTick);
+                    const elapsed = (tick - f.departureTick) + tickProgress;
+                    const progress = Math.max(0, Math.min(1, elapsed / duration));
 
-                // Great Circle Interpolation
-                const coords = getGreatCircleInterpolation(
-                    [origin.longitude, origin.latitude],
-                    [dest.longitude, dest.latitude],
-                    progress
-                );
+                    const coords = getGreatCircleInterpolation(
+                        [origin.longitude, origin.latitude],
+                        [dest.longitude, dest.latitude],
+                        progress
+                    );
 
-                // Dynamic Bearing (look slightly ahead for realism)
-                const nextProgress = Math.min(1, progress + 0.01);
-                const nextCoords = getGreatCircleInterpolation(
-                    [origin.longitude, origin.latitude],
-                    [dest.longitude, dest.latitude],
-                    nextProgress
-                );
+                    const nextProgress = Math.min(1, progress + 0.01);
+                    const nextCoords = getGreatCircleInterpolation(
+                        [origin.longitude, origin.latitude],
+                        [dest.longitude, dest.latitude],
+                        nextProgress
+                    );
 
-                const bearing = getBearing(coords, nextCoords);
+                    const bearing = getBearing(coords, nextCoords);
 
-                return {
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: coords },
-                    properties: { id: ac.id, bearing: bearing }
-                };
-            })
-            .filter(Boolean) as GeoJSON.Feature[];
+                    return {
+                        type: 'Feature',
+                        geometry: { type: 'Point', coordinates: coords },
+                        properties: { id: ac.id, bearing: bearing }
+                    };
+                })
+                .filter(Boolean) as GeoJSON.Feature[];
+        };
+
+        const flightFeatures = processFleet(fleet);
+        const globalFlightFeatures = processFleet(globalFleet);
 
         (map.getSource('flights') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: flightFeatures });
-    }, [mapLoaded, fleet, tick, tickProgress, airports]);
+        (map.getSource('global-flights') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: globalFlightFeatures });
+    }, [mapLoaded, fleet, globalFleet, tick, tickProgress, airports]);
 
     useEffect(() => {
         if (!mapLoaded || !mapRef.current || !selectedAirport) return;

@@ -9,7 +9,7 @@ export function WorldMap() {
     const tick = useEngineStore(s => s.tick);
     const tickProgress = useEngineStore(s => s.tickProgress);
     const setHub = useEngineStore(s => s.setHub);
-    const { airline, updateHub, fleet } = useAirlineStore();
+    const { airline, updateHub, fleet, globalFleet, globalRoutes } = useAirlineStore();
 
     const handleHubChange = (airport: Airport | null) => {
         if (!airport) return;
@@ -44,6 +44,8 @@ export function WorldMap() {
                 onAirportSelect={handleHubChange}
                 fleetBaseCounts={fleetBaseCounts}
                 fleet={fleet}
+                globalFleet={globalFleet}
+                globalRoutes={globalRoutes}
                 tick={tick}
                 tickProgress={tickProgress}
             />
