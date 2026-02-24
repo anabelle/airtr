@@ -14,6 +14,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     const [usedListings, setUsedListings] = useState<any[]>([]);
     const [isLoadingUsed, setIsLoadingUsed] = useState(false);
     const purchaseUsed = useAirlineStore(state => state.purchaseUsedAircraft);
+    const fleet = useAirlineStore(state => state.fleet);
 
     const handleBuyUsed = async (listing: any) => {
         if (!confirm(`Are you sure you want to purchase this used aircraft for ${fpFormat(listing.marketplacePrice, 0)}?`)) return;
@@ -63,7 +64,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     };
 
     const filteredUsed = useMemo(() => {
-        let list = usedListings;
+        let list = usedListings.filter(l => !fleet.some(f => f.id === l.instanceId));
 
         // Tier filter
         if (selectedTier && selectedTier !== 'all') {
@@ -83,7 +84,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
         }
 
         return list;
-    }, [search, usedListings, selectedTier]);
+    }, [search, usedListings, selectedTier, fleet]);
 
     return (
         <div className="flex flex-col h-full space-y-6">

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
-import { fpFormat, fpAdd, FP_ZERO, getSuggestedFares, calculateShares } from '@airtr/core';
-import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, DollarSign, MapPin } from 'lucide-react';
+import { fpFormat, fpAdd, FP_ZERO, getSuggestedFares, calculateShares, haversineDistance, calculateDemand, getSeason, getProsperityIndex, fpScale, fp } from '@airtr/core';
+import { airports as ALL_AIRPORTS } from '@airtr/data';
+import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, DollarSign, MapPin, Search } from 'lucide-react';
 
 export function RouteManager() {
     const {
@@ -13,10 +14,36 @@ export function RouteManager() {
         globalRouteRegistry,
         competitors
     } = useAirlineStore();
-    const { routes: prospectiveRoutes, homeAirport } = useEngineStore();
+    const { routes: prospectiveRoutes, homeAirport, tick } = useEngineStore();
     const [tab, setTab] = useState<'active' | 'opportunities'>('active');
     const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
     const [tempFares, setTempFares] = useState<{ e: string; b: string; f: string }>({ e: '', b: '', f: '' });
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const searchResults = searchQuery.length >= 2
+        ? ALL_AIRPORTS.filter(a =>
+            a.iata !== homeAirport?.iata && (
+                a.iata?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                a.icao?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                a.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                a.name?.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+        ).slice(0, 5)
+        : [];
+
+    const calculateSearchProspect = (dest: any) => {
+        if (!homeAirport) return null;
+        const now = new Date();
+        const prosperity = getProsperityIndex(tick);
+        const season = getSeason(dest.latitude, now);
+        const distance = haversineDistance(homeAirport.latitude, homeAirport.longitude, dest.latitude, dest.longitude);
+        const demand = calculateDemand(homeAirport, dest, season, prosperity);
+        const avgFarePerKm = 0.12;
+        const baseFare = Math.max(80, Math.round(distance * avgFarePerKm));
+        const totalPax = demand.economy + demand.business + demand.first;
+        const estimatedDailyRevenue = fpScale(fp(baseFare), totalPax / 7);
+        return { origin: homeAirport, destination: dest, distance, demand, estimatedDailyRevenue, season };
+    };
 
     if (!airline || !homeAirport) return null;
 
@@ -85,6 +112,27 @@ export function RouteManager() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="mb-6 flex items-center gap-4 bg-muted/30 p-4 rounded-2xl border border-border/50">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search by IATA, ICAO, City, or Name..."
+                            className="w-full bg-background border border-border/50 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="text-xs font-bold text-muted-foreground hover:text-foreground"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+
                 {tab === 'active' ? (
                     activeRoutes.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
@@ -321,7 +369,7 @@ export function RouteManager() {
                     )
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {prospectiveRoutes.map((market) => {
+                        {(searchQuery.length >= 2 ? searchResults.map(calculateSearchProspect).filter(Boolean) : prospectiveRoutes).map((market: any) => {
                             const isAlreadyOpen = activeRoutes.some(r => r.destinationIata === market.destination.iata);
                             const totalDemand = market.demand.economy + market.demand.business + market.demand.first;
 
@@ -331,7 +379,12 @@ export function RouteManager() {
                                         <div className="flex items-center gap-8">
                                             <div className="flex flex-col">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-2xl font-black text-foreground tracking-tighter">{market.destination.iata}</span>
+                                                    <span className="text-2xl font-black text-foreground tracking-tighter">
+                                                        {market.destination.iata}
+                                                        {market.destination.icao && market.destination.icao !== market.destination.iata && (
+                                                            <span className="ml-2 text-xs text-muted-foreground font-mono font-normal">[{market.destination.icao}]</span>
+                                                        )}
+                                                    </span>
                                                     <TrendingUp className="h-4 w-4 text-accent" />
                                                 </div>
                                                 <span className="text-sm font-bold text-muted-foreground">{market.destination.city}, {market.destination.country}</span>
@@ -377,13 +430,23 @@ export function RouteManager() {
 
                                     {/* Small Demand Breakdown bar */}
                                     <div className="mt-4 flex h-1 w-full rounded-full bg-muted overflow-hidden">
-                                        <div className="h-full bg-zinc-500" style={{ width: `${(market.demand.economy / totalDemand) * 100}%` }} title="Economy" />
-                                        <div className="h-full bg-blue-500" style={{ width: `${(market.demand.business / totalDemand) * 100}%` }} title="Business" />
-                                        <div className="h-full bg-yellow-500" style={{ width: `${(market.demand.first / totalDemand) * 100}%` }} title="First" />
+                                        <div className="h-full bg-zinc-500" style={{ width: `${(market.demand.economy / (totalDemand || 1)) * 100}%` }} title="Economy" />
+                                        <div className="h-full bg-blue-500" style={{ width: `${(market.demand.business / (totalDemand || 1)) * 100}%` }} title="Business" />
+                                        <div className="h-full bg-yellow-500" style={{ width: `${(market.demand.first / (totalDemand || 1)) * 100}%` }} title="First" />
                                     </div>
                                 </div>
                             );
                         })}
+                        {searchQuery.length > 0 && searchQuery.length < 2 && (
+                            <div className="p-8 text-center text-muted-foreground font-bold italic">
+                                Type at least 2 characters to search...
+                            </div>
+                        )}
+                        {searchQuery.length >= 2 && searchResults.length === 0 && (
+                            <div className="p-8 text-center text-muted-foreground font-bold italic">
+                                No airports found matching "{searchQuery}"
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -318,6 +318,10 @@ export const createFleetSlice: StateCreator<
         let updatedFleet: AircraftInstance[];
 
         if (existingInstance) {
+            // Already owned check
+            if (!existingInstance.listingPrice) {
+                throw new Error("You already own this aircraft. The marketplace listing may be stale.");
+            }
             // Self-purchase: Just update the existing record
             updatedFleet = fleet.map(ac =>
                 ac.id === listing.instanceId
