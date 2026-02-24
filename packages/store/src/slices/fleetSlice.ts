@@ -8,7 +8,9 @@ import {
     calculateBookValue,
     fpScale,
     fp,
-    fpFormat
+    fpFormat,
+    fpToNumber,
+    FixedPoint
 } from '@airtr/core';
 import { getAircraftById } from '@airtr/data';
 import {
@@ -17,7 +19,8 @@ import {
     publishAirline,
     publishUsedAircraft,
     getNDK,
-    NDKEvent
+    NDKEvent,
+    MARKETPLACE_KIND
 } from '@airtr/nostr';
 import { useEngineStore } from '../engine';
 
@@ -27,6 +30,8 @@ export interface FleetSlice {
     sellAircraft: (aircraftId: string) => Promise<void>;
     buyoutAircraft: (aircraftId: string) => Promise<void>;
     purchaseUsedAircraft: (listing: any) => Promise<void>;
+    listAircraft: (aircraftId: string, price: FixedPoint) => Promise<void>;
+    cancelListing: (aircraftId: string) => Promise<void>;
 }
 
 export const createFleetSlice: StateCreator<
@@ -71,6 +76,7 @@ export const createFleetSlice: StateCreator<
             assignedRouteId: null,
             baseAirportIata: targetHubIata,
             purchasedAtTick: engineStore.tick,
+            purchasePrice: upfrontCost, // Deposit or full price
             birthTick: engineStore.tick,
             deliveryAtTick: engineStore.tick + model.deliveryTimeTicks,
             flight: null,
@@ -123,7 +129,7 @@ export const createFleetSlice: StateCreator<
         const currentTick = useEngineStore.getState().tick;
 
         const isLease = instance.purchaseType === 'lease';
-        const resaleValue = isLease
+        const marketValue = isLease
             ? fp(0)
             : calculateBookValue(
                 model,
@@ -132,6 +138,11 @@ export const createFleetSlice: StateCreator<
                 instance.birthTick || instance.purchasedAtTick,
                 currentTick
             );
+
+        // SCRAP / QUICK-SALE PENALTY (30%)
+        // You only get 70% of book value when selling instantly to the "scrap yard".
+        // To get full value, you must list it on the used marketplace.
+        const resaleValue = fpScale(marketValue, 0.7);
 
         const updatedAirline = {
             ...airline,
@@ -163,8 +174,14 @@ export const createFleetSlice: StateCreator<
                 lastTick: currentTick,
             });
 
-            if (!isLease) {
-                await publishUsedAircraft(instance as any, resaleValue);
+            // If it was listed, we should delete the listing too
+            if (instance.listingPrice) {
+                const ndk = getNDK();
+                const deletionEvent = new NDKEvent(ndk);
+                deletionEvent.kind = 5;
+                // Important: We need the NIP-33 address for the replaceable event
+                deletionEvent.tags = [['e', aircraftId], ['a', `${MARKETPLACE_KIND}:${instance.ownerPubkey}:airtr:marketplace:${aircraftId}`]];
+                await deletionEvent.publish();
             }
         } catch (e) {
             console.error('Failed to sync aircraft selling or marketplace listing to Nostr:', e);
@@ -215,9 +232,11 @@ export const createFleetSlice: StateCreator<
         const { airline, pubkey, fleet, routes } = get();
         if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
-        const price = listing.marketplacePrice;
+        const price = Number(listing.marketplacePrice);
+        if (isNaN(price)) throw new Error("Invalid price on marketplace listing.");
+
         if (airline.corporateBalance < price) {
-            throw new Error(`Insufficient corporate balance to purchase this aircraft.`);
+            throw new Error(`Insufficient corporate balance: ${fpFormat(airline.corporateBalance)} vs ${fpFormat(price as any)}`);
         }
 
         const engineStore = useEngineStore.getState();
@@ -228,32 +247,58 @@ export const createFleetSlice: StateCreator<
             throw new Error("You must establish a Hub airport before purchasing aircraft.");
         }
 
-        const newInstanceId = `ac-resale-${Date.now().toString(36)}`;
-        const newInstance: AircraftInstance = {
-            ...listing,
-            id: newInstanceId,
-            ownerPubkey: pubkey,
-            status: 'delivery',
-            purchaseType: 'buy',
-            baseAirportIata: targetHubIata,
-            purchasedAtTick: engineStore.tick,
-            birthTick: listing.birthTick || listing.purchasedAtTick,
-            deliveryAtTick: engineStore.tick + 20,
-            flight: null,
-        };
+        // 1. Check if we already own this aircraft (self-purchase or re-purchase)
+        const existingInstance = fleet.find(ac => ac.id === listing.instanceId);
 
-        delete (newInstance as any).marketplacePrice;
-        delete (newInstance as any).listedAt;
-        delete (newInstance as any).sellerPubkey;
-        delete (newInstance as any).isOptimistic;
-        delete (newInstance as any).source;
+        // 2. Inheritance: Take original manufacture date (birthTick) if available
+        const inheritedBirthTick = listing.birthTick || listing.purchasedAtTick || engineStore.tick;
 
-        const updatedBalance = fpSub(airline.corporateBalance, price);
-        const updatedFleet = [...fleet, newInstance];
+        console.log(`[Fleet] Purchasing used ${listing.name} (ID: ${listing.instanceId}) for ${fpFormat(price as any)}`);
+
+        // 3. Create or Update the instance
+        const { marketplacePrice, listedAt, sellerPubkey, isOptimistic, source, ...cleanedAircraft } = listing;
+
+        let updatedFleet: AircraftInstance[];
+
+        if (existingInstance) {
+            // Self-purchase: Just update the existing record
+            updatedFleet = fleet.map(ac =>
+                ac.id === listing.instanceId
+                    ? {
+                        ...ac,
+                        listingPrice: null,
+                        purchasePrice: price as any,
+                        purchasedAtTick: engineStore.tick,
+                        status: 'idle' // Don't put it in delivery if we already have it
+                    }
+                    : ac
+            );
+        } else {
+            // New purchase: Create new instance (Keep original airframe ID if possible)
+            const newInstance: AircraftInstance = {
+                ...cleanedAircraft,
+                id: listing.instanceId, // Keep original ID to maintain airframe identity
+                ownerPubkey: pubkey,
+                status: 'delivery',
+                purchaseType: 'buy',
+                baseAirportIata: targetHubIata,
+                purchasedAtTick: engineStore.tick,
+                purchasePrice: price as any,
+                listingPrice: null, // CLEAR LISTING PRICE
+                birthTick: inheritedBirthTick,
+                deliveryAtTick: engineStore.tick + 20,
+                flight: null,
+            };
+            updatedFleet = [...fleet, newInstance];
+        }
+
+        const updatedBalance = fpSub(airline.corporateBalance, price as any);
+        console.log(`[Fleet] Balance: ${fpFormat(airline.corporateBalance)} -> ${fpFormat(updatedBalance)}`);
+
         const updatedAirline = {
             ...airline,
             corporateBalance: updatedBalance,
-            fleetIds: [...airline.fleetIds, newInstance.id]
+            fleetIds: updatedFleet.map(ac => ac.id)
         };
 
         set({
@@ -280,10 +325,112 @@ export const createFleetSlice: StateCreator<
             const ndk = getNDK();
             const deletionEvent = new NDKEvent(ndk);
             deletionEvent.kind = 5;
-            deletionEvent.tags = [['e', listing.id]];
+            // Delete by event ID and by address if it's a replaceable event
+            deletionEvent.tags = [
+                ['e', listing.id],
+                ['a', `${MARKETPLACE_KIND}:${listing.sellerPubkey}:airtr:marketplace:${listing.instanceId}`]
+            ];
             await deletionEvent.publish();
         } catch (e) {
             console.error('Failed to sync purchase to Nostr:', e);
         }
     },
+
+    listAircraft: async (aircraftId: string, price: FixedPoint) => {
+        const { fleet, airline, routes } = get();
+        if (!airline) throw new Error("No airline loaded.");
+
+        const instance = fleet.find(f => f.id === aircraftId);
+        if (!instance) throw new Error("Aircraft not found.");
+        if (instance.status === 'enroute') throw new Error("Cannot list an aircraft while it is enroute.");
+
+        const model = getAircraftById(instance.modelId);
+        if (!model) throw new Error("Model not found.");
+
+        // 1. Price Ceiling: Max 120% of Factory MSRP
+        const msrp = fpToNumber(model.price);
+        const maxPrice = msrp * 1.2;
+        const requestedPrice = Number(price);
+
+        if (requestedPrice > maxPrice) {
+            throw new Error(`Listing price too high. Maximum allowed is ${fpFormat(fp(maxPrice))} (120% of MSRP).`);
+        }
+
+        // 2. Listing Fee: 0.5% non-refundable tax
+        const fee = fp(requestedPrice * 0.005);
+        if (airline.corporateBalance < fee) {
+            throw new Error(`Insufficient funds for the marketplace listing fee (${fpFormat(fee)}).`);
+        }
+
+        const updatedBalance = fpSub(airline.corporateBalance, fee);
+        const updatedFleet = fleet.map(ac =>
+            ac.id === aircraftId ? { ...ac, listingPrice: price } : ac
+        );
+
+        set({
+            airline: { ...airline, corporateBalance: updatedBalance },
+            fleet: updatedFleet
+        });
+
+        try {
+            attachSigner();
+            ensureConnected();
+
+            // 3. Update Airline State
+            await publishAirline({
+                ...airline,
+                corporateBalance: updatedBalance,
+                fleet: updatedFleet,
+                routes,
+                lastTick: useEngineStore.getState().tick
+            });
+
+            // 2. Publish to Marketplace
+            await publishUsedAircraft({ ...instance, listingPrice: price }, price);
+
+            alert(`Aircraft ${instance.name} listed on Marketplace for ${fpFormat(price)}`);
+        } catch (e) {
+            console.error("Listing failed:", e);
+            alert("Failed to publish listing to Nostr.");
+        }
+    },
+
+    cancelListing: async (aircraftId: string) => {
+        const { fleet, airline, routes } = get();
+        if (!airline) throw new Error("No airline loaded.");
+
+        const instance = fleet.find(f => f.id === aircraftId);
+        if (!instance) throw new Error("Aircraft not found.");
+
+        const updatedFleet = fleet.map(ac =>
+            ac.id === aircraftId ? { ...ac, listingPrice: null } : ac
+        );
+
+        set({ fleet: updatedFleet });
+
+        try {
+            attachSigner();
+            ensureConnected();
+
+            // 1. Update Airline State
+            await publishAirline({
+                ...airline,
+                fleet: updatedFleet,
+                routes,
+                lastTick: useEngineStore.getState().tick
+            });
+
+            // 2. Delete Marketplace Entry
+            const ndk = getNDK();
+            const deletionEvent = new NDKEvent(ndk);
+            deletionEvent.kind = 5;
+            deletionEvent.tags = [['a', `${MARKETPLACE_KIND}:${airline.ceoPubkey}:airtr:marketplace:${aircraftId}`]];
+            await deletionEvent.publish();
+
+            alert("Listing cancelled.");
+        } catch (e) {
+            console.error("Cancellation failed:", e);
+            alert("Failed to remove listing from Nostr.");
+        }
+    }
 });

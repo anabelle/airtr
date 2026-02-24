@@ -20,6 +20,8 @@ export interface AirlineState {
     sellAircraft: (aircraftId: string) => Promise<void>;
     buyoutAircraft: (aircraftId: string) => Promise<void>;
     purchaseUsedAircraft: (listing: any) => Promise<void>;
+    listAircraft: (aircraftId: string, price: any) => Promise<void>;
+    cancelListing: (aircraftId: string) => Promise<void>;
     openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
     assignAircraftToRoute: (aircraftId: string, routeId: string | null) => Promise<void>;
     processTick: (tick: number) => Promise<void>;

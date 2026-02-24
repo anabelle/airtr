@@ -1,4 +1,4 @@
-import { fp, fpToNumber, fpMul, fpSub } from './fixed-point.js';
+import { fp, fpToNumber } from './fixed-point.js';
 import type { AircraftModel, FixedPoint } from './types.js';
 import { TICKS_PER_HOUR } from './types.js';
 
@@ -10,51 +10,44 @@ export function calculateBookValue(
     model: AircraftModel,
     flightHoursTotal: number,
     condition: number, // 0.0 to 1.0
-    birthTick: number,
+    manufactureTick: number,
     currentTick: number
 ): FixedPoint {
-    // Correctly determine age using the 1:1 real-time tick scale
-    // 1 tick = 3 seconds; 1200 ticks = 1 hour.
+    // 1. Calculate Age in Years
     const ticksPerDay = TICKS_PER_HOUR * 24;
     const ticksPerYear = ticksPerDay * 365.25;
-
-    const ageTicks = Math.max(0, currentTick - birthTick);
+    const ageTicks = Math.max(0, currentTick - manufactureTick);
     const ageYears = ageTicks / ticksPerYear;
 
-    // Base residual value
+    // 2. Declining Balance Depreciation (Exponential)
+    // Most aircraft lose 8-12% of their value per year.
+    // We use a 10% annual depreciation rate for a realistic curve.
+    const annualRate = 0.10;
+    const msrp = fpToNumber(model.price);
     const residualPercent = model.residualValuePercent / 100;
-    const residualValue = fpMul(model.price, fp(residualPercent));
+    const residualValue = msrp * residualPercent;
 
-    // Straight-line depreciation base
-    const depreciableBase = fpSub(model.price, residualValue);
+    // V = P * (1-r)^t
+    let baseValue = msrp * Math.pow(1 - annualRate, ageYears);
 
-    // Annual depreciation
-    const annualDepreciation = fpToNumber(depreciableBase) / model.economicLifeYears;
-
-    // Depreciation based on age
-    const totalDepreciation = fp(annualDepreciation * ageYears);
-    let bookValue = fpSub(model.price, totalDepreciation);
-
-    // Cap bookValue at residual
-    if (fpToNumber(bookValue) < fpToNumber(residualValue)) {
-        bookValue = residualValue;
-    }
-
-    let bookValueNum = fpToNumber(bookValue);
-
-    // Condition adjustment: poor condition reduces value further (up to 30% penalty)
+    // 3. Apply Condition Penalty (Up to 30% reduction)
+    // 100% condition = 0 penalty. 50% condition = 15% penalty.
     const conditionPenalty = (1 - condition) * 0.3;
-    bookValueNum = bookValueNum * (1 - conditionPenalty);
+    baseValue = baseValue * (1 - conditionPenalty);
 
-    // High utilization penalty: if actual hours are far above average
-    const averageAnnualHours = model.blockHoursPerDay * 365;
-    const actualAnnualHours = ageYears > 0.1 ? flightHoursTotal / ageYears : flightHoursTotal;
+    // 4. Heavy Utilization Penalty
+    // Average utilization is model.blockHoursPerDay.
+    // Penalize if the flight hour density is high.
+    const expectedHours = (model.blockHoursPerDay * 365) * ageYears;
+    const utilizationRatio = expectedHours > 100 ? flightHoursTotal / expectedHours : 1.0;
 
-    if (actualAnnualHours > averageAnnualHours * 1.2) {
-        // 10% penalty for overutilization
-        bookValueNum = bookValueNum * 0.9;
+    if (utilizationRatio > 1.2) {
+        // High wear penalty (extra 10%)
+        baseValue = baseValue * 0.9;
     }
 
-    const calculatedFinal = Math.max(bookValueNum, fpToNumber(residualValue));
-    return fp(calculatedFinal);
+    // 5. Floor at residual value
+    const finalValue = Math.max(baseValue, residualValue);
+
+    return fp(finalValue);
 }

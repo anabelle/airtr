@@ -124,8 +124,10 @@ export interface AircraftInstance {
     assignedRouteId: string | null;
     baseAirportIata: string;  // Where the aircraft is physically parked (Last or current)
     purchasedAtTick: number;  // When the CURRENT owner bought it
+    purchasePrice: FixedPoint; // What the CURRENT owner paid (Cost Basis)
     birthTick: number;        // When the aircraft was originally manufactured (for depreciation)
     deliveryAtTick?: number;  // When it arrives at truth
+    listingPrice?: FixedPoint | null; // If set, the aircraft is listed on the used marketplace
 
     // Flight state
     flight: FlightState | null;
