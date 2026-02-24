@@ -25,5 +25,6 @@ export interface AirlineState {
     cancelListing: (aircraftId: string) => Promise<void>;
     openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
     assignAircraftToRoute: (aircraftId: string, routeId: string | null) => Promise<void>;
+    updateRouteFares: (routeId: string, fares: { economy?: number; business?: number; first?: number }) => Promise<void>;
     processTick: (tick: number) => Promise<void>;
 }

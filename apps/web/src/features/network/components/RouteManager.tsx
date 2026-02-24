@@ -4,9 +4,11 @@ import { fpFormat, fpAdd, FP_ZERO } from '@airtr/core';
 import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, DollarSign, MapPin } from 'lucide-react';
 
 export function RouteManager() {
-    const { airline, routes: activeRoutes, openRoute } = useAirlineStore();
+    const { airline, routes: activeRoutes, openRoute, updateRouteFares } = useAirlineStore();
     const { routes: prospectiveRoutes, homeAirport } = useEngineStore();
     const [tab, setTab] = useState<'active' | 'opportunities'>('active');
+    const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
+    const [tempFares, setTempFares] = useState<{ e: string; b: string; f: string }>({ e: '', b: '', f: '' });
 
     if (!airline || !homeAirport) return null;
 
@@ -108,11 +110,37 @@ export function RouteManager() {
 
                                                 <div className="flex flex-col">
                                                     <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Pricing</span>
-                                                    <div className="flex gap-3 mt-1">
-                                                        <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20">E: {fpFormat(route.fareEconomy, 0)}</span>
-                                                        <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400">B: {fpFormat(route.fareBusiness, 0)}</span>
-                                                        <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500">F: {fpFormat(route.fareFirst, 0)}</span>
-                                                    </div>
+                                                    {editingRouteId === route.id ? (
+                                                        <div className="flex gap-2 mt-1">
+                                                            <input
+                                                                type="text"
+                                                                value={tempFares.e}
+                                                                onChange={(e) => setTempFares({ ...tempFares, e: e.target.value })}
+                                                                className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-primary/50"
+                                                                placeholder="E"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={tempFares.b}
+                                                                onChange={(e) => setTempFares({ ...tempFares, b: e.target.value })}
+                                                                className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-blue-400/50 text-blue-400"
+                                                                placeholder="B"
+                                                            />
+                                                            <input
+                                                                type="text"
+                                                                value={tempFares.f}
+                                                                onChange={(e) => setTempFares({ ...tempFares, f: e.target.value })}
+                                                                className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-yellow-500/50 text-yellow-500"
+                                                                placeholder="F"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex gap-3 mt-1">
+                                                            <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20">E: {fpFormat(route.fareEconomy, 0)}</span>
+                                                            <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400">B: {fpFormat(route.fareBusiness, 0)}</span>
+                                                            <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500">F: {fpFormat(route.fareFirst, 0)}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -124,6 +152,49 @@ export function RouteManager() {
                                                         {assignedCount} Aircraft Assigned
                                                     </span>
                                                 </div>
+
+                                                {editingRouteId === route.id ? (
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                const eVal = parseInt(tempFares.e.replace(/[^0-9]/g, ''));
+                                                                const bVal = parseInt(tempFares.b.replace(/[^0-9]/g, ''));
+                                                                const fVal = parseInt(tempFares.f.replace(/[^0-9]/g, ''));
+
+                                                                await updateRouteFares(route.id, {
+                                                                    economy: isNaN(eVal) ? undefined : eVal * 10000,
+                                                                    business: isNaN(bVal) ? undefined : bVal * 10000,
+                                                                    first: isNaN(fVal) ? undefined : fVal * 10000,
+                                                                });
+                                                                setEditingRouteId(null);
+                                                            }}
+                                                            className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold hover:bg-emerald-500/30 transition-all"
+                                                        >
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEditingRouteId(null)}
+                                                            className="px-3 py-1.5 bg-white/5 text-white/40 border border-white/5 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingRouteId(route.id);
+                                                            setTempFares({
+                                                                e: (Number(route.fareEconomy) / 10000).toString(),
+                                                                b: (Number(route.fareBusiness) / 10000).toString(),
+                                                                f: (Number(route.fareFirst) / 10000).toString(),
+                                                            });
+                                                        }}
+                                                        className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
+                                                    >
+                                                        Edit Fares
+                                                    </button>
+                                                )}
+
                                                 <button
                                                     className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all"
                                                 >

@@ -10,6 +10,7 @@ export interface NetworkSlice {
     updateHub: (newHubIata: string) => Promise<void>;
     openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
     assignAircraftToRoute: (aircraftId: string, routeId: string | null) => Promise<void>;
+    updateRouteFares: (routeId: string, fares: { economy?: number; business?: number; first?: number }) => Promise<void>;
 }
 
 export const createNetworkSlice: StateCreator<
@@ -165,7 +166,7 @@ export const createNetworkSlice: StateCreator<
             id: `evt-assign-${aircraftId}-${currentTick}`,
             tick: currentTick,
             timestamp: simulatedTimestamp,
-            type: 'maintenance', // Re-using maintenance/delivery for config changes
+            type: 'maintenance',
             aircraftId,
             aircraftName,
             routeId: routeId || undefined,
@@ -190,6 +191,37 @@ export const createNetworkSlice: StateCreator<
                 });
             } catch (e) {
                 console.error("Failed to sync assignment to Nostr:", e);
+            }
+        }
+    },
+
+    updateRouteFares: async (routeId: string, fares: { economy?: number; business?: number; first?: number }) => {
+        const { routes, airline, fleet } = get();
+
+        const updatedRoutes = routes.map(rt => {
+            if (rt.id === routeId) {
+                return {
+                    ...rt,
+                    fareEconomy: fares.economy !== undefined ? fp(fares.economy) : rt.fareEconomy,
+                    fareBusiness: fares.business !== undefined ? fp(fares.business) : rt.fareBusiness,
+                    fareFirst: fares.first !== undefined ? fp(fares.first) : rt.fareFirst,
+                };
+            }
+            return rt;
+        });
+
+        set({ routes: updatedRoutes });
+
+        if (airline) {
+            try {
+                await publishAirline({
+                    ...airline,
+                    fleet,
+                    routes: updatedRoutes,
+                    lastTick: useEngineStore.getState().tick
+                });
+            } catch (e) {
+                console.error("Failed to sync fares to Nostr:", e);
             }
         }
     },

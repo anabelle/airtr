@@ -9,9 +9,12 @@ import {
     FixedPoint,
     TimelineEvent,
     GENESIS_TIME,
-    TICK_DURATION
+    TICK_DURATION,
+    calculateDemand,
+    getSeason,
+    getProsperityIndex
 } from '@airtr/core';
-import { getAircraftById } from '@airtr/data';
+import { getAircraftById, airports } from '@airtr/data';
 
 /**
  * Result of the engine processing a single tick.
@@ -124,12 +127,35 @@ export function processFlightEngine(
 
             const route = routes.find(r => r.id === ac.assignedRouteId);
             if (route) {
-                // LANDING & REVENUE PROCESSING
-                const dailyDemand = 500; // Placeholder
+                // Realism injection: Actual Market Demand
+                const origin = airports.find(a => a.iata === route.originIata);
+                const destination = airports.find(a => a.iata === route.destinationIata);
+
+                let demandResult = { economy: 50, business: 5, first: 1 }; // Fallback
+
+                if (origin && destination) {
+                    const simulatedTimestamp = GENESIS_TIME + (tick * TICK_DURATION);
+                    const now = new Date(simulatedTimestamp);
+                    const season = getSeason(destination.latitude, now);
+                    const prosperity = getProsperityIndex(tick);
+
+                    const weeklyDemand = calculateDemand(origin, destination, season, prosperity);
+                    // Convert weekly to per-flight potential (assuming daily frequency for now, or scaled by some factor)
+                    demandResult = {
+                        economy: Math.floor(weeklyDemand.economy / 7),
+                        business: Math.floor(weeklyDemand.business / 7),
+                        first: Math.floor(weeklyDemand.first / 7),
+                    };
+                }
+
+                // Capture Rate: How much of the demand we actually get
+                // 0.85 is a high "monopoly" capture rate. 
+                // Later this should be based on competition and QSI.
                 const captureRate = 0.85;
-                const paxE = Math.floor(Math.min(model.capacity.economy, dailyDemand * 0.8) * captureRate);
-                const paxB = Math.floor(Math.min(model.capacity.business, dailyDemand * 0.15) * captureRate);
-                const paxF = Math.floor(Math.min(model.capacity.first, dailyDemand * 0.05) * captureRate);
+
+                const paxE = Math.floor(Math.min(model.capacity.economy, demandResult.economy) * captureRate);
+                const paxB = Math.floor(Math.min(model.capacity.business, demandResult.business) * captureRate);
+                const paxF = Math.floor(Math.min(model.capacity.first, demandResult.first) * captureRate);
 
                 const rev = calculateFlightRevenue({
                     passengersEconomy: paxE,
@@ -180,7 +206,22 @@ export function processFlightEngine(
                     revenue: rev.revenueTotal,
                     cost: cost.costTotal,
                     profit: profit,
-                    description: `${ac.name} landed at ${ac.flight?.destinationIata}. Net Profit: ${profit > 0 ? '+' : ''}${profit / 10000}`
+                    description: `${ac.name} landed at ${ac.flight?.destinationIata}. Net Profit: ${profit > 0 ? '+' : ''}${profit / 10000}`,
+                    details: {
+                        revenue: {
+                            tickets: rev.revenueTicket,
+                            ancillary: rev.revenueAncillary
+                        },
+                        costs: {
+                            fuel: cost.costFuel,
+                            crew: cost.costCrew,
+                            maintenance: cost.costMaintenance,
+                            airport: cost.costAirport,
+                            navigation: cost.costNavigation,
+                            leasing: cost.costLeasing,
+                            overhead: cost.costOverhead
+                        }
+                    }
                 };
                 events.push(landingEvent);
                 console.log(`[FlightEngine] Plane ${ac.name} landed. Event generated:`, landingEvent.id);

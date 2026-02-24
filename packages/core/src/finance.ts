@@ -13,10 +13,10 @@ const FUEL_PRICE_PER_KG = fp(1.20); // $1.20 per kg
 const CREW_COST_PER_HOUR = fp(150); // $150 per hour per crew member
 const NAV_FEE_PER_KM = fp(0.50); // $0.50 per km overflight
 
-// Default Airport Fees (could be extracted from airport data later)
-const DEFAULT_LANDING_FEE = fp(1000);
-const DEFAULT_TERMINAL_FEE = fp(500);
-const DEFAULT_PAX_FEE = fp(15); // $15 per passenger
+// realistic Airport Fees
+const LANDING_FEE_PER_1000KG = fp(12); // $12 per tonne
+const TERMINAL_BASE_FEE = fp(250);     // $250 base
+const PAX_FACILITY_CHARGE = fp(12);    // $12 per passenger
 
 const ASSUMED_FLIGHTS_PER_MONTH = 120; // For leasing amortization (4 flights/day)
 
@@ -114,11 +114,15 @@ export function calculateFlightCost(params: FlightCostParams): {
     // Maintenance: blockHours * maintPerHour
     const costMaintenance = fpScale(params.aircraft.maintCostPerHour, params.blockHours);
 
-    // Airport Fees: landing + terminal + pax_fee * passengers (assume x2 for origin/dest)
-    // Here we just calculate origin+dest together generically, or per departure.
-    const baseAirportFees = fpAdd(DEFAULT_LANDING_FEE, DEFAULT_TERMINAL_FEE);
-    const paxFees = fpScale(DEFAULT_PAX_FEE, params.actualPassengers);
-    const costAirport = fpScale(fpAdd(baseAirportFees, paxFees), 2); // Origin and destination
+    // Airport Fees: based on MTOW for realism
+    // landing = MTOW(tonnes) * price_per_tonne
+    // terminal = base + pax_fee
+    const mtowTonnes = params.aircraft.maxTakeoffWeight / 1000;
+    const landingFee = fpScale(LANDING_FEE_PER_1000KG, mtowTonnes);
+    const terminalFee = fpAdd(TERMINAL_BASE_FEE, fpScale(PAX_FACILITY_CHARGE, params.actualPassengers));
+
+    // Total for one cycle (Landing + Terminal)
+    const costAirport = fpScale(fpAdd(landingFee, terminalFee), 2); // Origin and destination
 
     // Navigation: distance_km * nav_fee_per_km
     const costNavigation = fpScale(NAV_FEE_PER_KM, params.distanceKm);

@@ -298,4 +298,19 @@ export interface TimelineEvent {
     revenue?: FixedPoint;
     cost?: FixedPoint;
     profit?: FixedPoint;
+    details?: {
+        revenue?: {
+            tickets: FixedPoint;
+            ancillary: FixedPoint;
+        };
+        costs?: {
+            fuel: FixedPoint;
+            crew: FixedPoint;
+            maintenance: FixedPoint;
+            airport: FixedPoint;
+            navigation: FixedPoint;
+            leasing: FixedPoint;
+            overhead: FixedPoint;
+        };
+    };
 }
