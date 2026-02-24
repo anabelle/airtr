@@ -92,7 +92,7 @@ export interface AircraftInstance {
     ownerPubkey: string;      // The airline's Nostr pubkey
     modelId: string;          // Reference to AircraftModel.id
     name: string;             // User-assigned name (e.g., "Spirit of Satoshi")
-    status: 'idle' | 'assigned' | 'maintenance';
+    status: 'idle' | 'enroute' | 'turnaround' | 'delivery' | 'maintenance';
     assignedRouteId: string | null; 
     purchasedAtTick: number;  // For age/depreciation calculations
     

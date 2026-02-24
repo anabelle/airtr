@@ -78,7 +78,7 @@ A global economic multiplier that oscillates over time:
 prosperityIndex(tick) = 1.0 + 0.15 × sin(2π × tick / TICKS_PER_ECONOMIC_CYCLE)
 ```
 
-Where `TICKS_PER_ECONOMIC_CYCLE` = 8760 (one real-world year, assuming 1 tick = 1 hour).
+Where `TICKS_PER_ECONOMIC_CYCLE` = 10,512,000 (one real-world year, assuming 1200 ticks per hour).
 Range: 0.85 (recession) to 1.15 (boom).
 
 ---
@@ -260,8 +260,8 @@ All of the above calculations are:
 
 - All financial values use **fixed-point arithmetic** (4 decimal places, integer internally).
   See ADR-002.
-- **Time Scale**: 1 Tick = exactly 1 Real-World Hour in UTC. The simulation is 1:1 real-time.
+- **Time Scale**: 1 Real-World Hour = 1,200 Ticks (1 Tick = 3.0 Seconds). The simulation is 1:1 real-time. All progression is anchored to the global GENESIS_TIME (Unix Epoch).
 - All random values use the **seeded PRNG** (`prng.ts`), seeded by tick number.
-- Distance calculations use the **integer lookup table** for trig functions.
+- Distance calculations use the **Haversine formula** (implemented in `@airtr/core`).
 - The tick processor processes ALL airlines simultaneously per tick (hourly).
 - Sort order in loops MUST be deterministic (sort by airline pubkey, then by route IATA pair).

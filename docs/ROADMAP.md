@@ -183,6 +183,21 @@
 
 ---
 
+## Phase 9: Extreme Scale (The "FlightRadar" Tier)
+**Goal**: Support 100,000+ concurrent aircraft without performance loss.
+**Depends on**: Phase 7
+**Architectural Strategy**: See [SCALABILITY.md](./SCALABILITY.md)
+
+| Key Features |
+|-------------|
+| GPU-Driven Simulation (SLERP in Shaders) |
+| WebGL Custom Layer for instanced aircraft rendering |
+| Off-main-thread Web Worker Engine |
+| Zero-copy state sharing (SharedArrayBuffer) |
+| Spatial indexing (Quadtree) for view-frustum culling |
+
+---
+
 ## Phase Summary
 
 | Phase | Name | Tasks | Agents | Duration | Milestone |
@@ -196,6 +211,7 @@
 | 6 | Rich Simulation | ~12 | 3 | 4 days | Dynamic world |
 | 7 | Sensory Polish | ~10 | 3 | 3 days | Premium feel |
 | 8 | Social & Depth | ~15 | 4 | 5 days | Long-term engagement |
+| 9 | **Extreme Scale** | ~5 | 2 | 4 days | **Support 100k+ global planes** |
 
 **Total to MVP (Phases 0–4): ~61 tasks, ~12 days**
 **Total to full game (Phases 0–8): ~108 tasks, ~27 days**
