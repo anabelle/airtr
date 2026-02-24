@@ -127,7 +127,8 @@ export function processFlightEngine(
 
                 ac.flightHoursTotal += flightHoursData;
                 ac.flightHoursSinceCheck += flightHoursData;
-                ac.condition = Math.max(0, ac.condition - (0.001 * flightHoursData));
+                // Wear and Tear: 1.0 (100%) -> 0.0 (0%) over 20,000 flight hours (Realistic Mid-Life/D-Check interval)
+                ac.condition = Math.max(0, ac.condition - (0.00005 * flightHoursData));
 
                 // Set to Turnaround
                 const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
