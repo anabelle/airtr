@@ -3,13 +3,12 @@ import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { getAircraftById } from '@airtr/data';
 import { calculateBookValue, fpFormat, fpScale, fp, fpToNumber } from '@airtr/core';
 import { AircraftDealer } from './AircraftDealer';
-import { Plane, Settings, Search, PlusCircle, LayoutGrid, List, Trash2, Timer, Tag, XCircle } from 'lucide-react';
+import { Plane, Settings, Search, PlusCircle, Trash2, Timer, Tag, XCircle } from 'lucide-react';
 
 export function FleetManager() {
     const { fleet, routes, sellAircraft, buyoutAircraft, assignAircraftToRoute, listAircraft, cancelListing } = useAirlineStore(state => state);
     const tick = useEngineStore(state => state.tick);
     const [view, setView] = useState<'owned' | 'dealer'>('owned');
-    const [layout, setLayout] = useState<'grid' | 'list'>('grid');
     const [search, setSearch] = useState('');
 
     if (view === 'dealer') {
@@ -49,20 +48,6 @@ export function FleetManager() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex bg-muted/30 rounded-xl p-1 border border-border/30">
-                        <button
-                            onClick={() => setLayout('grid')}
-                            className={`p-1.5 rounded-lg transition-all ${layout === 'grid' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        >
-                            <LayoutGrid className="h-4 w-4" />
-                        </button>
-                        <button
-                            onClick={() => setLayout('list')}
-                            className={`p-1.5 rounded-lg transition-all ${layout === 'list' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        >
-                            <List className="h-4 w-4" />
-                        </button>
-                    </div>
                 </div>
 
                 <button
@@ -94,7 +79,7 @@ export function FleetManager() {
                     <div className="py-20 text-center flex flex-col items-center">
                         <p className="text-muted-foreground">No aircraft found matching "{search}".</p>
                     </div>
-                ) : layout === 'grid' ? (
+                ) : (
                     <div className="grid grid-cols-2 gap-6">
                         {filteredFleet.map((ac) => {
                             const model = getAircraftById(ac.modelId);
@@ -308,47 +293,6 @@ export function FleetManager() {
                                 </div>
                             );
                         })}
-                    </div>
-                ) : (
-                    /* Simple List View Support */
-                    <div className="flex flex-col border border-border/50 rounded-2xl overflow-hidden bg-card">
-                        <div className="grid grid-cols-12 gap-4 border-b border-border/50 bg-background/50 p-4 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-                            <div className="col-span-3">Aircraft</div>
-                            <div className="col-span-2">Registry / Hub</div>
-                            <div className="col-span-3">Route</div>
-                            <div className="col-span-2">Status / Condition</div>
-                            <div className="col-span-2 text-right">Actions</div>
-                        </div>
-                        <div className="divide-y divide-border/20">
-                            {filteredFleet.map((ac) => (
-                                <div key={ac.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-accent/5 transition-colors">
-                                    <div className="col-span-3 flex flex-col">
-                                        <span className="text-sm font-bold truncate">{ac.name}</span>
-                                        <span className="text-[10px] text-muted-foreground font-bold uppercase">{ac.modelId}</span>
-                                    </div>
-                                    <div className="col-span-2 flex flex-col gap-0.5">
-                                        <span className="font-mono text-[10px] text-muted-foreground uppercase">{ac.id}</span>
-                                        <span className="font-mono text-[10px] text-accent font-bold">{ac.baseAirportIata}</span>
-                                    </div>
-                                    <div className="col-span-3">
-                                        <span className="text-xs font-bold text-foreground">
-                                            {ac.assignedRouteId || 'Unassigned'}
-                                        </span>
-                                    </div>
-                                    <div className="col-span-2 flex flex-col gap-1">
-                                        <span className="text-[10px] font-black uppercase text-primary">{ac.status}</span>
-                                        <div className="w-16 h-1 bg-accent/20 rounded-full overflow-hidden">
-                                            <div className="h-full bg-primary" style={{ width: `${ac.condition * 100}%` }} />
-                                        </div>
-                                    </div>
-                                    <div className="col-span-2 flex justify-end gap-2">
-                                        <button onClick={() => sellAircraft(ac.id)} className="p-1.5 text-red-400 hover:bg-red-500 hover:text-white rounded-md transition-all">
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 )}
             </div>
