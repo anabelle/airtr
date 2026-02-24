@@ -123,7 +123,8 @@ export interface AircraftInstance {
     status: 'idle' | 'enroute' | 'turnaround' | 'maintenance' | 'delivery';
     assignedRouteId: string | null;
     baseAirportIata: string;  // Where the aircraft is physically parked (Last or current)
-    purchasedAtTick: number;
+    purchasedAtTick: number;  // When the CURRENT owner bought it
+    birthTick: number;        // When the aircraft was originally manufactured (for depreciation)
     deliveryAtTick?: number;  // When it arrives at truth
 
     // Flight state

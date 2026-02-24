@@ -158,7 +158,7 @@ export function FleetManager() {
                                             <div>
                                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">{ac.purchaseType === 'lease' ? 'Buyout Price' : 'Market Value'}</p>
                                                 <p className="font-mono text-xs">
-                                                    {fpFormat(calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.purchasedAtTick, tick), 0)}
+                                                    {fpFormat(calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.birthTick || ac.purchasedAtTick, tick), 0)}
                                                 </p>
                                             </div>
                                             {ac.purchaseType === 'lease' && (
@@ -170,7 +170,7 @@ export function FleetManager() {
                                                         </div>
                                                         <button
                                                             onClick={() => {
-                                                                const cost = calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.purchasedAtTick, tick);
+                                                                const cost = calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.birthTick || ac.purchasedAtTick, tick);
                                                                 if (confirm(`Convert ${ac.name} to full ownership for ${fpFormat(cost)}?`)) {
                                                                     buyoutAircraft(ac.id);
                                                                 }
@@ -270,7 +270,7 @@ export function FleetManager() {
                                                 </button>
                                                 <button onClick={() => {
                                                     const isLease = ac.purchaseType === 'lease';
-                                                    const val = isLease ? 0 : calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.purchasedAtTick, tick);
+                                                    const val = isLease ? 0 : calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.birthTick || ac.purchasedAtTick, tick);
                                                     const msg = isLease
                                                         ? `Return leased aircraft ${ac.name}? You will lose your security deposit but stop future lease payments.`
                                                         : `Sell ${ac.name} for ${fpFormat(val as any)}?\n\nCurrent book value includes depreciation and usage penalties.`;
@@ -280,7 +280,7 @@ export function FleetManager() {
                                                     }
                                                 }} className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all group/sell block shrink-0" title={ac.purchaseType === 'lease' ? "Return Lease" : "Sell Aircraft"}>
                                                     <Trash2 className="h-4 w-4" />
-                                                    <span className="text-[10px] font-bold uppercase">{ac.purchaseType === 'lease' ? 'Return Lease' : `Sell for ${fpFormat(calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.purchasedAtTick, tick))}`}</span>
+                                                    <span className="text-[10px] font-bold uppercase">{ac.purchaseType === 'lease' ? 'Return Lease' : `Sell for ${fpFormat(calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.birthTick || ac.purchasedAtTick, tick))}`}</span>
                                                 </button>
                                             </div>
                                         </div>

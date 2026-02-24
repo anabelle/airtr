@@ -71,6 +71,7 @@ export const createFleetSlice: StateCreator<
             assignedRouteId: null,
             baseAirportIata: targetHubIata,
             purchasedAtTick: engineStore.tick,
+            birthTick: engineStore.tick,
             deliveryAtTick: engineStore.tick + model.deliveryTimeTicks,
             flight: null,
             configuration: configuration || { ...model.capacity },
@@ -128,7 +129,7 @@ export const createFleetSlice: StateCreator<
                 model,
                 instance.flightHoursTotal,
                 instance.condition,
-                instance.purchasedAtTick,
+                instance.birthTick || instance.purchasedAtTick,
                 currentTick
             );
 
@@ -183,7 +184,7 @@ export const createFleetSlice: StateCreator<
         if (!model) throw new Error('Aircraft model not found.');
 
         const engineStore = useEngineStore.getState();
-        const cost = calculateBookValue(model, instance.flightHoursTotal, instance.condition, instance.purchasedAtTick, engineStore.tick);
+        const cost = calculateBookValue(model, instance.flightHoursTotal, instance.condition, instance.birthTick || instance.purchasedAtTick, engineStore.tick);
 
         if (airline.corporateBalance < cost) {
             throw new Error(`Insufficient funds for buyout of ${instance.name}. Needed: ${fpFormat(cost)}`);
@@ -236,6 +237,7 @@ export const createFleetSlice: StateCreator<
             purchaseType: 'buy',
             baseAirportIata: targetHubIata,
             purchasedAtTick: engineStore.tick,
+            birthTick: listing.birthTick || listing.purchasedAtTick,
             deliveryAtTick: engineStore.tick + 20,
             flight: null,
         };

@@ -30,31 +30,35 @@ export const createEngineSlice: StateCreator<
         isProcessing = true;
         try {
             // 2. Catch up simulation
-            // We loop from the last processed tick to the current one.
             // Safety cap: Never simulate more than 50,000 ticks (~40 hours) in one frame 
-            // to avoid freezing the browser. Players returning after a week will catch up 
-            // in chunks as the clock moves.
+            // to avoid freezing the browser. If the jump is larger, we will catch up 
+            // incrementally in subsequent frames until synchronized.
             const MAX_CATCHUP = 50000;
-            const startTick = Math.max(lastTick, tick - MAX_CATCHUP);
+            const targetTick = Math.min(tick, lastTick + MAX_CATCHUP);
 
             let currentFleet = [...fleet];
             let currentBalance = airline.corporateBalance;
             let anyChanges = false;
 
-            for (let t = startTick + 1; t <= tick; t++) {
+            for (let t = lastTick + 1; t <= targetTick; t++) {
                 const result = processFlightEngine(
                     t,
                     currentFleet,
                     routes,
-                    currentBalance
+                    currentBalance,
+                    t - 1 // Inform the engine of the previous tick state
                 );
                 currentFleet = result.updatedFleet;
                 currentBalance = result.corporateBalance;
                 if (result.hasChanges) anyChanges = true;
             }
 
-            // 3. Update state
-            const updatedAirline = { ...airline, corporateBalance: currentBalance, lastTick: tick };
+            // 3. Update state - We move lastTick to targetTick (which might be less than global tick)
+            const updatedAirline = {
+                ...airline,
+                corporateBalance: currentBalance,
+                lastTick: targetTick
+            };
             set({ fleet: currentFleet, airline: updatedAirline });
 
             // 4. Sync to Nostr only if significant events happened

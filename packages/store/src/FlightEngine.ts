@@ -28,7 +28,8 @@ export function processFlightEngine(
     tick: number,
     fleet: AircraftInstance[],
     routes: Route[],
-    initialBalance: FixedPoint
+    initialBalance: FixedPoint,
+    lastTick: number = tick - 1
 ): EngineTickResult {
     let hasChanges = false;
     let corporateBalance = initialBalance;
@@ -164,15 +165,22 @@ export function processFlightEngine(
         }
     }
 
-    // 2. Lease deductions (Every 30 REAL Days)
+    // 2. Lease deductions (Robust logic for catch-up)
     const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
     const MONTH_TICKS = 30 * TICKS_PER_DAY;
-    if (tick > 0 && tick % MONTH_TICKS === 0) {
+
+    const cyclesPrevious = Math.floor(lastTick / MONTH_TICKS);
+    const cyclesCurrent = Math.floor(tick / MONTH_TICKS);
+
+    if (cyclesCurrent > cyclesPrevious) {
+        const numCycles = cyclesCurrent - cyclesPrevious;
         for (const ac of updatedFleetMap.values()) {
             if (ac.purchaseType === 'lease') {
                 const model = getAircraftById(ac.modelId);
                 if (model) {
-                    corporateBalance = fpSub(corporateBalance, model.monthlyLease);
+                    for (let i = 0; i < numCycles; i++) {
+                        corporateBalance = fpSub(corporateBalance, model.monthlyLease);
+                    }
                     hasChanges = true;
                 }
             }

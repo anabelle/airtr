@@ -10,7 +10,7 @@ export function calculateBookValue(
     model: AircraftModel,
     flightHoursTotal: number,
     condition: number, // 0.0 to 1.0
-    purchasedAtTick: number,
+    birthTick: number,
     currentTick: number
 ): FixedPoint {
     // Correctly determine age using the 1:1 real-time tick scale
@@ -18,7 +18,7 @@ export function calculateBookValue(
     const ticksPerDay = TICKS_PER_HOUR * 24;
     const ticksPerYear = ticksPerDay * 365.25;
 
-    const ageTicks = Math.max(0, currentTick - purchasedAtTick);
+    const ageTicks = Math.max(0, currentTick - birthTick);
     const ageYears = ageTicks / ticksPerYear;
 
     // Base residual value
