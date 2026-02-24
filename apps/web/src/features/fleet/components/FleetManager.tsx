@@ -275,7 +275,7 @@ export function FleetManager() {
 
                                                                     const fee = price * 0.005;
                                                                     if (confirm(`Listing this aircraft for ${fpFormat(fp(price))} will cost ${fpFormat(fp(fee))} in non-refundable listing fees. Continue?`)) {
-                                                                        listAircraft(ac.id, price as any);
+                                                                        listAircraft(ac.id, fp(price));
                                                                     }
                                                                 }
                                                             }}
