@@ -24,11 +24,6 @@ export const useAirlineStore = create<AirlineState>()((...a) => ({
 // --- Side Effects ---
 
 // Automatically process fleet ticks when engine ticks advance
-let lastSimulatedTick = useEngineStore.getState().tick;
-
 useEngineStore.subscribe((state) => {
-    if (state.tick > lastSimulatedTick) {
-        lastSimulatedTick = state.tick;
-        useAirlineStore.getState().processTick(state.tick);
-    }
+    useAirlineStore.getState().processTick(state.tick);
 });
