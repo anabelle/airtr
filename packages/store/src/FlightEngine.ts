@@ -11,6 +11,7 @@ import {
     fpToNumber,
     calculateFlightRevenue,
     calculateFlightCost,
+    calculateHubLandingFee,
     TICKS_PER_HOUR,
     GENESIS_TIME,
     TICK_DURATION,
@@ -18,9 +19,11 @@ import {
     getSeason,
     getProsperityIndex,
     allocatePassengers,
-    detectPriceWar
+    detectPriceWar,
+    getHubDemandModifier,
+    fp
 } from '@airtr/core';
-import { getAircraftById, airports } from '@airtr/data';
+import { getAircraftById, airports, HUB_CLASSIFICATIONS } from '@airtr/data';
 
 /**
  * Result of the engine processing a single tick.
@@ -55,6 +58,35 @@ export function processFlightEngine(
     const updatedFleetMap = new Map<string, AircraftInstance>(
         fleet.map(ac => [ac.id, { ...ac }])
     );
+
+    const airportTraffic = new Map<string, number>();
+    const hubStats = new Map<string, { spokeCount: number; weeklyFrequency: number }>();
+
+    for (const route of routes) {
+        const weekly = route.frequencyPerWeek ?? 0;
+        const hourly = weekly / (7 * 24);
+        if (hourly > 0) {
+            airportTraffic.set(route.originIata, (airportTraffic.get(route.originIata) ?? 0) + hourly);
+            airportTraffic.set(route.destinationIata, (airportTraffic.get(route.destinationIata) ?? 0) + hourly);
+        }
+
+        if (route.originIata) {
+            const current = hubStats.get(route.originIata) ?? { spokeCount: 0, weeklyFrequency: 0 };
+            current.spokeCount += 1;
+            current.weeklyFrequency += weekly;
+            hubStats.set(route.originIata, current);
+        }
+    }
+
+    const hubStates = new Map<string, { hubIata: string; spokeCount: number; weeklyFrequency: number; avgFrequency: number }>();
+    for (const [hubIata, stats] of hubStats.entries()) {
+        hubStates.set(hubIata, {
+            hubIata,
+            spokeCount: stats.spokeCount,
+            weeklyFrequency: stats.weeklyFrequency,
+            avgFrequency: stats.spokeCount > 0 ? stats.weeklyFrequency / stats.spokeCount : 0,
+        });
+    }
 
 
     // 1. Process each aircraft
@@ -167,7 +199,17 @@ export function processFlightEngine(
                     const season = getSeason(destination.latitude, now);
                     const prosperity = getProsperityIndex(tick);
 
-                    const weeklyDemand = calculateDemand(origin, destination, season, prosperity);
+                    const originHub = HUB_CLASSIFICATIONS[route.originIata] ?? null;
+                    const destHub = HUB_CLASSIFICATIONS[route.destinationIata] ?? null;
+                    const originState = originHub ? hubStates.get(route.originIata) ?? null : null;
+                    const destState = destHub ? hubStates.get(route.destinationIata) ?? null : null;
+                    const hubModifier = getHubDemandModifier(
+                        originHub?.tier ?? null,
+                        destHub?.tier ?? null,
+                        originState,
+                        destState,
+                    );
+                    const weeklyDemand = calculateDemand(origin, destination, season, prosperity, hubModifier);
                     weeklyDemandResult = {
                         origin: route.originIata,
                         destination: route.destinationIata,
@@ -242,11 +284,25 @@ export function processFlightEngine(
                     seatsOffered: model.capacity.economy + model.capacity.business + model.capacity.first
                 });
 
+                const originHub = HUB_CLASSIFICATIONS[route.originIata];
+                const destHub = HUB_CLASSIFICATIONS[route.destinationIata];
+                const originTraffic = airportTraffic.get(route.originIata) ?? 0;
+                const destTraffic = airportTraffic.get(route.destinationIata) ?? 0;
+                const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(250);
+                const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(250);
+                const originCapacity = originHub?.baseCapacityPerHour ?? 80;
+                const destCapacity = destHub?.baseCapacityPerHour ?? 80;
+                const originFee = calculateHubLandingFee(originBaseFee, originCapacity, originTraffic);
+                const destFee = calculateHubLandingFee(destBaseFee, destCapacity, destTraffic);
+                const avgFee = (fpToNumber(originFee) + fpToNumber(destFee)) / 2;
+                const airportFeesMultiplier = avgFee / 250;
+
                 const cost = calculateFlightCost({
                     distanceKm: route.distanceKm,
                     aircraft: model,
                     actualPassengers: rev.actualPassengers,
-                    blockHours: (ac.flight.arrivalTick - ac.flight.departureTick) / TICKS_PER_HOUR
+                    blockHours: (ac.flight.arrivalTick - ac.flight.departureTick) / TICKS_PER_HOUR,
+                    airportFeesMultiplier
                 });
 
                 const profit = fpSub(rev.revenueTotal, cost.costTotal);

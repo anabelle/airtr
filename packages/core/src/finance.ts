@@ -59,6 +59,23 @@ export interface FlightCostParams {
     aircraft: AircraftModel;
     actualPassengers: number;
     blockHours: number;
+    airportFeesMultiplier?: number;
+}
+
+export function calculateHubLandingFee(
+    baseLandingFee: FixedPoint,
+    baseCapacityPerHour: number,
+    hourlyFlights: number,
+): FixedPoint {
+    const ratio = baseCapacityPerHour > 0 ? hourlyFlights / baseCapacityPerHour : 0;
+
+    if (ratio <= 0.8) {
+        return fpScale(baseLandingFee, 1 + ratio);
+    }
+
+    const excess = ratio - 0.8;
+    const multiplier = 1 + 0.8 + (Math.exp(excess * 4) - 1);
+    return fpScale(baseLandingFee, multiplier);
 }
 
 /**
@@ -153,7 +170,9 @@ export function calculateFlightCost(params: FlightCostParams): {
     const terminalFee = fpAdd(TERMINAL_BASE_FEE, fpScale(PAX_FACILITY_CHARGE, params.actualPassengers));
 
     // Total for one cycle (Landing + Terminal)
-    const costAirport = fpScale(fpAdd(landingFee, terminalFee), 2); // Origin and destination
+    const airportBase = fpScale(fpAdd(landingFee, terminalFee), 2);
+    const airportMultiplier = params.airportFeesMultiplier ?? 1;
+    const costAirport = fpScale(airportBase, airportMultiplier);
 
     // Navigation: distance_km * nav_fee_per_km
     const costNavigation = fpScale(NAV_FEE_PER_KM, params.distanceKm);

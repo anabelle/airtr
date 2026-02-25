@@ -3,9 +3,9 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest';
-import { calculateFlightRevenue, calculateFlightCost } from './finance.js';
+import { calculateFlightRevenue, calculateFlightCost, detectPriceWar, getSuggestedFares } from './finance.js';
 import { fp, fpToNumber } from './fixed-point.js';
-import type { AircraftModel } from './types.js';
+import type { AircraftModel, FlightOffer } from './types.js';
 
 describe('calculateFlightRevenue()', () => {
     it('calculates 100% load factor correctly', () => {
@@ -96,6 +96,7 @@ describe('calculateFlightCost()', () => {
             aircraft: aircraft,
             actualPassengers: 150,
             blockHours: 5, // ~4000km / 830kmh + pad
+            airportFeesMultiplier: 1,
         });
 
         // Fuel: 4000 * 2.5 * 1.20 = 12000
@@ -126,5 +127,135 @@ describe('calculateFlightCost()', () => {
 
         // Total: base + overhead
         expect(fpToNumber(result.costTotal)).toBeCloseTo(totalBase + overhead, 1);
+    });
+});
+
+describe('detectPriceWar', () => {
+    it('returns false when only one offer', () => {
+        const offers: FlightOffer[] = [
+            {
+                airlinePubkey: 'pubkey1',
+                fareEconomy: fp(100),
+                fareBusiness: fp(300),
+                fareFirst: fp(500),
+                frequencyPerWeek: 7,
+                travelTimeMinutes: 120,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.5,
+            },
+        ];
+        const result = detectPriceWar(offers);
+        expect(result.isPriceWar).toBe(false);
+        expect(result.lowPricedAirlines).toEqual([]);
+    });
+
+    it('detects price war when fares are 30%+ below average', () => {
+        const offers: FlightOffer[] = [
+            {
+                airlinePubkey: 'airline1',
+                fareEconomy: fp(100),
+                fareBusiness: fp(300),
+                fareFirst: fp(500),
+                frequencyPerWeek: 14,
+                travelTimeMinutes: 140,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.6,
+            },
+            {
+                airlinePubkey: 'airline2',
+                fareEconomy: fp(100),
+                fareBusiness: fp(300),
+                fareFirst: fp(500),
+                frequencyPerWeek: 14,
+                travelTimeMinutes: 145,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.6,
+            },
+            {
+                airlinePubkey: 'airline3',
+                fareEconomy: fp(50),
+                fareBusiness: fp(150),
+                fareFirst: fp(250),
+                frequencyPerWeek: 14,
+                travelTimeMinutes: 150,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.6,
+            },
+        ];
+        const result = detectPriceWar(offers);
+        expect(result.isPriceWar).toBe(true);
+        expect(result.lowPricedAirlines).toContain('airline3');
+    });
+
+    it('returns false when all fares are similar', () => {
+        const offers: FlightOffer[] = [
+            {
+                airlinePubkey: 'airline1',
+                fareEconomy: fp(100),
+                fareBusiness: fp(300),
+                fareFirst: fp(500),
+                frequencyPerWeek: 10,
+                travelTimeMinutes: 120,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.5,
+            },
+            {
+                airlinePubkey: 'airline2',
+                fareEconomy: fp(105),
+                fareBusiness: fp(310),
+                fareFirst: fp(520),
+                frequencyPerWeek: 10,
+                travelTimeMinutes: 125,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.5,
+            },
+            {
+                airlinePubkey: 'airline3',
+                fareEconomy: fp(98),
+                fareBusiness: fp(295),
+                fareFirst: fp(490),
+                frequencyPerWeek: 10,
+                travelTimeMinutes: 130,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: 0.5,
+            },
+        ];
+        const result = detectPriceWar(offers);
+        expect(result.isPriceWar).toBe(false);
+    });
+});
+
+describe('getSuggestedFares', () => {
+    it('returns increasing fares for longer distances', () => {
+        const shortHaul = getSuggestedFares(500);
+        const longHaul = getSuggestedFares(5000);
+
+        expect(shortHaul.economy).toBeLessThan(longHaul.economy);
+        expect(shortHaul.business).toBeLessThan(longHaul.business);
+        expect(shortHaul.first).toBeLessThan(longHaul.first);
+    });
+
+    it('returns valid fares for 1000km route', () => {
+        const fares = getSuggestedFares(1000);
+        expect(fpToNumber(fares.economy)).toBe(200);
+        expect(fpToNumber(fares.business)).toBe(550);
+        expect(fpToNumber(fares.first)).toBe(1200);
+    });
+
+    it('business is more expensive than economy', () => {
+        const fares = getSuggestedFares(2000);
+        expect(fpToNumber(fares.business)).toBeGreaterThan(fpToNumber(fares.economy));
+    });
+
+    it('first class is most expensive', () => {
+        const fares = getSuggestedFares(2000);
+        expect(fpToNumber(fares.first)).toBeGreaterThan(fpToNumber(fares.business));
     });
 });

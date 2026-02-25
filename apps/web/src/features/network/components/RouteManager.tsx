@@ -37,7 +37,7 @@ export function RouteManager() {
         const prosperity = getProsperityIndex(tick);
         const season = getSeason(dest.latitude, now);
         const distance = haversineDistance(homeAirport.latitude, homeAirport.longitude, dest.latitude, dest.longitude);
-        const demand = calculateDemand(homeAirport, dest, season, prosperity);
+        const demand = calculateDemand(homeAirport, dest, season, prosperity, 1.0);
         const avgFarePerKm = 0.12;
         const baseFare = Math.max(80, Math.round(distance * avgFarePerKm));
         const totalPax = demand.economy + demand.business + demand.first;

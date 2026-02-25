@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { fp } from '@airtr/core';
-import { MARKETPLACE_D_PREFIX } from './schema.js';
 
 const mockIsRecord = (data: unknown): data is Record<string, unknown> => {
     return typeof data === 'object' && data !== null;

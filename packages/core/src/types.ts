@@ -46,6 +46,17 @@ export interface Airport {
 
 export type AirportTag = 'beach' | 'ski' | 'business' | 'general';
 
+// --- Hubs ---
+
+export type HubTier = 'regional' | 'national' | 'international' | 'global';
+
+export interface HubState {
+    hubIata: string;
+    spokeCount: number;
+    weeklyFrequency: number;
+    avgFrequency: number;
+}
+
 // --- Season ---
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
@@ -197,6 +208,9 @@ export interface Route {
     destinationIata: string;  // Target Airport
     airlinePubkey: string;    // Owner
     distanceKm: number;
+
+    // Schedule
+    frequencyPerWeek?: number;
 
     // Operations
     assignedAircraftIds: string[]; // Which specific planes fly this?

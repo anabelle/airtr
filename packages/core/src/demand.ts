@@ -4,7 +4,7 @@
 // See docs/ECONOMIC_MODEL.md §1 for full specification.
 // ============================================================
 
-import type { Airport, DemandResult, Season } from './types.js';
+import type { Airport, DemandResult, Season, HubState, HubTier } from './types.js';
 import { TICKS_PER_HOUR } from './types.js';
 import { haversineDistance } from './geo.js';
 import { getSeasonalMultiplier } from './season.js';
@@ -49,6 +49,7 @@ export function calculateDemand(
     destination: Airport,
     season: Season,
     prosperityIndex: number = 1.0,
+    hubModifier: number = 1.0,
 ): DemandResult {
     // Calculate great-circle distance
     const distance = Math.max(
@@ -77,7 +78,7 @@ export function calculateDemand(
     const seasonalMultiplier = getSeasonalMultiplier(destTag, season);
 
     // Apply prosperity index
-    const totalDemand = Math.max(0, Math.round(baseDemand * seasonalMultiplier * prosperityIndex));
+    const totalDemand = Math.max(0, Math.round(baseDemand * seasonalMultiplier * prosperityIndex * hubModifier));
 
     // Split into classes
     return {
@@ -87,6 +88,33 @@ export function calculateDemand(
         business: Math.round(totalDemand * BUSINESS_SHARE),
         first: Math.round(totalDemand * FIRST_SHARE),
     };
+}
+
+export function getHubDemandModifier(
+    originTier: HubTier | null,
+    destTier: HubTier | null,
+    originState: HubState | null,
+    destState: HubState | null,
+): number {
+    let modifier = 1.0;
+
+    if (originTier && destTier) {
+        const tierValue = (tier: HubTier) =>
+            tier === 'regional' ? 1 : tier === 'national' ? 2 : tier === 'international' ? 3 : 4;
+        modifier += (tierValue(originTier) + tierValue(destTier)) * 0.08;
+    }
+
+    if (originState && destState) {
+        const feed = (Math.log1p(originState.spokeCount) + Math.log1p(destState.spokeCount)) * 0.08;
+        modifier += feed;
+    }
+
+    if (originState && originState.spokeCount > 0) {
+        const density = Math.min(originState.avgFrequency / 20, 0.25);
+        modifier += density;
+    }
+
+    return modifier;
 }
 
 /**

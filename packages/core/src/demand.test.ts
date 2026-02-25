@@ -87,9 +87,9 @@ describe('calculateDemand()', () => {
     });
 
     it('prosperity index scales demand', () => {
-        const normal = calculateDemand(JFK, LAX, 'summer', 1.0);
-        const boom = calculateDemand(JFK, LAX, 'summer', 1.15);
-        const recession = calculateDemand(JFK, LAX, 'summer', 0.85);
+        const normal = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
+        const boom = calculateDemand(JFK, LAX, 'summer', 1.15, 1.0);
+        const recession = calculateDemand(JFK, LAX, 'summer', 0.85, 1.0);
         expect(boom.economy).toBeGreaterThan(normal.economy);
         expect(normal.economy).toBeGreaterThan(recession.economy);
     });
@@ -109,8 +109,8 @@ describe('calculateDemand()', () => {
     });
 
     it('is deterministic across calls', () => {
-        const r1 = calculateDemand(JFK, LAX, 'summer', 1.0);
-        const r2 = calculateDemand(JFK, LAX, 'summer', 1.0);
+        const r1 = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
+        const r2 = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
         expect(r1.economy).toBe(r2.economy);
         expect(r1.business).toBe(r2.business);
         expect(r1.first).toBe(r2.first);

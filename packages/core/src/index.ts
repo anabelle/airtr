@@ -14,6 +14,8 @@ export type {
     Airport,
     AirportTag,
     Season,
+    HubTier,
+    HubState,
     DemandResult,
     AircraftModel,
     AircraftInstance,
@@ -55,13 +57,16 @@ export { haversineDistance } from './geo.js';
 export { getSeason, getSeasonalMultiplier } from './season.js';
 
 // Demand
-export { calculateDemand, getProsperityIndex } from './demand.js';
+export { calculateDemand, getProsperityIndex, getHubDemandModifier } from './demand.js';
 
 // QSI
 export { calculateShares, allocatePassengers } from './qsi.js';
 
 // Finance
-export { calculateFlightRevenue, calculateFlightCost, getSuggestedFares, detectPriceWar } from './finance.js';
+export { calculateFlightRevenue, calculateFlightCost, calculateHubLandingFee, getSuggestedFares, detectPriceWar } from './finance.js';
 
 // Fleet
 export { calculateBookValue } from './fleet.js';
+
+// Hubs
+export { buildHubState } from './hub.js';

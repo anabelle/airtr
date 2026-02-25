@@ -51,7 +51,7 @@ function generateRoutes(home: Airport, tick: number): RouteData[] {
     return picks.map(dest => {
         const season = getSeason(dest.latitude, now);
         const distance = haversineDistance(home.latitude, home.longitude, dest.latitude, dest.longitude);
-        const demand = calculateDemand(home, dest, season, prosperity);
+        const demand = calculateDemand(home, dest, season, prosperity, 1.0);
         const avgFarePerKm = 0.12;
         const baseFare = Math.max(80, Math.round(distance * avgFarePerKm));
         const totalPax = demand.economy + demand.business + demand.first;
