@@ -76,16 +76,36 @@ export const createIdentitySlice: StateCreator<
             // 6a. Ensure routes only list planes that actually exist
             const fleetIds = new Set(cleanFleet.map(ac => ac.id));
             const rawRoutes = existing && existing.routes ? existing.routes : [];
-            const reconciledRoutes = rawRoutes.map(route => ({
-                ...route,
-                assignedAircraftIds: route.assignedAircraftIds.filter(id => fleetIds.has(id))
-            }));
+            const activeHubs = new Set((existing?.airline?.hubs || []).filter(Boolean));
+            const reconciledRoutes = rawRoutes.map(route => {
+                const hasActiveOrigin = activeHubs.size > 0
+                    ? activeHubs.has(route.originIata)
+                    : false;
+
+                if (!hasActiveOrigin && route.status === 'active') {
+                    return {
+                        ...route,
+                        status: 'suspended',
+                        assignedAircraftIds: []
+                    };
+                }
+
+                return {
+                    ...route,
+                    assignedAircraftIds: route.assignedAircraftIds.filter(id => fleetIds.has(id))
+                };
+            });
 
             // 6b. Ensure planes only point to routes that actually exist
             const routeIds = new Set(reconciledRoutes.map(r => r.id));
+            const suspendedRouteIds = new Set(
+                reconciledRoutes.filter(route => route.status === 'suspended').map(route => route.id)
+            );
             const reconciledFleet = cleanFleet.map(ac => ({
                 ...ac,
-                assignedRouteId: ac.assignedRouteId && routeIds.has(ac.assignedRouteId) ? ac.assignedRouteId : null
+                assignedRouteId: ac.assignedRouteId && routeIds.has(ac.assignedRouteId) && !suspendedRouteIds.has(ac.assignedRouteId)
+                    ? ac.assignedRouteId
+                    : null
             }));
 
             set({

@@ -9,9 +9,10 @@ export function RouteManager() {
     const {
         airline,
         pubkey,
-        routes: activeRoutes,
+        routes,
         openRoute,
-    updateRouteFares,
+        updateRouteFares,
+        rebaseRoute,
         globalRouteRegistry,
         competitors
     } = useAirlineStore();
@@ -27,6 +28,7 @@ export function RouteManager() {
     const [fareError, setFareError] = useState<string | null>(null);
     const [isSavingFares, setIsSavingFares] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [rebaseTargets, setRebaseTargets] = useState<Record<string, string>>({});
 
     const searchResults = searchQuery.length >= 2
         ? ALL_AIRPORTS.filter(a =>
@@ -63,6 +65,9 @@ export function RouteManager() {
     };
 
     if (!airline || !homeAirport) return null;
+
+    const activeRoutes = routes.filter(route => route.status === 'active');
+    const suspendedRoutes = routes.filter(route => route.status === 'suspended');
 
     const handleSaveFares = async () => {
         if (!fareEditor) return;
@@ -168,6 +173,62 @@ export function RouteManager() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                {suspendedRoutes.length > 0 && (
+                    <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Suspended Routes</p>
+                                <p className="text-sm text-amber-100/80 mt-2">
+                                    These routes lost their origin hub. Rebase them to an active hub to resume service.
+                                </p>
+                            </div>
+                            <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-200">
+                                {suspendedRoutes.length} awaiting rebase
+                            </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 gap-3">
+                            {suspendedRoutes.map((route) => (
+                                <div key={route.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-background/70 px-4 py-3">
+                                    <div>
+                                        <p className="text-sm font-bold text-foreground">
+                                            {route.originIata} → {route.destinationIata}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            Distance {route.distanceKm.toLocaleString()} km
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <select
+                                            value={rebaseTargets[route.id] ?? airline.hubs[0] ?? ''}
+                                            onChange={(e) => setRebaseTargets(prev => ({ ...prev, [route.id]: e.target.value }))}
+                                            className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-bold text-foreground"
+                                        >
+                                            {airline.hubs.map((hub) => (
+                                                <option key={hub} value={hub}>{hub}</option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            onClick={async () => {
+                                                const targetHub = rebaseTargets[route.id] ?? airline.hubs[0];
+                                                if (!targetHub) return;
+                                                try {
+                                                    await rebaseRoute(route.id, targetHub);
+                                                    toast.success('Route rebased');
+                                                } catch (err) {
+                                                    const message = err instanceof Error ? err.message : 'Route rebase failed';
+                                                    toast.error('Route rebase failed', { description: message });
+                                                }
+                                            }}
+                                            className="h-9 rounded-lg bg-amber-500 px-3 text-xs font-bold text-amber-950 hover:bg-amber-400 transition"
+                                        >
+                                            Rebase to Hub
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <div className="mb-6 flex items-center gap-4 bg-muted/30 p-4 rounded-2xl border border-border/50">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

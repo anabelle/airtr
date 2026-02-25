@@ -18,6 +18,7 @@ export interface NetworkSlice {
     /** @deprecated Use modifyHubs instead */
     updateHub: (newHubIata: string) => Promise<void>;
     openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
+    rebaseRoute: (routeId: string, newOriginIata: string) => Promise<void>;
     assignAircraftToRoute: (aircraftId: string, routeId: string | null) => Promise<void>;
     updateRouteFares: (routeId: string, fares: { economy?: FixedPoint; business?: FixedPoint; first?: FixedPoint }) => Promise<void>;
 }
@@ -82,19 +83,70 @@ export const createNetworkSlice: StateCreator<
             cost: hubFee,
         };
 
-        const finalTimeline = [newEvent, ...currentTimeline].slice(0, 200);
+        const removedHubs = action.type === 'remove'
+            ? new Set([action.iata])
+            : new Set<string>();
+
+        const updatedRoutes = removedHubs.size > 0
+            ? routes.map((route) => {
+                if (route.status !== 'active') return route;
+                if (!removedHubs.has(route.originIata)) return route;
+                return {
+                    ...route,
+                    status: 'suspended',
+                    assignedAircraftIds: []
+                };
+            })
+            : routes;
+
+        const routeEvents: TimelineEvent[] = [];
+        if (removedHubs.size > 0) {
+            for (const route of routes) {
+                if (route.status !== 'active') continue;
+                if (!removedHubs.has(route.originIata)) continue;
+                routeEvents.push({
+                    id: `evt-route-suspend-${route.id}-${currentTick}`,
+                    tick: currentTick,
+                    timestamp: simulatedTimestamp,
+                    type: 'route_change',
+                    routeId: route.id,
+                    originIata: route.originIata,
+                    destinationIata: route.destinationIata,
+                    description: `Route ${route.originIata} ↔ ${route.destinationIata} suspended after hub closure at ${action.iata}.`
+                });
+            }
+        }
+
+        const finalTimeline = [newEvent, ...routeEvents, ...currentTimeline].slice(0, 1000);
+
+        const suspendedRouteIds = new Set<string>();
+        for (const route of updatedRoutes) {
+            if (route.status === 'suspended') suspendedRouteIds.add(route.id);
+        }
+
+        const updatedFleet = removedHubs.size > 0
+            ? fleet.map((aircraft) => {
+                if (aircraft.assignedRouteId && suspendedRouteIds.has(aircraft.assignedRouteId)) {
+                    return { ...aircraft, assignedRouteId: null };
+                }
+                return aircraft;
+            })
+            : fleet;
 
         const updatedAirline = {
             ...airline,
             hubs: newHubs,
             corporateBalance: fpSub(airline.corporateBalance, hubFee),
             timeline: finalTimeline,
+            routeIds: updatedRoutes.map(route => route.id)
         };
 
         const previousState = { airline, fleet, routes, timeline: get().timeline };
 
         set({
             airline: updatedAirline,
+            routes: updatedRoutes,
+            fleet: updatedFleet,
             timeline: finalTimeline,
         });
 
@@ -112,8 +164,8 @@ export const createNetworkSlice: StateCreator<
         try {
             await publishAirline({
                 ...updatedAirline,
-                fleet,
-                routes,
+                fleet: updatedFleet,
+                routes: updatedRoutes,
                 timeline: finalTimeline,
                 lastTick: currentTick,
             });
@@ -136,6 +188,83 @@ export const createNetworkSlice: StateCreator<
     // Thin wrapper for backward compat — delegates to modifyHubs
     updateHub: async (targetHubIata: string) => {
         await get().modifyHubs({ type: 'switch', iata: targetHubIata });
+    },
+
+    rebaseRoute: async (routeId: string, newOriginIata: string) => {
+        const { airline, routes, fleet } = get();
+        if (!airline) return;
+        if (!airline.hubs.includes(newOriginIata)) {
+            throw new Error('Selected hub is not in your active hub list.');
+        }
+
+        const targetRoute = routes.find(route => route.id === routeId);
+        if (!targetRoute) return;
+        if (targetRoute.destinationIata === newOriginIata) {
+            throw new Error('Route origin and destination cannot be the same.');
+        }
+        if (targetRoute.status !== 'suspended') {
+            throw new Error('Only suspended routes can be rebased.');
+        }
+
+        const currentTick = useEngineStore.getState().tick;
+        const simulatedTimestamp = GENESIS_TIME + (currentTick * TICK_DURATION);
+        const currentTimeline = [...get().timeline];
+
+        const updatedRoutes = routes.map((route) => {
+            if (route.id !== routeId) return route;
+            return {
+                ...route,
+                originIata: newOriginIata,
+                status: 'active',
+                assignedAircraftIds: []
+            };
+        });
+
+        const updatedFleet = fleet.map((aircraft) => {
+            if (aircraft.assignedRouteId === routeId) {
+                return { ...aircraft, assignedRouteId: null };
+            }
+            return aircraft;
+        });
+
+        const newEvent: TimelineEvent = {
+            id: `evt-route-rebase-${routeId}-${currentTick}`,
+            tick: currentTick,
+            timestamp: simulatedTimestamp,
+            type: 'route_change',
+            routeId,
+            originIata: newOriginIata,
+            destinationIata: targetRoute.destinationIata,
+            description: `Route rebased to ${newOriginIata} ↔ ${targetRoute.destinationIata}.`
+        };
+
+        const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
+        const updatedAirline = {
+            ...airline,
+            timeline: finalTimeline,
+        };
+
+        const previousState = { airline, fleet, routes, timeline: get().timeline };
+
+        set({
+            airline: updatedAirline,
+            routes: updatedRoutes,
+            fleet: updatedFleet,
+            timeline: finalTimeline,
+        });
+
+        try {
+            await publishAirline({
+                ...updatedAirline,
+                fleet: updatedFleet,
+                routes: updatedRoutes,
+                timeline: finalTimeline,
+                lastTick: currentTick,
+            });
+        } catch (error: any) {
+            set(previousState);
+            console.warn('Failed to publish route rebase to Nostr:', error);
+        }
     },
 
     openRoute: async (originIata: string, destinationIata: string, distanceKm: number) => {
