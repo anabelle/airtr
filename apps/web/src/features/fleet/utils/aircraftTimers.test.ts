@@ -85,13 +85,14 @@ describe('aircraftTimers', () => {
     it('builds delivery timer label', () => {
         const aircraft = makeAircraft({
             status: 'delivery',
+            baseAirportIata: 'LAX',
             purchasedAtTick: 10,
             deliveryAtTick: 20,
         });
 
         const timer = getAircraftTimer(aircraft, 12, 0.5);
         expect(timer?.kind).toBe('delivery');
-        expect(timer?.label).toBe('Delivery');
+        expect(timer?.label).toBe('Delivery LAX');
     });
 
     it('returns null when no timer target exists', () => {
