@@ -246,6 +246,9 @@ export const createFleetSlice: StateCreator<
         if (instanceIndex === -1) throw new Error("Aircraft not found in operational fleet.");
 
         const instance = fleet[instanceIndex];
+        if (instance.status !== 'idle') {
+            throw new Error('Aircraft can only be scrapped while idle.');
+        }
         const model = getAircraftById(instance.modelId);
         if (!model) throw new Error("Aircraft catalog model not found.");
 

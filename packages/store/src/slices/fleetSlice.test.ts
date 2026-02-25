@@ -138,3 +138,16 @@ describe('ferryAircraft', () => {
         await expect(state.ferryAircraft('ac-1', 'BOG')).rejects.toThrow('already at that airport');
     });
 });
+
+describe('sellAircraft', () => {
+    it('blocks scrapping when aircraft is not idle', async () => {
+        const airline = makeAirline(['BOG']);
+        const fleet = [
+            { ...makeAircraft('ac-1', 'BOG'), status: 'enroute' as const }
+        ];
+
+        const { state } = createSliceState({ airline, fleet, timeline: [] });
+
+        await expect(state.sellAircraft('ac-1')).rejects.toThrow('Aircraft can only be scrapped while idle.');
+    });
+});

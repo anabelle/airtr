@@ -191,6 +191,7 @@ export function FleetManager() {
                             const timer = getAircraftTimer(ac, tick, tickProgress);
                             const timerStyle = timer ? timerStyleMap[timer.kind] : null;
                             const isAssignmentLocked = ac.status === 'enroute';
+                            const isScrapLocked = ac.status !== 'idle';
                             const locationLabel = ac.status === 'enroute' && ac.flight
                                 ? `Enroute: ${ac.flight.originIata} → ${ac.flight.destinationIata}`
                                 : ac.status === 'delivery'
@@ -445,6 +446,7 @@ export function FleetManager() {
 
                                                 <button
                                                     onClick={() => {
+                                                        if (isScrapLocked) return;
                                                         const isLease = ac.purchaseType === 'lease';
                                                         const title = isLease ? 'Return leased aircraft?' : 'Instant scrap aircraft?';
                                                         const description = isLease
@@ -460,8 +462,9 @@ export function FleetManager() {
                                                             if (approved) sellAircraft(ac.id);
                                                         });
                                                     }}
-                                                    className="flex items-center justify-center p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all"
-                                                    title="Instant Scrap"
+                                                    className={`flex items-center justify-center p-2 rounded-lg border transition-all ${isScrapLocked ? 'bg-muted/20 text-muted-foreground border-border/50 cursor-not-allowed' : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white'}`}
+                                                    title={isScrapLocked ? 'Scrap only available while idle.' : 'Instant Scrap'}
+                                                    disabled={isScrapLocked}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>

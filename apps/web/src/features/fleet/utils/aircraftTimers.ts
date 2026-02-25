@@ -38,7 +38,7 @@ export function getAircraftTimer(
     if (aircraft.status === 'delivery') {
         startTick = aircraft.purchasedAtTick;
         targetTick = aircraft.deliveryAtTick;
-        label = 'Inbound';
+        label = 'Delivery';
         kind = 'delivery';
     }
 
