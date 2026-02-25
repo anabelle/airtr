@@ -7,6 +7,7 @@ import { fp, fpFormat, fpScale, haversineDistance, ROUTE_SLOT_FEE, type Airport,
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { useConfirm } from '@/shared/lib/useConfirm';
 import { buildGroundTraffic } from '@/features/network/utils/groundTraffic';
+import { FlightBoard } from '@/features/network/components/FlightBoard';
 
 type AirportInfoPanelProps = {
     airport: Airport;
@@ -33,6 +34,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     const navigate = useNavigate();
     const { airline, routes, fleet, globalFleet, competitors, modifyHubs, openRoute } = useAirlineStore();
     const setHub = useEngineStore(s => s.setHub);
+    const [activeTab, setActiveTab] = useState<'info' | 'departures' | 'arrivals'>('info');
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
@@ -41,6 +43,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [onClose]);
+
+    useEffect(() => {
+        setActiveTab('info');
+    }, [airport.iata]);
 
     const hubInfo = HUB_CLASSIFICATIONS[airport.iata];
     const hubPricing = getHubPricingForIata(airport.iata);
@@ -217,233 +223,262 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
             </div>
 
             <div className="max-h-[70vh] overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
-                        {hubInfo?.tier ?? 'regional'} hub
-                    </span>
-                    {isActiveHub ? (
-                        <span className="rounded-full bg-emerald-500/20 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">HQ Hub</span>
-                    ) : null}
-                    {!isActiveHub && isPlayerHub ? (
-                        <span className="rounded-full bg-emerald-500/10 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">Operational Hub</span>
-                    ) : null}
+                <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+                    {(
+                        [
+                            { key: 'info', label: 'Info' },
+                            { key: 'departures', label: 'Departures' },
+                            { key: 'arrivals', label: 'Arrivals' },
+                        ] as const
+                    ).map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            className={
+                                activeTab === tab.key
+                                    ? 'flex-1 rounded-full bg-foreground/10 px-3 py-1 text-foreground'
+                                    : 'flex-1 rounded-full px-3 py-1 text-muted-foreground hover:text-foreground'
+                            }
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Population</p>
-                        <p className="mt-1 text-sm font-mono font-semibold">{formatPopulation(airport.population)}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">GDP/Capita</p>
-                        <p className="mt-1 text-sm font-mono font-semibold">{currencyFormat.format(airport.gdpPerCapita)}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Altitude</p>
-                        <p className="mt-1 text-sm font-mono font-semibold">{numberFormat.format(airport.altitude)} ft</p>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Timezone</p>
-                        <p className="mt-1 text-sm font-mono font-semibold">{airport.timezone}</p>
-                    </div>
-                    {hubInfo ? (
-                        <>
-                            <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Capacity/hr</p>
-                                <p className="mt-1 text-sm font-mono font-semibold">{hubInfo.baseCapacityPerHour}</p>
-                            </div>
-                            <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Slot Control</p>
-                                <p className="mt-1 text-sm font-mono font-semibold">{hubInfo.slotControlled ? 'Yes' : 'No'}</p>
-                            </div>
-                        </>
-                    ) : null}
-                </div>
-
-                {airline ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                            <MapPin className="h-4 w-4" />
-                            Your Operations
+                {activeTab === 'info' ? (
+                    <>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+                                {hubInfo?.tier ?? 'regional'} hub
+                            </span>
+                            {isActiveHub ? (
+                                <span className="rounded-full bg-emerald-500/20 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">HQ Hub</span>
+                            ) : null}
+                            {!isActiveHub && isPlayerHub ? (
+                                <span className="rounded-full bg-emerald-500/10 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">Operational Hub</span>
+                            ) : null}
                         </div>
+
                         <div className="grid grid-cols-2 gap-3">
                             <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Fleet Here</p>
-                                <p className="mt-1 text-sm font-mono font-semibold">{stationedFleet.length}</p>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Population</p>
+                                <p className="mt-1 text-sm font-mono font-semibold">{formatPopulation(airport.population)}</p>
                             </div>
                             <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Routes Touching</p>
-                                <p className="mt-1 text-sm font-mono font-semibold">{routesTouching.length}</p>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">GDP/Capita</p>
+                                <p className="mt-1 text-sm font-mono font-semibold">{currencyFormat.format(airport.gdpPerCapita)}</p>
                             </div>
+                            <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Altitude</p>
+                                <p className="mt-1 text-sm font-mono font-semibold">{numberFormat.format(airport.altitude)} ft</p>
+                            </div>
+                            <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Timezone</p>
+                                <p className="mt-1 text-sm font-mono font-semibold">{airport.timezone}</p>
+                            </div>
+                            {hubInfo ? (
+                                <>
+                                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Capacity/hr</p>
+                                        <p className="mt-1 text-sm font-mono font-semibold">{hubInfo.baseCapacityPerHour}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Slot Control</p>
+                                        <p className="mt-1 text-sm font-mono font-semibold">{hubInfo.slotControlled ? 'Yes' : 'No'}</p>
+                                    </div>
+                                </>
+                            ) : null}
                         </div>
-                        {routesTouching.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {routesTouching.slice(0, 5).map(route => (
-                                    <span key={route.id} className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
-                                        {routeLabel(route)}
-                                    </span>
-                                ))}
-                                {routesTouching.length > 5 ? (
-                                    <span className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
-                                        +{routesTouching.length - 5} more
-                                    </span>
+
+                        {airline ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                                    <MapPin className="h-4 w-4" />
+                                    Your Operations
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Fleet Here</p>
+                                        <p className="mt-1 text-sm font-mono font-semibold">{stationedFleet.length}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Routes Touching</p>
+                                        <p className="mt-1 text-sm font-mono font-semibold">{routesTouching.length}</p>
+                                    </div>
+                                </div>
+                                {routesTouching.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {routesTouching.slice(0, 5).map(route => (
+                                            <span key={route.id} className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
+                                                {routeLabel(route)}
+                                            </span>
+                                        ))}
+                                        {routesTouching.length > 5 ? (
+                                            <span className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
+                                                +{routesTouching.length - 5} more
+                                            </span>
+                                        ) : null}
+                                    </div>
                                 ) : null}
                             </div>
                         ) : null}
-                    </div>
-                ) : null}
 
-                {competitorHubNames.length > 0 ? (
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                            <Users className="h-4 w-4" />
-                            Competitor Hubs
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {competitorHubNames.slice(0, 4).map((name) => (
-                                <span key={name} className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-                                    {name}
-                                </span>
-                            ))}
-                            {competitorHubNames.length > 4 ? (
-                                <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-                                    +{competitorHubNames.length - 4} more
-                                </span>
+                        {competitorHubNames.length > 0 ? (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                                    <Users className="h-4 w-4" />
+                                    Competitor Hubs
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {competitorHubNames.slice(0, 4).map((name) => (
+                                        <span key={name} className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                                            {name}
+                                        </span>
+                                    ))}
+                                    {competitorHubNames.length > 4 ? (
+                                        <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                                            +{competitorHubNames.length - 4} more
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {groundTraffic.totalCount > 0 ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                                    <Plane className="h-4 w-4" />
+                                    Ground Traffic
+                                </div>
+                                <div className="rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                        <span>Total on ground</span>
+                                        <span className="font-mono font-semibold text-foreground">{groundTraffic.totalCount}</span>
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                        {groundTraffic.entries.map((entry) => (
+                                            <div key={entry.key} className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span
+                                                        className="h-2.5 w-2.5 rounded-full"
+                                                        style={{ backgroundColor: entry.livery?.primary ?? '#94a3b8' }}
+                                                        aria-hidden="true"
+                                                    />
+                                                    <span className={entry.isPlayer ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+                                                        {entry.name}
+                                                    </span>
+                                                </div>
+                                                <span className="font-mono text-xs text-muted-foreground">{entry.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                                <Building2 className="h-4 w-4" />
+                                Actions
+                            </div>
+                                {playerHubs.length > 1 ? (
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Route Origin</label>
+                                        <select
+                                            value={originHubIata ?? ''}
+                                            onChange={(event) => setOriginHubIata(event.target.value || null)}
+                                            className="h-10 rounded-xl border border-border/60 bg-background/70 px-3 text-xs font-bold text-foreground"
+                                        >
+                                            {playerHubs.map((hub) => (
+                                                <option key={hub} value={hub}>{hub}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[11px] text-muted-foreground">Map clicks only change focus. Choose a hub to open routes.</p>
+                                    </div>
+                                ) : null}
+                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                {canOpenHub ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenHub}
+                                        className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+                                    >
+                                        Open Hub ({currencyFormat.format(hubPricing.openFee)})
+                                    </button>
+                                ) : null}
+                                {canSwitchHub ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleSwitchHub}
+                                        className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
+                                    >
+                                        Relocate HQ
+                                    </button>
+                                ) : null}
+                                {canRemoveHub ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveHub}
+                                        className="flex-1 rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 touch-manipulation"
+                                    >
+                                        Remove Hub
+                                    </button>
+                                ) : null}
+                                {airline && isPlayerHub && lastHub ? (
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="flex-1 rounded-xl border border-border/40 bg-background/40 px-4 py-2.5 text-sm font-semibold text-muted-foreground opacity-60"
+                                    >
+                                        Last Hub (Locked)
+                                    </button>
+                                ) : null}
+                                {canOpenRoute ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenRoute}
+                                        className="flex-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/80 touch-manipulation"
+                                    >
+                                        Open Route {distanceKm ? `(${distanceKm.toLocaleString()} km)` : ''} • {routeSlotFeeLabel}
+                                    </button>
+                                ) : null}
+                                {originHubRoute ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate({ to: '/network' })}
+                                        className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
+                                    >
+                                        View Route
+                                    </button>
+                                ) : null}
+                                {!airline ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleSetHome}
+                                        className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+                                    >
+                                        Set as Home
+                                    </button>
+                                ) : null}
+                            </div>
+                            {distanceKm && originHubAirport ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <PlaneTakeoff className="h-4 w-4" />
+                                    Distance from {originHubAirport.iata}: {distanceKm.toLocaleString()} km
+                                </div>
+                            ) : null}
+                            {!originHubAirport && hqDistanceKm && activeHubAirport ? (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <PlaneTakeoff className="h-4 w-4" />
+                                    Distance from HQ {activeHubAirport.iata}: {hqDistanceKm.toLocaleString()} km
+                                </div>
                             ) : null}
                         </div>
-                    </div>
-                ) : null}
-
-                {groundTraffic.totalCount > 0 ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                            <Plane className="h-4 w-4" />
-                            Ground Traffic
-                        </div>
-                        <div className="rounded-xl border border-border/60 bg-background/70 px-4 py-3">
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Total on ground</span>
-                                <span className="font-mono font-semibold text-foreground">{groundTraffic.totalCount}</span>
-                            </div>
-                            <div className="mt-3 space-y-2">
-                                {groundTraffic.entries.map((entry) => (
-                                    <div key={entry.key} className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className="h-2.5 w-2.5 rounded-full"
-                                                style={{ backgroundColor: entry.livery?.primary ?? '#94a3b8' }}
-                                                aria-hidden="true"
-                                            />
-                                            <span className={entry.isPlayer ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-                                                {entry.name}
-                                            </span>
-                                        </div>
-                                        <span className="font-mono text-xs text-muted-foreground">{entry.count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : null}
-
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-                        <Building2 className="h-4 w-4" />
-                        Actions
-                    </div>
-                        {playerHubs.length > 1 ? (
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Route Origin</label>
-                                <select
-                                    value={originHubIata ?? ''}
-                                    onChange={(event) => setOriginHubIata(event.target.value || null)}
-                                    className="h-10 rounded-xl border border-border/60 bg-background/70 px-3 text-xs font-bold text-foreground"
-                                >
-                                    {playerHubs.map((hub) => (
-                                        <option key={hub} value={hub}>{hub}</option>
-                                    ))}
-                                </select>
-                                <p className="text-[11px] text-muted-foreground">Map clicks only change focus. Choose a hub to open routes.</p>
-                            </div>
-                        ) : null}
-                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                        {canOpenHub ? (
-                            <button
-                                type="button"
-                                onClick={handleOpenHub}
-                                className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
-                            >
-                                Open Hub ({currencyFormat.format(hubPricing.openFee)})
-                            </button>
-                        ) : null}
-                        {canSwitchHub ? (
-                            <button
-                                type="button"
-                                onClick={handleSwitchHub}
-                                className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
-                            >
-                                Relocate HQ
-                            </button>
-                        ) : null}
-                        {canRemoveHub ? (
-                            <button
-                                type="button"
-                                onClick={handleRemoveHub}
-                                className="flex-1 rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 touch-manipulation"
-                            >
-                                Remove Hub
-                            </button>
-                        ) : null}
-                        {airline && isPlayerHub && lastHub ? (
-                            <button
-                                type="button"
-                                disabled
-                                className="flex-1 rounded-xl border border-border/40 bg-background/40 px-4 py-2.5 text-sm font-semibold text-muted-foreground opacity-60"
-                            >
-                                Last Hub (Locked)
-                            </button>
-                        ) : null}
-                        {canOpenRoute ? (
-                            <button
-                                type="button"
-                                onClick={handleOpenRoute}
-                                className="flex-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/80 touch-manipulation"
-                            >
-                                Open Route {distanceKm ? `(${distanceKm.toLocaleString()} km)` : ''} • {routeSlotFeeLabel}
-                            </button>
-                        ) : null}
-                        {originHubRoute ? (
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/network' })}
-                                className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
-                            >
-                                View Route
-                            </button>
-                        ) : null}
-                        {!airline ? (
-                            <button
-                                type="button"
-                                onClick={handleSetHome}
-                                className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
-                            >
-                                Set as Home
-                            </button>
-                        ) : null}
-                    </div>
-                    {distanceKm && originHubAirport ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <PlaneTakeoff className="h-4 w-4" />
-                            Distance from {originHubAirport.iata}: {distanceKm.toLocaleString()} km
-                        </div>
-                    ) : null}
-                    {!originHubAirport && hqDistanceKm && activeHubAirport ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <PlaneTakeoff className="h-4 w-4" />
-                            Distance from HQ {activeHubAirport.iata}: {hqDistanceKm.toLocaleString()} km
-                        </div>
-                    ) : null}
-                </div>
+                    </>
+                ) : (
+                    <FlightBoard airportIata={airport.iata} airportTimezone={airport.timezone} mode={activeTab} />
+                )}
             </div>
         </aside>
     );
