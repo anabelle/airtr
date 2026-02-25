@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Building2, MapPin, PlaneTakeoff, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { airports as AIRPORTS, getHubPricingForIata, HUB_CLASSIFICATIONS } from '@airtr/data';
-import { fpFormat, haversineDistance, ROUTE_SLOT_FEE, type Airport, type Route } from '@airtr/core';
+import { fp, fpFormat, fpScale, haversineDistance, ROUTE_SLOT_FEE, type Airport, type Route } from '@airtr/core';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { useConfirm } from '@/shared/lib/useConfirm';
 
@@ -102,7 +102,6 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     const canSwitchHub = airline && isPlayerHub && !isActiveHub;
     const canRemoveHub = airline && isPlayerHub && !lastHub;
     const canOpenRoute = airline && originHubIata && originHubIata !== airport.iata && !originHubRoute;
-    const needsOriginSelection = airline && playerHubs.length > 1 && !originHubIata;
 
     const handleOpenHub = async () => {
         if (!airline) return;

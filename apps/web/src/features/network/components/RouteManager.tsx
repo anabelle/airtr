@@ -89,9 +89,8 @@ export function RouteManager() {
         return { origin: planningOriginAirport, destination: dest, distance, demand, estimatedDailyRevenue, season };
     };
 
-    if (!airline || !homeAirport || !planningOriginAirport) return null;
-
-    const buildProspects = (origin: Airport): ProspectMarket[] => {
+    const buildProspects = (origin: Airport | null): ProspectMarket[] => {
+        if (!origin) return [];
         const now = new Date();
         const prosperity = getProsperityIndex(tick);
         const others = ALL_AIRPORTS
@@ -122,6 +121,8 @@ export function RouteManager() {
     };
 
     const prospectMarkets = useMemo(() => buildProspects(planningOriginAirport), [planningOriginAirport, tick]);
+
+    if (!airline || !homeAirport || !planningOriginAirport) return null;
 
     const activeRoutes = routes.filter(route => route.status === 'active');
     const suspendedRoutes = routes.filter(route => route.status === 'suspended');
@@ -371,7 +372,7 @@ export function RouteManager() {
                     ) : (
                         <div className="grid grid-cols-1 gap-4">
                             {activeRoutes.map((route) => {
-                                const market = prospectiveRoutes.find(p => p.destination.iata === route.destinationIata);
+                                const market = prospectMarkets.find(p => p.destination.iata === route.destinationIata);
                                 const assignedCount = route.assignedAircraftIds.length;
 
                                 return (
@@ -598,9 +599,9 @@ export function RouteManager() {
                     <div className="grid grid-cols-1 gap-4">
                         {(searchQuery.length >= 2
                             ? searchResults.map(calculateSearchProspect).filter((market): market is ProspectMarket => Boolean(market))
-                            : prospectiveRoutes
+                            : prospectMarkets
                         ).map((market: ProspectMarket) => {
-                            const isAlreadyOpen = activeRoutes.some(r => r.destinationIata === market.destination.iata);
+                            const isAlreadyOpen = activeRoutes.some(r => r.originIata === market.origin.iata && r.destinationIata === market.destination.iata);
                             const totalDemand = market.demand.economy + market.demand.business + market.demand.first;
 
                             return (
