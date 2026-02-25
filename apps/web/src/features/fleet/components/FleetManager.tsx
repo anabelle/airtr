@@ -190,6 +190,7 @@ export function FleetManager() {
                             const scrapVal = fpScale(marketVal, 0.7);
                             const timer = getAircraftTimer(ac, tick, tickProgress);
                             const timerStyle = timer ? timerStyleMap[timer.kind] : null;
+                            const isAssignmentLocked = ac.status === 'enroute';
                             const locationLabel = ac.status === 'enroute' && ac.flight
                                 ? `Enroute: ${ac.flight.originIata} → ${ac.flight.destinationIata}`
                                 : ac.status === 'delivery'
@@ -399,6 +400,8 @@ export function FleetManager() {
                                                         <select
                                                             className="flex-1 bg-background border border-border/50 rounded-xl px-3 py-2 text-xs font-bold outline-none ring-primary/20 focus:ring-2 focus:border-primary/50 transition-all appearance-none cursor-pointer"
                                                             value={ac.assignedRouteId || ''}
+                                                            disabled={isAssignmentLocked}
+                                                            title={isAssignmentLocked ? 'Route changes are locked while enroute.' : undefined}
                                                             onChange={async (e) => {
                                                                 try {
                                                                     await assignAircraftToRoute(ac.id, e.target.value || null);
@@ -427,8 +430,9 @@ export function FleetManager() {
                                                         {ac.assignedRouteId && (
                                                             <button
                                                                 onClick={() => assignAircraftToRoute(ac.id, null)}
-                                                                className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 transition-all"
-                                                                title="Unassign Route"
+                                                                className={`px-3 py-2 rounded-xl border transition-all ${isAssignmentLocked ? 'bg-muted/20 text-muted-foreground border-border/50 cursor-not-allowed' : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500'}`}
+                                                                title={isAssignmentLocked ? 'Route changes are locked while enroute.' : 'Unassign Route'}
+                                                                disabled={isAssignmentLocked}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </button>

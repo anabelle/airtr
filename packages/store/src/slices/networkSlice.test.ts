@@ -248,6 +248,7 @@ describe('closeRoute', () => {
         const enrouteAircraft = {
             ...makeAircraft('ac-1', 'rt-1'),
             status: 'enroute' as const,
+            baseAirportIata: 'BOG',
             flight: {
                 originIata: 'BOG',
                 destinationIata: 'CLO',
@@ -300,12 +301,16 @@ describe('closeRoute', () => {
 });
 
 describe('assignAircraftToRoute', () => {
-    it('blocks reassignment while enroute', async () => {
+    it('blocks assignment changes while enroute', async () => {
         const airline = makeAirline(['BOG']);
-        const routes = [makeRoute('rt-1', 'BOG', 'CLO', 'active')];
+        const routes = [
+            makeRoute('rt-1', 'BOG', 'CLO', 'active'),
+            makeRoute('rt-2', 'BOG', 'MDE', 'active'),
+        ];
         const enrouteAircraft = {
-            ...makeAircraft('ac-1', null),
+            ...makeAircraft('ac-1', 'rt-1'),
             status: 'enroute' as const,
+            baseAirportIata: 'BOG',
             flight: {
                 originIata: 'BOG',
                 destinationIata: 'CLO',
@@ -317,9 +322,15 @@ describe('assignAircraftToRoute', () => {
 
         const { state } = createSliceState({ airline, routes, fleet: [enrouteAircraft], timeline: [] as TimelineEvent[] });
 
-        await expect(state.assignAircraftToRoute('ac-1', 'rt-1'))
+        await expect(state.assignAircraftToRoute('ac-1', null))
             .rejects
-            .toThrow('Cannot reassign route while enroute.');
+            .toThrow('Cannot change assignment while enroute.');
+
+        await expect(state.assignAircraftToRoute('ac-1', 'rt-2'))
+            .rejects
+            .toThrow('Cannot change assignment while enroute.');
+
+        await state.assignAircraftToRoute('ac-1', 'rt-1');
     });
 
     it('blocks assignment when aircraft is not at an active hub', async () => {

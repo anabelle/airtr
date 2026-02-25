@@ -503,8 +503,8 @@ export const createNetworkSlice: StateCreator<
         const aircraft = fleet.find(ac => ac.id === aircraftId);
         const route = routes.find(r => r.id === routeId);
 
-        if (aircraft && routeId && aircraft.status === 'enroute') {
-            throw new Error('Cannot reassign route while enroute.');
+        if (aircraft && aircraft.status === 'enroute' && routeId !== aircraft.assignedRouteId) {
+            throw new Error('Cannot change assignment while enroute.');
         }
 
         if (aircraft && routeId && !airline.hubs.includes(aircraft.baseAirportIata)) {
