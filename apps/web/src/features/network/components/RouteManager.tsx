@@ -4,6 +4,7 @@ import { fpFormat, fpToNumber, getSuggestedFares, calculateShares, haversineDist
 import { airports as ALL_AIRPORTS } from '@airtr/data';
 import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, MapPin, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirm } from '@/shared/lib/useConfirm';
 
 export function RouteManager() {
     const {
@@ -17,6 +18,7 @@ export function RouteManager() {
         globalRouteRegistry,
         competitors
     } = useAirlineStore();
+    const confirm = useConfirm();
     const { routes: prospectiveRoutes, homeAirport, tick } = useEngineStore();
     const [tab, setTab] = useState<'active' | 'opportunities'>('active');
     const [fareEditor, setFareEditor] = useState<{
@@ -237,6 +239,13 @@ export function RouteManager() {
                                         )}
                                         <button
                                             onClick={async () => {
+                                                const approved = await confirm({
+                                                    title: 'Close route?',
+                                                    description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
+                                                    confirmLabel: 'Close Route',
+                                                    tone: 'destructive',
+                                                });
+                                                if (!approved) return;
                                                 try {
                                                     await closeRoute(route.id);
                                                     toast.success('Route closed');
@@ -348,15 +357,22 @@ export function RouteManager() {
                                                     </button>
 
                                                     <button
-                                                        onClick={async () => {
-                                                            try {
-                                                                await closeRoute(route.id);
-                                                                toast.success('Route closed');
-                                                            } catch (err) {
-                                                                const message = err instanceof Error ? err.message : 'Route close failed';
-                                                                toast.error('Route close failed', { description: message });
-                                                            }
-                                                        }}
+                                            onClick={async () => {
+                                                const approved = await confirm({
+                                                    title: 'Close route?',
+                                                    description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
+                                                    confirmLabel: 'Close Route',
+                                                    tone: 'destructive',
+                                                });
+                                                if (!approved) return;
+                                                try {
+                                                    await closeRoute(route.id);
+                                                    toast.success('Route closed');
+                                                } catch (err) {
+                                                    const message = err instanceof Error ? err.message : 'Route close failed';
+                                                    toast.error('Route close failed', { description: message });
+                                                }
+                                            }}
                                                         className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
                                                     >
                                                         Close Route
