@@ -1,5 +1,5 @@
 import { aircraftModels } from '@airtr/data';
-import { GENESIS_TIME, TICK_DURATION, type AirlineEntity, type AircraftInstance } from '@airtr/core';
+import { GENESIS_TIME, TICK_DURATION, TICKS_PER_HOUR, type AirlineEntity, type AircraftInstance } from '@airtr/core';
 import { getFlightNumber } from '@/features/network/utils/flightNumber';
 
 export type FlightBoardMode = 'departures' | 'arrivals';
@@ -55,9 +55,16 @@ function resolveAirline(
     return competitors.get(aircraft.ownerPubkey) ?? null;
 }
 
-function getStatusLabel(aircraft: AircraftInstance, mode: FlightBoardMode) {
+const BOARDING_WINDOW_TICKS = Math.round(TICKS_PER_HOUR * 0.25);
+
+function getStatusLabel(aircraft: AircraftInstance, mode: FlightBoardMode, tick: number) {
     if (aircraft.status === 'enroute') return 'En Route';
-    if (aircraft.status === 'turnaround') return mode === 'arrivals' ? 'Landed' : 'Boarding';
+    if (aircraft.status === 'turnaround') {
+        if (mode === 'arrivals') return 'Landed';
+        const departureTick = aircraft.turnaroundEndTick ?? aircraft.flight?.arrivalTick ?? tick;
+        const timeToDeparture = Math.max(0, departureTick - tick);
+        return timeToDeparture <= BOARDING_WINDOW_TICKS ? 'Boarding' : 'Scheduled';
+    }
     if (aircraft.status === 'maintenance') return 'Maintenance';
     if (aircraft.status === 'delivery') return 'Delivery';
     return 'Scheduled';
@@ -124,15 +131,19 @@ function shouldIncludeFlight(
 
     if (aircraft.baseAirportIata !== airportIata) return false;
 
+    const arrivalTick = aircraft.arrivalTickProcessed ?? flight.arrivalTick;
+    const turnaroundEndTick = aircraft.turnaroundEndTick ?? arrivalTick;
+    const turnaroundMidpoint = arrivalTick + Math.floor((turnaroundEndTick - arrivalTick) / 2);
+
     if (mode === 'departures') {
-        if (!isDeparture) return false;
-        return aircraft.status === 'idle';
+        if (aircraft.status === 'idle') return isDeparture;
+        if (!isArrival || aircraft.status !== 'turnaround') return false;
+        return tick >= turnaroundMidpoint;
     }
 
     if (!isArrival) return false;
     if (aircraft.status !== 'turnaround') return false;
-    const arrivalTick = aircraft.arrivalTickProcessed ?? flight.arrivalTick;
-    return tick >= arrivalTick;
+    return tick >= arrivalTick && tick < turnaroundMidpoint;
 }
 
 export function buildFlightBoardRows({
@@ -157,7 +168,7 @@ export function buildFlightBoardRows({
         const flightLabel = getFlightNumber(airlineInfo?.icaoCode ?? 'UNK', getFlightSeed(aircraft));
         const model = aircraftIndex.get(aircraft.modelId);
         const aircraftLabel = model ? model.name : aircraft.modelId;
-        const status = getStatusLabel(aircraft, mode);
+        const status = getStatusLabel(aircraft, mode, tick);
 
         rows.push({
             key: `${aircraft.id}-${mode}`,

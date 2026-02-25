@@ -123,6 +123,8 @@ describe('buildFlightBoardRows', () => {
                     arrivalTick: 200,
                     direction: 'outbound',
                 },
+                arrivalTickProcessed: 200,
+                turnaroundEndTick: 260,
             }),
             makeAircraft({
                 id: 'ac-4',
@@ -185,5 +187,52 @@ describe('buildFlightBoardRows', () => {
         expect(rows).toHaveLength(1);
         expect(rows[0].status).toBe('En Route');
         expect(rows[0].otherIata).toBe('MDE');
+    });
+
+    it('moves turnaround flights to departures after midpoint', () => {
+        const airline = makeAirline();
+        const fleet = [
+            makeAircraft({
+                id: 'ac-6',
+                status: 'turnaround',
+                baseAirportIata: 'BOG',
+                flight: {
+                    originIata: 'MDE',
+                    destinationIata: 'BOG',
+                    departureTick: 100,
+                    arrivalTick: 200,
+                    direction: 'outbound',
+                },
+                arrivalTickProcessed: 200,
+                turnaroundEndTick: 260,
+            }),
+        ];
+
+        const arrivalsEarly = buildFlightBoardRows({
+            airportIata: 'BOG',
+            airportTimezone: 'America/Bogota',
+            mode: 'arrivals',
+            fleet,
+            globalFleet: [],
+            airline,
+            competitors: new Map(),
+            tick: 220,
+        });
+
+        expect(arrivalsEarly).toHaveLength(1);
+
+        const departuresLate = buildFlightBoardRows({
+            airportIata: 'BOG',
+            airportTimezone: 'America/Bogota',
+            mode: 'departures',
+            fleet,
+            globalFleet: [],
+            airline,
+            competitors: new Map(),
+            tick: 235,
+        });
+
+        expect(departuresLate).toHaveLength(1);
+        expect(departuresLate[0].status).toBe('Boarding');
     });
 });
