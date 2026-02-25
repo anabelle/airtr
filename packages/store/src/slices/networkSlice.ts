@@ -1,9 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { AirlineState } from '../types';
 import type { Route, FixedPoint, TimelineEvent } from '@airtr/core';
-import { fpSub, fp, GENESIS_TIME, TICK_DURATION, fpFormat, getSuggestedFares } from '@airtr/core';
+import { fpSub, fp, fpScale, GENESIS_TIME, TICK_DURATION, fpFormat, getSuggestedFares } from '@airtr/core';
 import { getAircraftById } from '@airtr/data';
-import { airports } from '@airtr/data';
+import { airports, HUB_CLASSIFICATIONS } from '@airtr/data';
 import { publishAirline } from '@airtr/nostr';
 import { useEngineStore } from '../engine';
 
@@ -37,18 +37,35 @@ export const createNetworkSlice: StateCreator<
         const currentHubs = airline.hubs || [];
         let newHubs: string[];
         let description: string;
+        let hubFee = fp(0);
+
+        const getHubTierCost = (iata: string) => {
+            const tier = HUB_CLASSIFICATIONS[iata]?.tier ?? 'regional';
+            switch (tier) {
+                case 'global':
+                    return fp(5000000);
+                case 'international':
+                    return fp(2000000);
+                case 'national':
+                    return fp(750000);
+                default:
+                    return fp(250000);
+            }
+        };
 
         switch (action.type) {
             case 'add': {
                 if (currentHubs.includes(action.iata)) return;
                 newHubs = [...currentHubs, action.iata];
-                description = `Opened new operations hub at ${action.iata}.`;
+                hubFee = getHubTierCost(action.iata);
+                description = `Opened new operations hub at ${action.iata}. Hub development fee: ${fpFormat(hubFee, 0)}.`;
                 break;
             }
             case 'switch': {
                 if (currentHubs[0] === action.iata) return; // Already active
                 newHubs = [action.iata, ...currentHubs.filter(h => h !== action.iata)];
-                description = `Transferred main operations hub to ${action.iata}.`;
+                hubFee = fpScale(getHubTierCost(action.iata), 0.25);
+                description = `Transferred main operations hub to ${action.iata}. Relocation fee: ${fpFormat(hubFee, 0)}.`;
                 break;
             }
             case 'remove': {
@@ -58,6 +75,10 @@ export const createNetworkSlice: StateCreator<
                 description = `Closed operations hub at ${action.iata}.`;
                 break;
             }
+        }
+
+        if (hubFee > airline.corporateBalance) {
+            throw new Error(`Insufficient funds to modify hub. Required: ${fpFormat(hubFee, 0)}`);
         }
 
         const currentTimeline = [...get().timeline];
@@ -70,6 +91,7 @@ export const createNetworkSlice: StateCreator<
             timestamp: simulatedTimestamp,
             type: 'hub_change',
             description,
+            cost: hubFee,
         };
 
         const finalTimeline = [newEvent, ...currentTimeline].slice(0, 200);
@@ -77,6 +99,7 @@ export const createNetworkSlice: StateCreator<
         const updatedAirline = {
             ...airline,
             hubs: newHubs,
+            corporateBalance: fpSub(airline.corporateBalance, hubFee),
             timeline: finalTimeline,
         };
 
