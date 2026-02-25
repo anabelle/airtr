@@ -3,8 +3,10 @@ import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { getAircraftById } from '@airtr/data';
 import { calculateBookValue, fpFormat, fpScale, fp, fpToNumber, TICK_DURATION, FP_ZERO, type FixedPoint } from '@airtr/core';
 import { AircraftDealer } from './AircraftDealer';
-import { Settings, Search, PlusCircle, Trash2, Timer, Tag, XCircle, Plane } from 'lucide-react';
+import { Settings, Search, PlusCircle, Trash2, Timer, Tag, XCircle, Plane, X } from 'lucide-react';
 import { NARROWBODY_SVG, TURBOPROP_SVG, WIDEBODY_SVG, REGIONAL_SVG } from '@airtr/map';
+import { toast } from 'sonner';
+import { useConfirm } from '@/shared/lib/confirm';
 
 function AircraftSilhouette({ type, className }: { type: string; className?: string }) {
     const svg = type === 'turboprop' ? TURBOPROP_SVG :
@@ -25,6 +27,17 @@ export function FleetManager() {
     const { tick, tickProgress } = useEngineStore(state => state);
     const [view, setView] = useState<'owned' | 'dealer'>('owned');
     const [search, setSearch] = useState('');
+    const confirm = useConfirm();
+    const [listingTarget, setListingTarget] = useState<{
+        aircraftId: string;
+        name: string;
+        marketVal: FixedPoint;
+        maxPrice: FixedPoint;
+    } | null>(null);
+    const [listingPrice, setListingPrice] = useState('');
+    const [listingError, setListingError] = useState<string | null>(null);
+    const [isListing, setIsListing] = useState(false);
+    const minListingPrice = fp(1000);
 
     if (view === 'dealer') {
         return (
@@ -48,6 +61,45 @@ export function FleetManager() {
         f.name.toLowerCase().includes(search.toLowerCase()) ||
         f.modelId.toLowerCase().includes(search.toLowerCase())
     );
+
+    const handleSubmitListing = async () => {
+        if (!listingTarget) return;
+        const priceNum = Number(listingPrice);
+        if (!Number.isFinite(priceNum) || priceNum <= 0) {
+            setListingError('Enter a valid positive price.');
+            return;
+        }
+
+        const priceFp = fp(priceNum);
+        if (priceFp < minListingPrice) {
+            setListingError(`Minimum allowed is ${fpFormat(minListingPrice)}.`);
+            return;
+        }
+        if (priceFp > listingTarget.maxPrice) {
+            setListingError(`Maximum allowed is ${fpFormat(listingTarget.maxPrice)}.`);
+            return;
+        }
+
+        setListingError(null);
+        setIsListing(true);
+        try {
+            await listAircraft(listingTarget.aircraftId, priceFp);
+            toast.success('Listing published', {
+                description: `${listingTarget.name} listed for ${fpFormat(priceFp)}.`,
+            });
+            setListingTarget(null);
+        } catch (err: any) {
+            toast.error('Listing failed', {
+                description: err?.message ?? 'Unknown error',
+            });
+        } finally {
+            setIsListing(false);
+        }
+    };
+
+    const listingPriceNum = Number(listingPrice);
+    const listingPriceFp = Number.isFinite(listingPriceNum) ? fp(listingPriceNum) : null;
+    const listingFeeFp = listingPriceFp ? fpScale(listingPriceFp, 0.005) : null;
 
     return (
         <div className="flex flex-col h-full space-y-6">
@@ -284,7 +336,9 @@ export function FleetManager() {
                                                                 try {
                                                                     await assignAircraftToRoute(ac.id, e.target.value || null);
                                                                 } catch (err: any) {
-                                                                    alert(err.message);
+                                                                    toast.error('Assignment failed', {
+                                                                        description: err?.message ?? 'Unknown error',
+                                                                    });
                                                                 }
                                                             }}
                                                         >
@@ -332,10 +386,19 @@ export function FleetManager() {
                                                 <button
                                                     onClick={() => {
                                                         const isLease = ac.purchaseType === 'lease';
-                                                        const msg = isLease
-                                                            ? `Return leased aircraft ${ac.name}?`
-                                                            : `Instant Scrap ${ac.name} for ${fpFormat(scrapVal)}?\n\n30% liquidity penalty applies.`;
-                                                        if (confirm(msg)) sellAircraft(ac.id);
+                                                        const title = isLease ? 'Return leased aircraft?' : 'Instant scrap aircraft?';
+                                                        const description = isLease
+                                                            ? `Return ${ac.name} to the lessor. This action cannot be undone.`
+                                                            : `Scrap ${ac.name} for ${fpFormat(scrapVal)}. 30% liquidity penalty applies.`;
+                                                        confirm({
+                                                            title,
+                                                            description,
+                                                            confirmLabel: isLease ? 'Return' : 'Scrap',
+                                                            cancelLabel: 'Cancel',
+                                                            tone: 'destructive',
+                                                        }).then((approved) => {
+                                                            if (approved) sellAircraft(ac.id);
+                                                        });
                                                     }}
                                                     className="flex items-center justify-center p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all"
                                                     title="Instant Scrap"
@@ -346,7 +409,16 @@ export function FleetManager() {
                                                 {(!ac.purchaseType || ac.purchaseType === 'buy') ? (
                                                     ac.listingPrice ? (
                                                         <button
-                                                            onClick={() => cancelListing(ac.id)}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await cancelListing(ac.id);
+                                                                    toast.success('Listing cancelled');
+                                                                } catch (err: any) {
+                                                                    toast.error('Cancellation failed', {
+                                                                        description: err?.message ?? 'Unknown error',
+                                                                    });
+                                                                }
+                                                            }}
                                                             className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all overflow-hidden"
                                                         >
                                                             <XCircle className="h-4 w-4 shrink-0" />
@@ -358,32 +430,14 @@ export function FleetManager() {
                                                                 const marketVal = calculateBookValue(model, ac.flightHoursTotal, ac.condition, ac.birthTick || ac.purchasedAtTick, tick);
                                                                 const msrp = calculateBookValue(model, 0, 1, tick, tick); // Get MSRP (0 hours, 100% condition, 0 age)
                                                                 const maxPriceFp = fpScale(msrp, 1.2) as FixedPoint;
-
-                                                                const priceStr = prompt(
-                                                                    `List ${ac.name} on the Global Marketplace.\n\n` +
-                                                                    `• Appraisal: ${fpFormat(marketVal)}\n` +
-                                                                    `• Max Allowed (120% MSRP): ${fpFormat(maxPriceFp)}\n\n` +
-                                                                    `NOTE: A 0.5% non-refundable Listing Fee will be deducted from your account.`,
-                                                                    fpToNumber(marketVal).toString()
-                                                                );
-
-                                                                if (priceStr) {
-                                                                    const priceNum = parseFloat(priceStr);
-                                                                    if (isNaN(priceNum) || priceNum <= 0) {
-                                                                        alert("Please enter a valid positive price.");
-                                                                        return;
-                                                                    }
-                                                                    const priceFp = fp(priceNum);
-                                                                    if (priceFp > maxPriceFp) {
-                                                                        alert(`Price exceeds the ceiling of ${fpFormat(maxPriceFp)}`);
-                                                                        return;
-                                                                    }
-
-                                                                    const feeFp = fpScale(priceFp, 0.005);
-                                                                    if (confirm(`Listing this aircraft for ${fpFormat(priceFp)} will cost ${fpFormat(feeFp)} in non-refundable listing fees. Continue?`)) {
-                                                                        listAircraft(ac.id, priceFp);
-                                                                    }
-                                                                }
+                                                                setListingTarget({
+                                                                    aircraftId: ac.id,
+                                                                    name: ac.name,
+                                                                    marketVal,
+                                                                    maxPrice: maxPriceFp,
+                                                                });
+                                                                setListingPrice(fpToNumber(marketVal).toString());
+                                                                setListingError(null);
                                                             }}
                                                             className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
                                                         >
@@ -393,13 +447,19 @@ export function FleetManager() {
                                                     )
                                                 ) : ac.purchaseType === 'lease' && (
                                                     <button
-                                                        onClick={() => {
-                                                            if (confirm(`Buyout this lease for ${fpFormat(marketVal)}?`)) {
-                                                                buyoutAircraft(ac.id);
-                                                            }
-                                                        }}
-                                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500 hover:text-white transition-all"
-                                                    >
+                                                            onClick={() => {
+                                                                confirm({
+                                                                    title: 'Buyout lease?',
+                                                                    description: `Purchase ${ac.name} for ${fpFormat(marketVal)} to convert the lease to ownership.`,
+                                                                    confirmLabel: 'Buyout',
+                                                                    cancelLabel: 'Cancel',
+                                                                    tone: 'default',
+                                                                }).then((approved) => {
+                                                                    if (approved) buyoutAircraft(ac.id);
+                                                                });
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500 hover:text-white transition-all"
+                                                        >
                                                         <PlusCircle className="h-4 w-4" />
                                                         <span className="text-[10px] font-bold uppercase">Buyout Lease</span>
                                                     </button>
@@ -417,6 +477,90 @@ export function FleetManager() {
                     </div>
                 )}
             </div>
+            {listingTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isListing && setListingTarget(null)}
+                    />
+                    <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+                        <div className="flex items-start justify-between border-b border-border/50 px-6 py-5">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Marketplace Listing</p>
+                                <h3 className="text-lg font-bold text-foreground">List {listingTarget.name}</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => !isListing && setListingTarget(null)}
+                                className="rounded-full bg-background/60 p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                aria-label="Close"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="rounded-xl border border-border/50 bg-background/60 p-3">
+                                    <p className="text-[10px] uppercase text-muted-foreground font-semibold">Appraisal</p>
+                                    <p className="text-sm font-bold text-foreground mt-1">{fpFormat(listingTarget.marketVal)}</p>
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-background/60 p-3">
+                                    <p className="text-[10px] uppercase text-muted-foreground font-semibold">Max Allowed</p>
+                                    <p className="text-sm font-bold text-foreground mt-1">{fpFormat(listingTarget.maxPrice)}</p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border/50 bg-background/60 p-4">
+                                <label className="text-[10px] uppercase text-muted-foreground font-semibold">Listing Price</label>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={listingPrice}
+                                        onChange={(e) => setListingPrice(e.target.value)}
+                                        className="h-10 w-full rounded-lg bg-background border border-border/50 px-3 text-sm font-medium outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                                    />
+                                    <div className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs font-semibold text-muted-foreground">USD</div>
+                                </div>
+                                {listingError ? (
+                                    <p className="mt-2 text-xs font-semibold text-red-400">{listingError}</p>
+                                ) : null}
+                            </div>
+
+                            <div className="rounded-xl border border-border/50 bg-background/60 p-4">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-muted-foreground">Listing fee (0.5%)</span>
+                                    <span className="font-mono font-bold text-foreground">
+                                        {listingFeeFp ? fpFormat(listingFeeFp) : '--'}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-[10px] text-muted-foreground">
+                                    The listing fee is non-refundable and will be deducted immediately.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 border-t border-border/50 px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setListingTarget(null)}
+                                disabled={isListing}
+                                className="rounded-lg border border-border bg-background/70 px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSubmitListing}
+                                disabled={isListing}
+                                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                            >
+                                {isListing ? 'Listing...' : 'List aircraft'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

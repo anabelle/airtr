@@ -4,6 +4,8 @@ import { RouterProvider, createRouter } from '@tanstack/react-router';
 // Import the generated route tree
 import { routeTree } from '../routeTree.gen';
 import '../index.css';
+import { ToastHost } from '@/shared/components/feedback/ToastHost';
+import { ConfirmProvider } from '@/shared/lib/confirm';
 
 // Create a new router instance
 const router = createRouter({ routeTree });
@@ -21,7 +23,10 @@ if (!rootElement.innerHTML) {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
         <React.StrictMode>
-            <RouterProvider router={router} />
+            <ConfirmProvider>
+                <RouterProvider router={router} />
+                <ToastHost />
+            </ConfirmProvider>
         </React.StrictMode>,
     );
 }

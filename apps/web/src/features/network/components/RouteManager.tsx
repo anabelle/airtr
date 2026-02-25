@@ -3,6 +3,7 @@ import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { fpFormat, fpToNumber, getSuggestedFares, calculateShares, haversineDistance, calculateDemand, getSeason, getProsperityIndex, fpScale, fp } from '@airtr/core';
 import { airports as ALL_AIRPORTS } from '@airtr/data';
 import { Globe, PlusCircle, CheckCircle2, AlertCircle, TrendingUp, MapPin, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function RouteManager() {
     const {
@@ -16,8 +17,15 @@ export function RouteManager() {
     } = useAirlineStore();
     const { routes: prospectiveRoutes, homeAirport, tick } = useEngineStore();
     const [tab, setTab] = useState<'active' | 'opportunities'>('active');
-    const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
-    const [tempFares, setTempFares] = useState<{ e: string; b: string; f: string }>({ e: '', b: '', f: '' });
+    const [fareEditor, setFareEditor] = useState<{
+        routeId: string;
+        originIata: string;
+        destinationIata: string;
+        distanceKm: number;
+    } | null>(null);
+    const [fareInputs, setFareInputs] = useState<{ e: string; b: string; f: string }>({ e: '', b: '', f: '' });
+    const [fareError, setFareError] = useState<string | null>(null);
+    const [isSavingFares, setIsSavingFares] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     const searchResults = searchQuery.length >= 2
@@ -46,6 +54,38 @@ export function RouteManager() {
     };
 
     if (!airline || !homeAirport) return null;
+
+    const handleSaveFares = async () => {
+        if (!fareEditor) return;
+        const eVal = parseInt(fareInputs.e.replace(/[^0-9]/g, ''), 10);
+        const bVal = parseInt(fareInputs.b.replace(/[^0-9]/g, ''), 10);
+        const fVal = parseInt(fareInputs.f.replace(/[^0-9]/g, ''), 10);
+
+        if ([eVal, bVal, fVal].every((val) => Number.isNaN(val))) {
+            setFareError('Enter at least one fare value.');
+            return;
+        }
+
+        setFareError(null);
+        setIsSavingFares(true);
+        try {
+            await updateRouteFares(fareEditor.routeId, {
+                economy: Number.isNaN(eVal) ? undefined : fp(eVal),
+                business: Number.isNaN(bVal) ? undefined : fp(bVal),
+                first: Number.isNaN(fVal) ? undefined : fp(fVal),
+            });
+            toast.success('Fares updated');
+            setFareEditor(null);
+        } catch (err: any) {
+            toast.error('Fare update failed', {
+                description: err?.message ?? 'Unknown error',
+            });
+        } finally {
+            setIsSavingFares(false);
+        }
+    };
+
+    const suggestedFares = fareEditor ? getSuggestedFares(fareEditor.distanceKm) : null;
 
     return (
         <div className="flex h-full w-full flex-col p-6 overflow-hidden">
@@ -172,62 +212,11 @@ export function RouteManager() {
 
                                                 <div className="flex flex-col">
                                                     <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Pricing</span>
-                                                    {editingRouteId === route.id ? (
-                                                        <div className="flex flex-col gap-2 mt-1">
-                                                            <div className="flex gap-2">
-                                                                <div className="flex flex-col">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={tempFares.e}
-                                                                        onChange={(e) => setTempFares({ ...tempFares, e: e.target.value })}
-                                                                        className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-primary/50"
-                                                                        placeholder="E"
-                                                                    />
-                                                                    <span className="text-[8px] text-white/20 mt-0.5 font-mono">Sug: {fpToNumber(getSuggestedFares(route.distanceKm).economy)}</span>
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={tempFares.b}
-                                                                        onChange={(e) => setTempFares({ ...tempFares, b: e.target.value })}
-                                                                        className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-blue-400/50 text-blue-400"
-                                                                        placeholder="B"
-                                                                    />
-                                                                    <span className="text-[8px] text-blue-400/30 mt-0.5 font-mono">Sug: {fpToNumber(getSuggestedFares(route.distanceKm).business)}</span>
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={tempFares.f}
-                                                                        onChange={(e) => setTempFares({ ...tempFares, f: e.target.value })}
-                                                                        className="w-16 text-[10px] font-mono bg-black/40 border border-white/10 rounded px-1 py-0.5 focus:outline-none focus:border-yellow-500/50 text-yellow-500"
-                                                                        placeholder="F"
-                                                                    />
-                                                                    <span className="text-[8px] text-yellow-500/30 mt-0.5 font-mono">Sug: {fpToNumber(getSuggestedFares(route.distanceKm).first)}</span>
-                                                                </div>
-
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const sug = getSuggestedFares(route.distanceKm);
-                                                                        setTempFares({
-                                                                            e: fpToNumber(sug.economy).toString(),
-                                                                            b: fpToNumber(sug.business).toString(),
-                                                                            f: fpToNumber(sug.first).toString(),
-                                                                        });
-                                                                    }}
-                                                                    className="ml-2 px-2 py-0.5 rounded border border-white/5 bg-white/5 text-[8px] uppercase font-bold text-white/40 hover:bg-white/10 transition-colors"
-                                                                >
-                                                                    Fix to Suggested
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex gap-3 mt-1">
-                                                            <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20">E: {fpFormat(route.fareEconomy, 0)}</span>
-                                                            <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400">B: {fpFormat(route.fareBusiness, 0)}</span>
-                                                            <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500">F: {fpFormat(route.fareFirst, 0)}</span>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex gap-3 mt-1">
+                                                        <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20">E: {fpFormat(route.fareEconomy, 0)}</span>
+                                                        <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400">B: {fpFormat(route.fareBusiness, 0)}</span>
+                                                        <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500">F: {fpFormat(route.fareFirst, 0)}</span>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -240,47 +229,25 @@ export function RouteManager() {
                                                     </span>
                                                 </div>
 
-                                                {editingRouteId === route.id ? (
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const eVal = parseInt(tempFares.e.replace(/[^0-9]/g, ''), 10);
-                                                                const bVal = parseInt(tempFares.b.replace(/[^0-9]/g, ''), 10);
-                                                                const fVal = parseInt(tempFares.f.replace(/[^0-9]/g, ''), 10);
-
-                                                                await updateRouteFares(route.id, {
-                                                                    economy: isNaN(eVal) ? undefined : fp(eVal),
-                                                                    business: isNaN(bVal) ? undefined : fp(bVal),
-                                                                    first: isNaN(fVal) ? undefined : fp(fVal),
-                                                                });
-                                                                setEditingRouteId(null);
-                                                            }}
-                                                            className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold hover:bg-emerald-500/30 transition-all"
-                                                        >
-                                                            Save
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setEditingRouteId(null)}
-                                                            className="px-3 py-1.5 bg-white/5 text-white/40 border border-white/5 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingRouteId(route.id);
-                                                            setTempFares({
-                                                                e: fpToNumber(route.fareEconomy).toString(),
-                                                                b: fpToNumber(route.fareBusiness).toString(),
-                                                                f: fpToNumber(route.fareFirst).toString(),
-                                                            });
-                                                        }}
-                                                        className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
-                                                    >
-                                                        Edit Fares
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => {
+                                                        setFareEditor({
+                                                            routeId: route.id,
+                                                            originIata: route.originIata,
+                                                            destinationIata: route.destinationIata,
+                                                            distanceKm: route.distanceKm,
+                                                        });
+                                                        setFareInputs({
+                                                            e: fpToNumber(route.fareEconomy).toString(),
+                                                            b: fpToNumber(route.fareBusiness).toString(),
+                                                            f: fpToNumber(route.fareFirst).toString(),
+                                                        });
+                                                        setFareError(null);
+                                                    }}
+                                                    className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
+                                                >
+                                                    Edit Fares
+                                                </button>
 
                                                 <button
                                                     className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all font-mono"
@@ -476,7 +443,9 @@ export function RouteManager() {
                                                     try {
                                                         await openRoute(market.origin.iata, market.destination.iata, market.distance);
                                                     } catch (e: any) {
-                                                        alert(e.message);
+                                                        toast.error('Route open failed', {
+                                                            description: e?.message ?? 'Unknown error',
+                                                        });
                                                     }
                                                 }}
                                                 className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:scale-105 transition-all shadow-lg shadow-primary/25 active:scale-95"
@@ -509,6 +478,121 @@ export function RouteManager() {
                     </div>
                 )}
             </div>
+            {fareEditor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isSavingFares && setFareEditor(null)}
+                    />
+                    <div className="relative z-10 w-full max-w-xl rounded-2xl border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+                        <div className="flex items-start justify-between border-b border-border/50 px-6 py-5">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Route Pricing</p>
+                                <h3 className="text-lg font-bold text-foreground">
+                                    {fareEditor.originIata} → {fareEditor.destinationIata}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-1">Distance: {fareEditor.distanceKm.toLocaleString()} km</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => !isSavingFares && setFareEditor(null)}
+                                className="rounded-full bg-background/60 p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                aria-label="Close"
+                            >
+                                <span className="sr-only">Close</span>
+                                X
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                <div className="rounded-xl border border-border/50 bg-background/60 p-4">
+                                    <label className="text-[10px] uppercase text-muted-foreground font-semibold">Economy</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={fareInputs.e}
+                                        onChange={(e) => setFareInputs({ ...fareInputs, e: e.target.value })}
+                                        className="mt-2 h-10 w-full rounded-lg bg-background border border-border/50 px-3 text-sm font-medium outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                                    />
+                                    {suggestedFares ? (
+                                        <p className="mt-2 text-[10px] text-muted-foreground">
+                                            Suggested: {fpToNumber(suggestedFares.economy)}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-background/60 p-4">
+                                    <label className="text-[10px] uppercase text-muted-foreground font-semibold">Business</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={fareInputs.b}
+                                        onChange={(e) => setFareInputs({ ...fareInputs, b: e.target.value })}
+                                        className="mt-2 h-10 w-full rounded-lg bg-background border border-border/50 px-3 text-sm font-medium outline-none focus:border-blue-400/60 focus:ring-2 focus:ring-blue-400/20 text-blue-400"
+                                    />
+                                    {suggestedFares ? (
+                                        <p className="mt-2 text-[10px] text-blue-400/70">
+                                            Suggested: {fpToNumber(suggestedFares.business)}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="rounded-xl border border-border/50 bg-background/60 p-4">
+                                    <label className="text-[10px] uppercase text-muted-foreground font-semibold">First</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={fareInputs.f}
+                                        onChange={(e) => setFareInputs({ ...fareInputs, f: e.target.value })}
+                                        className="mt-2 h-10 w-full rounded-lg bg-background border border-border/50 px-3 text-sm font-medium outline-none focus:border-yellow-500/60 focus:ring-2 focus:ring-yellow-500/20 text-yellow-500"
+                                    />
+                                    {suggestedFares ? (
+                                        <p className="mt-2 text-[10px] text-yellow-500/70">
+                                            Suggested: {fpToNumber(suggestedFares.first)}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                            {fareError ? (
+                                <p className="text-xs font-semibold text-red-400">{fareError}</p>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!suggestedFares) return;
+                                    setFareInputs({
+                                        e: fpToNumber(suggestedFares.economy).toString(),
+                                        b: fpToNumber(suggestedFares.business).toString(),
+                                        f: fpToNumber(suggestedFares.first).toString(),
+                                    });
+                                }}
+                                className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-background/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent"
+                            >
+                                Use suggested fares
+                            </button>
+                        </div>
+                        <div className="flex items-center justify-end gap-3 border-t border-border/50 px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setFareEditor(null)}
+                                disabled={isSavingFares}
+                                className="rounded-lg border border-border bg-background/70 px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveFares}
+                                disabled={isSavingFares}
+                                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                            >
+                                {isSavingFares ? 'Saving...' : 'Save fares'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -231,7 +231,7 @@ export const createFleetSlice: StateCreator<
         } catch (e) {
             set(previousState);
             console.error('Failed to sync aircraft selling or marketplace listing to Nostr:', e);
-            alert("Failed to sync fleet change to Nostr.");
+            throw new Error('Failed to sync fleet change to Nostr.');
         }
     },
 
@@ -485,12 +485,10 @@ export const createFleetSlice: StateCreator<
 
             // 2. Publish to Marketplace
             await publishUsedAircraft({ ...instance, listingPrice: price }, price);
-
-            alert(`Aircraft ${instance.name} listed on Marketplace for ${fpFormat(price)}`);
         } catch (e) {
             set(previousState);
             console.error("Listing failed:", e);
-            alert("Failed to publish listing to Nostr.");
+            throw new Error('Failed to publish listing to Nostr.');
         }
     },
 
@@ -528,12 +526,10 @@ export const createFleetSlice: StateCreator<
             deletionEvent.kind = 5;
             deletionEvent.tags = [['a', `${MARKETPLACE_KIND}:${airline.ceoPubkey}:airtr:marketplace:${aircraftId}`]];
             await deletionEvent.publish();
-
-            alert("Listing cancelled.");
         } catch (e) {
             set(previousState);
             console.error("Cancellation failed:", e);
-            alert("Failed to remove listing from Nostr.");
+            throw new Error('Failed to remove listing from Nostr.');
         }
     },
 

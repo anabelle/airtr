@@ -5,6 +5,8 @@ import { fpFormat, fpScale, FP_ZERO, TICK_DURATION } from '@airtr/core';
 import { useAirlineStore } from '@airtr/store';
 import { loadMarketplace, type SellerFleetIndex } from '@airtr/nostr';
 import { Search, Plane, Users, ArrowRight, Coins, Check, Timer, X, MapPin, Tag, ShoppingBag, History } from 'lucide-react';
+import { toast } from 'sonner';
+import { useConfirm } from '@/shared/lib/confirm';
 
 export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () => void }) {
     const [mode, setMode] = useState<'factory' | 'marketplace'>('factory');
@@ -15,17 +17,29 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     const [isLoadingUsed, setIsLoadingUsed] = useState(false);
     const purchaseUsed = useAirlineStore(state => state.purchaseUsedAircraft);
     const fleet = useAirlineStore(state => state.fleet);
+    const confirm = useConfirm();
 
     const handleBuyUsed = async (listing: any) => {
-        if (!confirm(`Are you sure you want to purchase this used aircraft for ${fpFormat(listing.marketplacePrice, 0)}?`)) return;
+        const approved = await confirm({
+            title: 'Purchase used aircraft?',
+            description: `Confirm purchase for ${fpFormat(listing.marketplacePrice, 0)}. Delivery starts immediately.`,
+            confirmLabel: 'Purchase',
+            cancelLabel: 'Cancel',
+            tone: 'default',
+        });
+        if (!approved) return;
 
         try {
             await purchaseUsed(listing);
-            alert('Aircraft purchased successfully! It is now being delivered to your hub.');
+            toast.success('Purchase complete', {
+                description: 'Aircraft is being delivered to your hub.',
+            });
             fetchUsed(); // Refresh the list
             if (onPurchaseSuccess) onPurchaseSuccess();
         } catch (e: any) {
-            alert(`Purchase failed: ${e.message}`);
+            toast.error('Purchase failed', {
+                description: e?.message ?? 'Unknown error',
+            });
         }
     };
 
@@ -424,7 +438,9 @@ function PurchaseModal({ aircraft, onClose, onPurchaseSuccess }: { aircraft: Air
             onClose();
             if (onPurchaseSuccess) onPurchaseSuccess();
         } catch (error: any) {
-            alert(error.message);
+            toast.error('Purchase failed', {
+                description: error?.message ?? 'Unknown error',
+            });
             setIsPurchasing(false);
         }
     };
