@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAirlineStore } from '@airtr/store';
+import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { buildFlightBoardRows, type FlightBoardMode } from '@/features/network/utils/flightBoard';
 
 type FlightBoardProps = {
@@ -10,6 +10,7 @@ type FlightBoardProps = {
 
 export function FlightBoard({ airportIata, airportTimezone, mode }: FlightBoardProps) {
     const { airline, fleet, globalFleet, competitors } = useAirlineStore();
+    const tick = useEngineStore(s => s.tick);
 
     const flights = useMemo(() => {
         return buildFlightBoardRows({
@@ -20,8 +21,9 @@ export function FlightBoard({ airportIata, airportTimezone, mode }: FlightBoardP
             globalFleet,
             airline,
             competitors,
+            tick,
         });
-    }, [fleet, globalFleet, airline, competitors, airportIata, airportTimezone, mode]);
+    }, [fleet, globalFleet, airline, competitors, airportIata, airportTimezone, mode, tick]);
 
     const emptyLabel = mode === 'departures'
         ? 'No scheduled departures'

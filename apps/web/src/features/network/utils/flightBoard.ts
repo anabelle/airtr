@@ -25,6 +25,7 @@ type FlightBoardParams = {
     globalFleet: AircraftInstance[];
     airline: AirlineEntity | null;
     competitors: Map<string, AirlineEntity>;
+    tick: number;
 };
 
 const aircraftIndex = new Map(aircraftModels.map(model => [model.id, model]));
@@ -107,23 +108,31 @@ function getFlightSeed(aircraft: AircraftInstance) {
 function shouldIncludeFlight(
     aircraft: AircraftInstance,
     airportIata: string,
-    mode: FlightBoardMode
+    mode: FlightBoardMode,
+    tick: number
 ) {
     const flight = aircraft.flight;
     if (!flight) return false;
 
-    if (aircraft.baseAirportIata !== airportIata) return false;
-
     const isDeparture = flight.originIata === airportIata;
     const isArrival = flight.destinationIata === airportIata;
 
+    if (aircraft.status === 'enroute') {
+        if (mode === 'departures') return isDeparture;
+        return isArrival;
+    }
+
+    if (aircraft.baseAirportIata !== airportIata) return false;
+
     if (mode === 'departures') {
         if (!isDeparture) return false;
-        return aircraft.status === 'enroute' || aircraft.status === 'idle';
+        return aircraft.status === 'idle';
     }
 
     if (!isArrival) return false;
-    return aircraft.status === 'enroute' || aircraft.status === 'turnaround';
+    if (aircraft.status !== 'turnaround') return false;
+    const arrivalTick = aircraft.arrivalTickProcessed ?? flight.arrivalTick;
+    return tick >= arrivalTick;
 }
 
 export function buildFlightBoardRows({
@@ -134,12 +143,13 @@ export function buildFlightBoardRows({
     globalFleet,
     airline,
     competitors,
+    tick,
 }: FlightBoardParams): FlightRow[] {
     const combined = [...fleet, ...globalFleet];
     const rows: FlightRow[] = [];
 
     for (const aircraft of combined) {
-        if (!shouldIncludeFlight(aircraft, airportIata, mode)) continue;
+        if (!shouldIncludeFlight(aircraft, airportIata, mode, tick)) continue;
 
         const airlineInfo = resolveAirline(aircraft, airline, competitors);
         const airlineName = airlineInfo?.name ?? 'Unknown Airline';

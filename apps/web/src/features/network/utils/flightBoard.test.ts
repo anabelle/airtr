@@ -70,6 +70,7 @@ describe('buildFlightBoardRows', () => {
             globalFleet: [],
             airline,
             competitors: new Map(),
+            tick: 250,
         });
 
         expect(rows).toHaveLength(0);
@@ -100,6 +101,7 @@ describe('buildFlightBoardRows', () => {
             globalFleet: [],
             airline,
             competitors: new Map(),
+            tick: 150,
         });
 
         expect(rows).toHaveLength(1);
@@ -144,10 +146,44 @@ describe('buildFlightBoardRows', () => {
             globalFleet: [],
             airline,
             competitors: new Map(),
+            tick: 210,
         });
 
         expect(rows).toHaveLength(1);
         expect(rows[0].status).toBe('Landed');
+        expect(rows[0].otherIata).toBe('MDE');
+    });
+
+    it('shows arrivals while enroute before base updates', () => {
+        const airline = makeAirline();
+        const fleet = [
+            makeAircraft({
+                id: 'ac-5',
+                status: 'enroute',
+                baseAirportIata: 'MDE',
+                flight: {
+                    originIata: 'MDE',
+                    destinationIata: 'BOG',
+                    departureTick: 100,
+                    arrivalTick: 200,
+                    direction: 'outbound',
+                },
+            }),
+        ];
+
+        const rows = buildFlightBoardRows({
+            airportIata: 'BOG',
+            airportTimezone: 'America/Bogota',
+            mode: 'arrivals',
+            fleet,
+            globalFleet: [],
+            airline,
+            competitors: new Map(),
+            tick: 150,
+        });
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0].status).toBe('En Route');
         expect(rows[0].otherIata).toBe('MDE');
     });
 });
