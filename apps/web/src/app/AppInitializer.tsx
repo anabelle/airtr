@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { useEngineStore, useAirlineStore } from '@airtr/store';
-import { airports as AIRPORTS } from '@airtr/data';
+import { airports as AIRPORTS, findPreferredHub } from '@airtr/data';
 import type { Airport } from '@airtr/core';
 import type { UserLocation } from '@airtr/store';
-import { haversineDistance } from '@airtr/core';
 
 /** Fallback: estimate location from UTC offset */
 function estimateLocationFromOffset(): UserLocation {
@@ -13,31 +12,6 @@ function estimateLocationFromOffset(): UserLocation {
     return { latitude, longitude, source: 'timezone' };
 }
 
-/** Find the best hub near a location (prioritizing population) */
-function findNearestAirport(lat: number, lon: number): Airport {
-    const RADIUS_KM = 150;
-    const candidates = AIRPORTS.filter(airport => {
-        const dist = haversineDistance(lat, lon, airport.latitude, airport.longitude);
-        return dist <= RADIUS_KM;
-    });
-
-    if (candidates.length > 0) {
-        // Sort by population descending
-        return candidates.sort((a, b) => (b.population || 0) - (a.population || 0))[0];
-    }
-
-    // Fallback if no airports within radius: absolute nearest
-    let nearest = AIRPORTS[0];
-    let minDist = Infinity;
-    for (const airport of AIRPORTS) {
-        const dist = haversineDistance(lat, lon, airport.latitude, airport.longitude);
-        if (dist < minDist) {
-            minDist = dist;
-            nearest = airport;
-        }
-    }
-    return nearest;
-}
 
 /** IANA timezone detection */
 function findAirportByTimezone(): Airport | null {
@@ -104,7 +78,7 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
                 setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
             } else {
                 const loc = estimateLocationFromOffset();
-                const home = findNearestAirport(loc.latitude, loc.longitude);
+                const home = findPreferredHub(loc.latitude, loc.longitude);
                 setHub(home, loc, 'UTC offset');
             }
             startEngine();
@@ -121,7 +95,7 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
                         longitude: pos.coords.longitude,
                         source: 'gps',
                     };
-                    const home = findNearestAirport(loc.latitude, loc.longitude);
+                    const home = findPreferredHub(loc.latitude, loc.longitude);
                     setHub(home, loc, 'GPS');
                     startEngine();
                 },

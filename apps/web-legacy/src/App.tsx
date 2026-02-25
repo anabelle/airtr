@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { fpFormat, haversineDistance } from '@airtr/core';
+import { fpFormat } from '@airtr/core';
 import type { Airport } from '@airtr/core';
-import { airports as AIRPORTS } from '@airtr/data';
+import { airports as AIRPORTS, findPreferredHub } from '@airtr/data';
 import { Globe } from '@airtr/map';
 import { useEngineStore } from '@airtr/store';
 import type { UserLocation } from '@airtr/store';
@@ -19,19 +19,6 @@ function estimateLocationFromOffset(): UserLocation {
   return { latitude, longitude, source: 'timezone' };
 }
 
-/** Find the nearest airport to a given location */
-function findNearestAirport(lat: number, lon: number): Airport {
-  let nearest = AIRPORTS[0];
-  let minDist = Infinity;
-  for (const airport of AIRPORTS) {
-    const dist = haversineDistance(lat, lon, airport.latitude, airport.longitude);
-    if (dist < minDist) {
-      minDist = dist;
-      nearest = airport;
-    }
-  }
-  return nearest;
-}
 
 /** IANA timezone detection */
 function findAirportByTimezone(): Airport | null {
@@ -89,7 +76,7 @@ function App() {
             longitude: pos.coords.longitude,
             source: 'gps',
           };
-          const home = findNearestAirport(loc.latitude, loc.longitude);
+          const home = findPreferredHub(loc.latitude, loc.longitude);
           setHub(home, loc, 'GPS');
           startEngine();
         },
@@ -105,7 +92,7 @@ function App() {
             setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
           } else {
             const loc = estimateLocationFromOffset();
-            const home = findNearestAirport(loc.latitude, loc.longitude);
+            const home = findPreferredHub(loc.latitude, loc.longitude);
             setHub(home, loc, 'UTC offset (imprecise)');
           }
           startEngine();
@@ -123,7 +110,7 @@ function App() {
         setHub(tzAirport, loc, `timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
       } else {
         const loc = estimateLocationFromOffset();
-        const home = findNearestAirport(loc.latitude, loc.longitude);
+        const home = findPreferredHub(loc.latitude, loc.longitude);
         setHub(home, loc, 'UTC offset');
       }
       startEngine();
