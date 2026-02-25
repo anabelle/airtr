@@ -4,6 +4,7 @@ import { airports as AIRPORTS } from '@airtr/data';
 import { useMemo, useState } from 'react';
 import type { Airport } from '@airtr/core';
 import { AirportInfoPanel } from '@/features/network/components/AirportInfoPanel';
+import { isGrounded } from '@/features/network/utils/groundTraffic';
 
 export function WorldMap() {
     const homeAirport = useEngineStore(s => s.homeAirport);
@@ -63,7 +64,7 @@ export function WorldMap() {
     const fleetBaseCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         fleet.forEach((ac) => {
-            if (ac.baseAirportIata && ac.status !== 'enroute' && ac.status !== 'delivery') {
+            if (ac.baseAirportIata && isGrounded(ac)) {
                 counts[ac.baseAirportIata] = (counts[ac.baseAirportIata] || 0) + 1;
             }
         });

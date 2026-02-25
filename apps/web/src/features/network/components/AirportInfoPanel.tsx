@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Building2, MapPin, PlaneTakeoff, Users, X } from 'lucide-react';
+import { Building2, MapPin, Plane, PlaneTakeoff, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { airports as AIRPORTS, getHubPricingForIata, HUB_CLASSIFICATIONS } from '@airtr/data';
 import { fp, fpFormat, fpScale, haversineDistance, ROUTE_SLOT_FEE, type Airport, type Route } from '@airtr/core';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { useConfirm } from '@/shared/lib/useConfirm';
+import { buildGroundTraffic } from '@/features/network/utils/groundTraffic';
 
 type AirportInfoPanelProps = {
     airport: Airport;
@@ -30,7 +31,7 @@ function routeLabel(route: Route) {
 export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     const confirm = useConfirm();
     const navigate = useNavigate();
-    const { airline, routes, fleet, competitors, modifyHubs, openRoute } = useAirlineStore();
+    const { airline, routes, fleet, globalFleet, competitors, modifyHubs, openRoute } = useAirlineStore();
     const setHub = useEngineStore(s => s.setHub);
 
     useEffect(() => {
@@ -89,6 +90,14 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     }, [routes, airport.iata, originHubIata]);
 
     const stationedFleet = useMemo(() => fleet.filter(ac => ac.baseAirportIata === airport.iata), [fleet, airport.iata]);
+
+    const groundTraffic = useMemo(() => buildGroundTraffic(
+        airport.iata,
+        fleet,
+        globalFleet,
+        airline ?? null,
+        competitors,
+    ), [airport.iata, fleet, globalFleet, airline, competitors]);
 
     const competitorHubNames = useMemo(() => {
         const names: string[] = [];
@@ -301,6 +310,38 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                                     +{competitorHubNames.length - 4} more
                                 </span>
                             ) : null}
+                        </div>
+                    </div>
+                ) : null}
+
+                {groundTraffic.totalCount > 0 ? (
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                            <Plane className="h-4 w-4" />
+                            Ground Traffic
+                        </div>
+                        <div className="rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Total on ground</span>
+                                <span className="font-mono font-semibold text-foreground">{groundTraffic.totalCount}</span>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                {groundTraffic.entries.map((entry) => (
+                                    <div key={entry.key} className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className="h-2.5 w-2.5 rounded-full"
+                                                style={{ backgroundColor: entry.livery?.primary ?? '#94a3b8' }}
+                                                aria-hidden="true"
+                                            />
+                                            <span className={entry.isPlayer ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+                                                {entry.name}
+                                            </span>
+                                        </div>
+                                        <span className="font-mono text-xs text-muted-foreground">{entry.count}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 ) : null}
