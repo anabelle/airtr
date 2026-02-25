@@ -10,7 +10,7 @@ AirTR is a real-world aviation simulation where players build and operate virtua
 - **Deterministic Game Engine** — O(1) macro-economic formulas (Gravity Model, QSI) for route demand and market share
 - **Fixed-Point Arithmetic** — No floating-point drift; all financial calculations are cross-platform deterministic
 - **Nostr Integration** — Decentralized identity via NIP-07, airline state stored as signed events
-- **Real Airport Data** — 14,000+ airports from OpenFlights with population, GDP, and seasonal tags
+- **Real Airport Data** — 6,072 airports from OpenFlights with population, GDP, and seasonal tags
 - **Interactive Globe** — MapLibre GL map with virtualized airport selection
 - **Fleet Management** — Purchase (BUY/LEASE), aircraft depreciation, and structural condition tracking
 - **Operations Ledger** — Detailed financial event history persistent on Nostr (revenue/cost breakdowns)
@@ -116,7 +116,7 @@ airtr/
 │   │       └── ...
 │   ├── data/                # Static data catalogs
 │   │   └── src/
-│   │       ├── airports.ts  # 14,000+ airports
+│   │       ├── airports.ts  # 6,072 airports
 │   │       └── aircraft.ts  # 15 aircraft models
 │   ├── map/                 # MapLibre GL components
 │   │   └── src/Globe.tsx    # Interactive globe with routes

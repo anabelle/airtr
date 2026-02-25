@@ -30,7 +30,16 @@ export const createWorldSlice: StateCreator<
     globalRoutes: [],
 
     processGlobalTick: (tick: number) => {
-        const { competitors, globalFleet, globalRoutes } = get();
+        const {
+            competitors,
+            globalFleet,
+            globalRoutes,
+            globalRouteRegistry,
+            routes,
+            fleet,
+            pubkey: playerPubkey,
+            airline: playerAirline
+        } = get();
         if (competitors.size === 0) return;
 
         const MAX_CATCHUP = 1000;
@@ -38,13 +47,55 @@ export const createWorldSlice: StateCreator<
         const updatedCompetitors = new Map(competitors);
         let anyChanges = false;
 
-        for (const [pubkey, airline] of competitors) {
+        const playerRouteRegistry = new Map<string, FlightOffer[]>();
+        const playerBrandScore = playerAirline?.brandScore || 0.5;
+        for (const route of routes) {
+            if (route.status !== 'active') continue;
+
+            const frequency = Math.max(0, route.assignedAircraftIds.length * 7);
+            if (frequency === 0) continue;
+
+            let avgTravelTime = 0;
+            if (route.assignedAircraftIds.length > 0) {
+                const modelIds = route.assignedAircraftIds.map((id: string) => {
+                    const ac = fleet.find((a: AircraftInstance) => a.id === id);
+                    return ac?.modelId;
+                }).filter(Boolean);
+
+                const times = modelIds.map((mid: string | undefined) => {
+                    const model = getAircraftById(mid!);
+                    if (!model) return 480;
+                    return (route.distanceKm / (model.speedKmh || 800)) * 60;
+                });
+                avgTravelTime = times.length > 0 ? times.reduce((a: number, b: number) => a + b, 0) / times.length : 480;
+            }
+
+            const key = `${route.originIata}-${route.destinationIata}`;
+            const offers = playerRouteRegistry.get(key) || [];
+            const offer: FlightOffer = {
+                airlinePubkey: playerPubkey || '',
+                fareEconomy: route.fareEconomy,
+                fareBusiness: route.fareBusiness,
+                fareFirst: route.fareFirst,
+                frequencyPerWeek: frequency,
+                travelTimeMinutes: Math.round(avgTravelTime) || 480,
+                stops: 0,
+                serviceScore: 0.7,
+                brandScore: playerBrandScore,
+            };
+            offers.push(offer);
+            playerRouteRegistry.set(key, offers);
+        }
+
+        const globalRegistryEntries = [...globalRouteRegistry.entries()];
+
+        for (const [competitorPubkey, airline] of competitors) {
             const airlineLastTick = airline.lastTick ?? (tick - 1);
             
             if (airlineLastTick >= tick) continue;
 
-            const compFleet = globalFleet.filter(ac => ac.ownerPubkey === pubkey);
-            const compRoutes = globalRoutes.filter(r => r.airlinePubkey === pubkey);
+            const compFleet = globalFleet.filter(ac => ac.ownerPubkey === competitorPubkey);
+            const compRoutes = globalRoutes.filter(r => r.airlinePubkey === competitorPubkey);
 
             if (compFleet.length === 0) continue;
 
@@ -54,6 +105,16 @@ export const createWorldSlice: StateCreator<
             const targetTick = Math.min(tick, airlineLastTick + MAX_CATCHUP);
             const startTick = airlineLastTick + 1;
 
+            const competitorRegistry = new Map<string, FlightOffer[]>();
+            for (const [routeKey, offers] of globalRegistryEntries) {
+                const filtered = offers.filter(o => o.airlinePubkey !== competitorPubkey);
+                if (filtered.length > 0) competitorRegistry.set(routeKey, filtered);
+            }
+            for (const [routeKey, offers] of playerRouteRegistry) {
+                const existing = competitorRegistry.get(routeKey) || [];
+                competitorRegistry.set(routeKey, [...existing, ...offers]);
+            }
+
             for (let t = startTick; t <= targetTick; t++) {
                 const result = processFlightEngine(
                     t,
@@ -61,8 +122,8 @@ export const createWorldSlice: StateCreator<
                     compRoutes,
                     currentBalance,
                     t - 1,
-                    new Map(),
-                    pubkey,
+                    competitorRegistry,
+                    competitorPubkey,
                     airline.brandScore || 0.5
                 );
                 currentFleet = result.updatedFleet;
@@ -70,7 +131,7 @@ export const createWorldSlice: StateCreator<
             }
 
             updatedGlobalFleet.push(...currentFleet);
-            updatedCompetitors.set(pubkey, {
+            updatedCompetitors.set(competitorPubkey, {
                 ...airline,
                 corporateBalance: currentBalance,
                 lastTick: targetTick
@@ -248,7 +309,7 @@ async function settleMarketplaceSales(
         fleetIds: updatedFleet.map(ac => ac.id)
     };
 
-    const finalTimeline = [...newTimelineEvents, ...timeline].slice(0, 200);
+    const finalTimeline = [...newTimelineEvents, ...timeline].slice(0, 1000);
 
     // Optimistic update
     set({

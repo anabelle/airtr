@@ -88,7 +88,7 @@ export const createEngineSlice: StateCreator<
                     }
 
                     console.log(`[EngineSlice] Tick ${t}: Captured ${result.events.length} events. Total timeline now: ${currentTimeline.length + result.events.length}`);
-                    currentTimeline = [...result.events, ...currentTimeline].slice(0, 200);
+                    currentTimeline = [...result.events, ...currentTimeline].slice(0, 1000);
                 }
 
                 if (result.hasChanges) anyChanges = true;
@@ -112,7 +112,7 @@ export const createEngineSlice: StateCreator<
                             description: `Monthly hub operations cost charged for ${currentHubs.length} hub(s).`,
                             cost: opexCost,
                         };
-                        currentTimeline = [newEvent, ...currentTimeline].slice(0, 200);
+                        currentTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
                         anyChanges = true;
                     }
                 }
