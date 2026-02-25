@@ -1,14 +1,16 @@
 import { Globe as CoreGlobe } from '@airtr/map';
 import { useEngineStore, useAirlineStore } from '@airtr/store';
 import { airports as AIRPORTS } from '@airtr/data';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Airport } from '@airtr/core';
+import { AirportInfoPanel } from '@/features/network/components/AirportInfoPanel';
 
 export function WorldMap() {
     const homeAirport = useEngineStore(s => s.homeAirport);
     const tick = useEngineStore(s => s.tick);
     const tickProgress = useEngineStore(s => s.tickProgress);
-    const { airline, modifyHubs, fleet, globalFleet, globalRoutes, competitors, routes } = useAirlineStore();
+    const { airline, fleet, globalFleet, globalRoutes, competitors, routes } = useAirlineStore();
+    const [inspectedAirport, setInspectedAirport] = useState<Airport | null>(null);
 
     const competitorLiveries = useMemo(() => {
         const map = new Map<string, { primary: string; secondary: string }>();
@@ -51,21 +53,9 @@ export function WorldMap() {
         return destinations;
     }, [playerHubs, routes]);
 
-    const handleHubChange = (airport: Airport | null) => {
+    const handleAirportSelect = (airport: Airport | null) => {
         if (!airport) return;
-        if (airline) {
-            if (!airline.hubs.includes(airport.iata)) return;
-            // modifyHubs atomically syncs engine homeAirport
-            modifyHubs({ type: 'switch', iata: airport.iata });
-        } else {
-            // No airline yet — just move the engine hub for exploration
-            const setHub = useEngineStore.getState().setHub;
-            setHub(
-                airport,
-                { latitude: airport.latitude, longitude: airport.longitude, source: 'manual' },
-                'manual selection'
-            );
-        }
+        setInspectedAirport(airport);
     };
 
     const fleetBaseCounts = useMemo(() => {
@@ -85,7 +75,8 @@ export function WorldMap() {
             <CoreGlobe
                 airports={AIRPORTS}
                 selectedAirport={homeAirport}
-                onAirportSelect={handleHubChange}
+                onAirportSelect={handleAirportSelect}
+                onMapClick={() => setInspectedAirport(null)}
                 fleetBaseCounts={fleetBaseCounts}
                 fleet={fleet}
                 globalFleet={globalFleet}
@@ -98,6 +89,9 @@ export function WorldMap() {
                 tick={tick}
                 tickProgress={tickProgress}
             />
+            {inspectedAirport ? (
+                <AirportInfoPanel airport={inspectedAirport} onClose={() => setInspectedAirport(null)} />
+            ) : null}
             {/* Map vignette overlay */}
             <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] z-10" />
         </div>

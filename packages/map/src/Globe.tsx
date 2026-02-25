@@ -16,6 +16,7 @@ export interface GlobeProps {
     airports: Airport[];
     selectedAirport: Airport | null;
     onAirportSelect: (airport: Airport | null) => void;
+    onMapClick?: () => void;
     fleetBaseCounts?: Record<string, number>;
     fleet?: AircraftInstance[];
     globalFleet?: AircraftInstance[];
@@ -185,6 +186,7 @@ export function Globe({
     tickProgress = 0,
     className = '',
     style,
+    onMapClick,
 }: GlobeProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -655,6 +657,13 @@ export function Globe({
             map.on('click', 'airports-layer', (e) => {
                 if (!e.features || e.features.length === 0) return;
                 onAirportSelect(e.features[0].properties as unknown as Airport);
+            });
+
+            // Map click handler (dismiss panels on empty map clicks)
+            map.on('click', (e) => {
+                if (!onMapClick) return;
+                const features = map.queryRenderedFeatures(e.point, { layers: ['airports-layer'] });
+                if (features.length === 0) onMapClick();
             });
 
             map.on('mouseenter', 'airports-layer', () => { map.getCanvas().style.cursor = 'pointer'; });
