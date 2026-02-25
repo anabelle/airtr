@@ -11,9 +11,8 @@ import { getSeasonalMultiplier } from './season.js';
 
 // --- Model Parameters (from ECONOMIC_MODEL.md §1.2) ---
 
-/** Calibration constant — tuned against BTS real-world data:
- *  JFK→LAX ≈ 50,000 weekly pax, small regional ≈ 500–1,000 */
-const K = 6.4e-7;
+/** Calibration constant — tuned against BOG routes (see demand tests). */
+const K = 5.995e-7;
 /** Origin population exponent */
 const ALPHA = 0.8;
 /** Destination population exponent */
@@ -23,10 +22,10 @@ const GAMMA = 0.6;
 /** Destination GDP exponent */
 const DELTA = 0.3;
 /** Distance decay exponent */
-const THETA = 1.2;
+const THETA = 1.0;
 
-/** Minimum distance to prevent division-by-near-zero (km) */
-const MIN_DISTANCE_KM = 50;
+/** Minimum distance to prevent short-haul blowups (km) */
+const MIN_DISTANCE_KM = 800;
 
 // --- Demand Class Splits (from ECONOMIC_MODEL.md §1.4) ---
 

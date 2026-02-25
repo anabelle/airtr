@@ -8,25 +8,32 @@ import type { Airport } from './types.js';
 
 // --- Test airport fixtures ---
 
-const JFK: Airport = {
-    id: '3797', name: 'John F Kennedy Intl', iata: 'JFK', icao: 'KJFK',
-    latitude: 40.6398, longitude: -73.7789, altitude: 13,
-    timezone: 'America/New_York', country: 'US', city: 'New York',
-    population: 8_336_817, gdpPerCapita: 76_330, tags: ['business'],
+const BOG: Airport = {
+    id: '2709', name: 'El Dorado International Airport', iata: 'BOG', icao: 'SKBO',
+    latitude: 4.70159, longitude: -74.1469, altitude: 8361,
+    timezone: 'America/Bogota', country: 'CO', city: 'Bogota',
+    population: 7_674_366, gdpPerCapita: 7_919, tags: ['business'],
 };
 
-const LAX: Airport = {
-    id: '3484', name: 'Los Angeles Intl', iata: 'LAX', icao: 'KLAX',
-    latitude: 33.9425, longitude: -118.408, altitude: 126,
-    timezone: 'America/Los_Angeles', country: 'US', city: 'Los Angeles',
-    population: 3_979_576, gdpPerCapita: 76_330, tags: ['general'],
+const MDE: Airport = {
+    id: '2745', name: 'Jose Maria Cordova International Airport', iata: 'MDE', icao: 'SKRG',
+    latitude: 6.16454, longitude: -75.4231, altitude: 6955,
+    timezone: 'America/Bogota', country: 'CO', city: 'Rio Negro',
+    population: 1_999_979, gdpPerCapita: 7_919, tags: ['general'],
 };
 
-const LHR: Airport = {
-    id: '507', name: 'Heathrow', iata: 'LHR', icao: 'EGLL',
-    latitude: 51.4706, longitude: -0.461941, altitude: 83,
-    timezone: 'Europe/London', country: 'GB', city: 'London',
-    population: 8_982_000, gdpPerCapita: 46_510, tags: ['business'],
+const CTG: Airport = {
+    id: '2714', name: 'Rafael Nunez International Airport', iata: 'CTG', icao: 'SKCG',
+    latitude: 10.4424, longitude: -75.513, altitude: 4,
+    timezone: 'America/Bogota', country: 'CO', city: 'Cartagena',
+    population: 1_206_319, gdpPerCapita: 7_919, tags: ['beach'],
+};
+
+const MAD: Airport = {
+    id: '1229', name: 'Adolfo Suarez Madrid-Barajas Airport', iata: 'MAD', icao: 'LEMD',
+    latitude: 40.471926, longitude: -3.56264, altitude: 1998,
+    timezone: 'Europe/Madrid', country: 'ES', city: 'Madrid',
+    population: 3_255_944, gdpPerCapita: 35_327, tags: ['business'],
 };
 
 const SMALL_AIRPORT: Airport = {
@@ -37,29 +44,44 @@ const SMALL_AIRPORT: Airport = {
 };
 
 describe('calculateDemand()', () => {
-    it('JFK→LAX demand is in realistic range (~30K–70K weekly pax)', () => {
-        const result = calculateDemand(JFK, LAX, 'summer');
+    it('BOG→MDE demand aligns with 2023 annual passengers (weekly baseline)', () => {
+        const result = calculateDemand(BOG, MDE, 'spring');
         const total = result.economy + result.business + result.first;
-        // Real world: ~50,000 weekly pax across all airlines
-        expect(total).toBeGreaterThan(20_000);
-        expect(total).toBeLessThan(100_000);
+        // Source: Spanish Wikipedia, Aeropuerto Internacional El Dorado
+        // Rutas nacionales mas transitadas (enero 2023 - diciembre 2023)
+        // BOG–MDE passengers: 4,449,875 annual (≈ 85,575 weekly)
+        expect(total).toBeGreaterThan(77_000);
+        expect(total).toBeLessThan(95_000);
     });
 
-    it('JFK→LHR demand is in realistic range (~20K–60K weekly pax)', () => {
-        const result = calculateDemand(JFK, LHR, 'summer');
+    it('BOG→CTG demand aligns with 2023 annual passengers (weekly baseline)', () => {
+        const result = calculateDemand(BOG, CTG, 'spring');
         const total = result.economy + result.business + result.first;
-        expect(total).toBeGreaterThan(10_000);
-        expect(total).toBeLessThan(80_000);
+        // Source: Spanish Wikipedia, Aeropuerto Internacional El Dorado
+        // Rutas nacionales mas transitadas (enero 2023 - diciembre 2023)
+        // BOG–CTG passengers: 3,285,214 annual (≈ 63,177 weekly)
+        expect(total).toBeGreaterThan(50_000);
+        expect(total).toBeLessThan(70_000);
+    });
+
+    it('BOG→MAD demand aligns with 2022 annual passengers (weekly baseline)', () => {
+        const result = calculateDemand(BOG, MAD, 'spring');
+        const total = result.economy + result.business + result.first;
+        // Source: Spanish Wikipedia, Aeropuerto Internacional El Dorado
+        // Rutas internacionales mas transitadas (enero 2022 - diciembre 2022)
+        // BOG–MAD passengers: 1,095,936 annual (≈ 21,075 weekly)
+        expect(total).toBeGreaterThan(18_000);
+        expect(total).toBeLessThan(23_000);
     });
 
     it('economy class has the largest share', () => {
-        const result = calculateDemand(JFK, LAX, 'summer');
+        const result = calculateDemand(BOG, MDE, 'spring');
         expect(result.economy).toBeGreaterThan(result.business);
         expect(result.business).toBeGreaterThan(result.first);
     });
 
     it('economy is ~75%, business ~20%, first ~5%', () => {
-        const result = calculateDemand(JFK, LAX, 'summer');
+        const result = calculateDemand(BOG, MDE, 'spring');
         const total = result.economy + result.business + result.first;
         expect(result.economy / total).toBeCloseTo(0.75, 1);
         expect(result.business / total).toBeCloseTo(0.20, 1);
@@ -67,69 +89,69 @@ describe('calculateDemand()', () => {
     });
 
     it('small airports produce much less demand', () => {
-        const major = calculateDemand(JFK, LAX, 'summer');
-        const minor = calculateDemand(JFK, SMALL_AIRPORT, 'summer');
+        const major = calculateDemand(BOG, MDE, 'spring');
+        const minor = calculateDemand(BOG, SMALL_AIRPORT, 'spring');
         expect(major.economy).toBeGreaterThan(minor.economy * 10);
     });
 
     it('small regional demand is in hundreds range', () => {
-        const result = calculateDemand(JFK, SMALL_AIRPORT, 'summer');
+        const result = calculateDemand(BOG, SMALL_AIRPORT, 'spring');
         const total = result.economy + result.business + result.first;
         expect(total).toBeGreaterThan(0);
         expect(total).toBeLessThan(5_000);
     });
 
     it('seasonal multiplier affects demand', () => {
-        // LAX tagged 'general': summer = ×1.10, winter = ×0.90
-        const summerDemand = calculateDemand(JFK, LAX, 'summer');
-        const winterDemand = calculateDemand(JFK, LAX, 'winter');
+        // CTG tagged 'beach': summer = ×1.30, winter = ×0.70
+        const summerDemand = calculateDemand(BOG, CTG, 'summer');
+        const winterDemand = calculateDemand(BOG, CTG, 'winter');
         expect(summerDemand.economy).toBeGreaterThan(winterDemand.economy);
     });
 
     it('prosperity index scales demand', () => {
-        const normal = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
-        const boom = calculateDemand(JFK, LAX, 'summer', 1.15, 1.0);
-        const recession = calculateDemand(JFK, LAX, 'summer', 0.85, 1.0);
+        const normal = calculateDemand(BOG, MDE, 'spring', 1.0, 1.0);
+        const boom = calculateDemand(BOG, MDE, 'spring', 1.15, 1.0);
+        const recession = calculateDemand(BOG, MDE, 'spring', 0.85, 1.0);
         expect(boom.economy).toBeGreaterThan(normal.economy);
         expect(normal.economy).toBeGreaterThan(recession.economy);
     });
 
     it('handles zero population gracefully', () => {
         const ghost: Airport = { ...SMALL_AIRPORT, population: 0, iata: 'GHO' };
-        const result = calculateDemand(JFK, ghost, 'summer');
+        const result = calculateDemand(BOG, ghost, 'spring');
         expect(result.economy).toBe(0);
         expect(result.business).toBe(0);
         expect(result.first).toBe(0);
     });
 
     it('handles same-airport origin/destination (min distance kicks in)', () => {
-        const result = calculateDemand(JFK, JFK, 'summer');
+        const result = calculateDemand(BOG, BOG, 'spring');
         // Should not throw, just return demand with min distance applied
         expect(result.economy).toBeGreaterThan(0);
     });
 
     it('is deterministic across calls', () => {
-        const r1 = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
-        const r2 = calculateDemand(JFK, LAX, 'summer', 1.0, 1.0);
+        const r1 = calculateDemand(BOG, MDE, 'spring', 1.0, 1.0);
+        const r2 = calculateDemand(BOG, MDE, 'spring', 1.0, 1.0);
         expect(r1.economy).toBe(r2.economy);
         expect(r1.business).toBe(r2.business);
         expect(r1.first).toBe(r2.first);
     });
 
     it('returns IATA codes in result', () => {
-        const result = calculateDemand(JFK, LAX, 'summer');
-        expect(result.origin).toBe('JFK');
-        expect(result.destination).toBe('LAX');
+        const result = calculateDemand(BOG, MDE, 'spring');
+        expect(result.origin).toBe('BOG');
+        expect(result.destination).toBe('MDE');
     });
 
     it('longer routes generally have less demand than shorter similar routes', () => {
         // Compare two routes with similar city sizes but different distances
-        const jfkLax = calculateDemand(JFK, LAX, 'summer'); // ~3,900 km
-        const jfkLhr = calculateDemand(JFK, LHR, 'summer'); // ~5,500 km
+        const bogMde = calculateDemand(BOG, MDE, 'spring'); // ~215 km
+        const bogMad = calculateDemand(BOG, MAD, 'spring'); // ~8,000 km
         // LHR has bigger population so this tests that distance decay is real
         // Both should be positive
-        expect(jfkLax.economy).toBeGreaterThan(0);
-        expect(jfkLhr.economy).toBeGreaterThan(0);
+        expect(bogMde.economy).toBeGreaterThan(0);
+        expect(bogMad.economy).toBeGreaterThan(0);
     });
 });
 

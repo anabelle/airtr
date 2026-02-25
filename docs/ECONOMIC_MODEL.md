@@ -20,16 +20,16 @@ Demand(A→B) = K × (Pop_A^α × Pop_B^β × GDP_A^γ × GDP_B^δ) / Distance(A
 
 | Symbol | Name | Value | Notes |
 |--------|------|-------|-------|
-| K | Calibration constant | 6.4e-7 | Tuned against BTS data: JFK→LAX ≈ 50K weekly pax |
+| K | Calibration constant | 5.995e-7 | Tuned against BOG routes: MDE/CTG/MAD weekly baselines |
 | α | Origin population exponent | 0.8 | Sub-linear: doubling pop doesn't double demand |
 | β | Destination population exponent | 0.8 | Same as origin |
 | γ | Origin GDP-per-capita exponent | 0.6 | Wealth drives travel propensity |
 | δ | Destination GDP-per-capita exponent | 0.3 | Destination wealth matters less |
-| θ | Distance decay exponent | 1.2 | Further = less demand (super-linear decay) |
+| θ | Distance decay exponent | 1.0 | Further = less demand (linear decay) |
 
 ### 1.3 Distance Calculation
 
-Great-circle distance using the Haversine formula:
+ Great-circle distance using the Haversine formula:
 
 ```typescript
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -44,8 +44,12 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 ```
 
-**⚠️ Determinism note**: Use the integer lookup table approach for trig functions
-in the final implementation (see ADR-002). The above is the reference formula.
+ **⚠️ Determinism note**: Use the integer lookup table approach for trig functions
+ in the final implementation (see ADR-002). The above is the reference formula.
+
+ Minimum distance floor: 800 km. This prevents short-haul routes from exploding
+ the gravity term, and keeps demand within real-world ranges for dense short-haul
+ markets.
 
 ### 1.4 Demand Classes
 

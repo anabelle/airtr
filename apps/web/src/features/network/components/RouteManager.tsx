@@ -122,11 +122,28 @@ export function RouteManager() {
 
     const prospectMarkets = useMemo(() => buildProspects(planningOriginAirport), [planningOriginAirport, tick]);
 
-    if (!airline || !homeAirport || !planningOriginAirport) return null;
+    const activeRoutes = useMemo(() => routes.filter(route => route.status === 'active'), [routes]);
+    const suspendedRoutes = useMemo(() => routes.filter(route => route.status === 'suspended'), [routes]);
+    const originActiveRoutes = useMemo(() => {
+        if (!planningOriginAirport) return [];
+        return activeRoutes.filter(route => route.originIata === planningOriginAirport.iata);
+    }, [activeRoutes, planningOriginAirport]);
 
-    const activeRoutes = routes.filter(route => route.status === 'active');
-    const suspendedRoutes = routes.filter(route => route.status === 'suspended');
-    const originActiveRoutes = activeRoutes.filter(route => route.originIata === planningOriginAirport.iata);
+    const totalDailyDemand = useMemo(() => {
+        if (!planningOriginAirport) return 0;
+        const now = new Date();
+        const prosperity = getProsperityIndex(tick);
+        const weeklyTotal = originActiveRoutes.reduce((acc, route) => {
+            const destination = airportIndex.get(route.destinationIata);
+            if (!destination) return acc;
+            const season = getSeason(destination.latitude, now);
+            const demand = calculateDemand(planningOriginAirport, destination, season, prosperity, 1.0);
+            return acc + demand.economy + demand.business + demand.first;
+        }, 0);
+        return Math.round(weeklyTotal / 7);
+    }, [airportIndex, originActiveRoutes, planningOriginAirport, tick]);
+
+    if (!airline || !homeAirport || !planningOriginAirport) return null;
 
     const handleSaveFares = async () => {
         if (!fareEditor) return;
@@ -221,7 +238,7 @@ export function RouteManager() {
                         <TrendingUp className="h-4 w-4 text-accent" />
                     </div>
                     <p className="text-2xl font-bold text-foreground">
-                        {originActiveRoutes.reduce((acc, r) => acc + (prospectMarkets.find(p => p.destination.iata === r.destinationIata)?.demand.economy || 0), 0).toLocaleString()} pax
+                        {totalDailyDemand.toLocaleString()} pax
                     </p>
                     <p className="text-xs text-muted-foreground">across {originActiveRoutes.length} active routes</p>
                 </div>
