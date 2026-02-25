@@ -125,12 +125,41 @@ export const createNetworkSlice: StateCreator<
             if (route.status === 'suspended') suspendedRouteIds.add(route.id);
         }
 
+        const routeById = new Map<string, Route>();
+        for (const route of routes) {
+            routeById.set(route.id, route);
+        }
+
         const updatedFleet = removedHubs.size > 0
             ? fleet.map((aircraft) => {
-                if (aircraft.assignedRouteId && suspendedRouteIds.has(aircraft.assignedRouteId)) {
-                    return { ...aircraft, assignedRouteId: null };
+                if (!aircraft.assignedRouteId || !suspendedRouteIds.has(aircraft.assignedRouteId)) {
+                    return aircraft;
                 }
-                return aircraft;
+
+                const assignedRoute = routeById.get(aircraft.assignedRouteId);
+
+                if (aircraft.status === 'enroute') {
+                    return {
+                        ...aircraft,
+                        assignedRouteId: null,
+                        flight: aircraft.flight && assignedRoute
+                            ? {
+                                ...aircraft.flight,
+                                fareEconomy: assignedRoute.fareEconomy,
+                                fareBusiness: assignedRoute.fareBusiness,
+                                fareFirst: assignedRoute.fareFirst,
+                                distanceKm: assignedRoute.distanceKm,
+                                frequencyPerWeek: assignedRoute.frequencyPerWeek ?? 7,
+                            }
+                            : aircraft.flight,
+                    };
+                }
+
+                if (aircraft.status === 'turnaround') {
+                    return { ...aircraft, assignedRouteId: null, status: 'idle' as const, flight: null };
+                }
+
+                return { ...aircraft, assignedRouteId: null };
             })
             : fleet;
 
@@ -222,10 +251,32 @@ export const createNetworkSlice: StateCreator<
         });
 
         const updatedFleet = fleet.map((aircraft) => {
-            if (aircraft.assignedRouteId === routeId) {
-                return { ...aircraft, assignedRouteId: null };
+            if (aircraft.assignedRouteId !== routeId) {
+                return aircraft;
             }
-            return aircraft;
+
+            if (aircraft.status === 'enroute') {
+                return {
+                    ...aircraft,
+                    assignedRouteId: null,
+                    flight: aircraft.flight
+                        ? {
+                            ...aircraft.flight,
+                            fareEconomy: targetRoute.fareEconomy,
+                            fareBusiness: targetRoute.fareBusiness,
+                            fareFirst: targetRoute.fareFirst,
+                            distanceKm: targetRoute.distanceKm,
+                            frequencyPerWeek: targetRoute.frequencyPerWeek ?? 7,
+                        }
+                        : aircraft.flight,
+                };
+            }
+
+            if (aircraft.status === 'turnaround') {
+                return { ...aircraft, assignedRouteId: null, status: 'idle' as const, flight: null };
+            }
+
+            return { ...aircraft, assignedRouteId: null };
         });
 
         const newEvent: TimelineEvent = {
@@ -281,10 +332,32 @@ export const createNetworkSlice: StateCreator<
 
         const updatedRoutes: Route[] = routes.filter(route => route.id !== routeId);
         const updatedFleet = fleet.map((aircraft) => {
-            if (aircraft.assignedRouteId === routeId) {
-                return { ...aircraft, assignedRouteId: null };
+            if (aircraft.assignedRouteId !== routeId) {
+                return aircraft;
             }
-            return aircraft;
+
+            if (aircraft.status === 'enroute') {
+                return {
+                    ...aircraft,
+                    assignedRouteId: null,
+                    flight: aircraft.flight
+                        ? {
+                            ...aircraft.flight,
+                            fareEconomy: targetRoute.fareEconomy,
+                            fareBusiness: targetRoute.fareBusiness,
+                            fareFirst: targetRoute.fareFirst,
+                            distanceKm: targetRoute.distanceKm,
+                            frequencyPerWeek: targetRoute.frequencyPerWeek ?? 7,
+                        }
+                        : aircraft.flight,
+                };
+            }
+
+            if (aircraft.status === 'turnaround') {
+                return { ...aircraft, assignedRouteId: null, status: 'idle' as const, flight: null };
+            }
+
+            return { ...aircraft, assignedRouteId: null };
         });
 
         const newEvent: TimelineEvent = {

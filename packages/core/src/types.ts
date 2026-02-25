@@ -126,6 +126,10 @@ export interface FlightState {
     direction: 'outbound' | 'inbound';
     purpose?: 'route' | 'ferry';
     distanceKm?: number;
+    fareEconomy?: FixedPoint;
+    fareBusiness?: FixedPoint;
+    fareFirst?: FixedPoint;
+    frequencyPerWeek?: number;
 }
 
 export interface AircraftInstance {

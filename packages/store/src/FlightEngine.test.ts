@@ -144,6 +144,15 @@ const simulateSingleLanding = (
     return { landing, state };
 };
 
+const makeFlight = (overrides: Partial<AircraftInstance['flight']>): AircraftInstance['flight'] => ({
+    originIata: 'JFK',
+    destinationIata: 'LAX',
+    departureTick: 1,
+    arrivalTick: 10,
+    direction: 'outbound',
+    ...overrides,
+});
+
 describe('FlightEngine — Solo/Offline scenarios', () => {
     it('turboprop economy-only stays zero for business/first', () => {
         const aircraft = makeAircraft({
@@ -240,12 +249,13 @@ describe('FlightEngine — Multiplayer scenarios', () => {
             assignedRouteId: 'route-comp',
             baseAirportIata: 'JFK',
         });
+        const assignedAircraftIds = Array.from({ length: 200 }, (_, index) => `ac-comp-${index + 1}`);
         const route = makeRoute({
             id: 'route-comp',
             originIata: 'JFK',
             destinationIata: 'LAX',
             distanceKm: 3000,
-            assignedAircraftIds: [aircraft.id],
+            assignedAircraftIds,
         });
 
         const monopoly = simulateSingleLanding(aircraft, route);
@@ -255,7 +265,7 @@ describe('FlightEngine — Multiplayer scenarios', () => {
             fareEconomy: fp(120),
             fareBusiness: fp(350),
             fareFirst: fp(700),
-            frequencyPerWeek: 14,
+            frequencyPerWeek: 2800,
             travelTimeMinutes: 300,
             stops: 0,
             serviceScore: 0.7,
@@ -450,6 +460,55 @@ describe('FlightEngine — Edge cases', () => {
         const landingEvents = state.events.filter(e => e.type === 'landing');
         expect(landingEvents.length).toBeGreaterThanOrEqual(2);
         expect(state.fleet[0].flightHoursTotal).toBeGreaterThan(0);
+    });
+
+    it('orphaned flight uses fare snapshot when route is missing', () => {
+        const fares = getSuggestedFares(3000);
+        const aircraft = makeAircraft({
+            id: 'ac-orphan',
+            modelId: 'a320neo',
+            status: 'enroute',
+            assignedRouteId: null,
+            baseAirportIata: 'JFK',
+            flight: makeFlight({
+                departureTick: 1,
+                arrivalTick: 5,
+                distanceKm: 3000,
+                fareEconomy: fares.economy,
+                fareBusiness: fares.business,
+                fareFirst: fares.first,
+                frequencyPerWeek: 7,
+            }),
+        });
+
+        const state = initState([aircraft], []);
+        const nextState = runTick(state, 5);
+        const landing = findLastEvent(nextState.events, 'landing');
+        expect(landing).toBeTruthy();
+        expect(landing?.revenue && fpToNumber(landing.revenue)).toBeGreaterThan(0);
+        expect(nextState.fleet[0].condition).toBeLessThan(1.0);
+    });
+
+    it('orphaned flight without fare snapshot yields zero revenue but still costs', () => {
+        const aircraft = makeAircraft({
+            id: 'ac-orphan-zero',
+            modelId: 'a320neo',
+            status: 'enroute',
+            assignedRouteId: null,
+            baseAirportIata: 'JFK',
+            flight: makeFlight({
+                departureTick: 1,
+                arrivalTick: 5,
+                distanceKm: 3000,
+            }),
+        });
+
+        const state = initState([aircraft], []);
+        const nextState = runTick(state, 5);
+        const landing = findLastEvent(nextState.events, 'landing');
+        expect(landing).toBeTruthy();
+        expect(fpToNumber(landing?.revenue ?? fp(1))).toBe(0);
+        expect(fpToNumber(landing?.cost ?? fp(0))).toBeGreaterThan(0);
     });
 });
 

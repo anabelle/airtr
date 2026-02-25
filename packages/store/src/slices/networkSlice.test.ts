@@ -204,4 +204,60 @@ describe('closeRoute', () => {
         const aircraft = updatedFleet.find(ac => ac.id === 'ac-1');
         expect(aircraft?.assignedRouteId).toBe(null);
     });
+
+    it('keeps enroute aircraft flight state with fare snapshot', async () => {
+        const airline = makeAirline(['BOG']);
+        const route = makeRoute('rt-1', 'BOG', 'CLO', 'active');
+        const enrouteAircraft = {
+            ...makeAircraft('ac-1', 'rt-1'),
+            status: 'enroute' as const,
+            flight: {
+                originIata: 'BOG',
+                destinationIata: 'CLO',
+                departureTick: 90,
+                arrivalTick: 110,
+                direction: 'outbound' as const,
+            }
+        };
+
+        const { state } = createSliceState({ airline, routes: [route], fleet: [enrouteAircraft], timeline: [] as TimelineEvent[] });
+
+        await state.closeRoute('rt-1');
+
+        const updatedFleet = state.fleet as AircraftInstance[];
+        const aircraft = updatedFleet.find(ac => ac.id === 'ac-1');
+
+        expect(aircraft?.assignedRouteId).toBe(null);
+        expect(aircraft?.status).toBe('enroute');
+        expect(aircraft?.flight?.fareEconomy).toBe(route.fareEconomy);
+        expect(aircraft?.flight?.fareBusiness).toBe(route.fareBusiness);
+        expect(aircraft?.flight?.fareFirst).toBe(route.fareFirst);
+    });
+
+    it('turnaround aircraft goes idle on closeRoute', async () => {
+        const airline = makeAirline(['BOG']);
+        const route = makeRoute('rt-1', 'BOG', 'CLO', 'active');
+        const turnaroundAircraft = {
+            ...makeAircraft('ac-1', 'rt-1'),
+            status: 'turnaround' as const,
+            flight: {
+                originIata: 'BOG',
+                destinationIata: 'CLO',
+                departureTick: 90,
+                arrivalTick: 100,
+                direction: 'outbound' as const,
+            }
+        };
+
+        const { state } = createSliceState({ airline, routes: [route], fleet: [turnaroundAircraft], timeline: [] as TimelineEvent[] });
+
+        await state.closeRoute('rt-1');
+
+        const updatedFleet = state.fleet as AircraftInstance[];
+        const aircraft = updatedFleet.find(ac => ac.id === 'ac-1');
+
+        expect(aircraft?.assignedRouteId).toBe(null);
+        expect(aircraft?.status).toBe('idle');
+        expect(aircraft?.flight).toBe(null);
+    });
 });

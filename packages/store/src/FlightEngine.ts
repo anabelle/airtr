@@ -188,7 +188,13 @@ export function processFlightEngine(
 
             const isFerry = ac.flight?.purpose === 'ferry';
             const route = !isFerry ? routes.find(r => r.id === ac.assignedRouteId) : null;
-            if (route || isFerry) {
+            const isOrphan = !route && !isFerry && !!ac.flight;
+            const hasFareSnapshot = !!(
+                ac.flight?.fareEconomy !== undefined
+                || ac.flight?.fareBusiness !== undefined
+                || ac.flight?.fareFirst !== undefined
+            );
+            if (route || isFerry || isOrphan) {
                 const originIata = route ? route.originIata : ac.flight?.originIata;
                 const destinationIata = route ? route.destinationIata : ac.flight?.destinationIata;
                 const origin = originIata ? airports.find(a => a.iata === originIata) : null;
@@ -196,15 +202,15 @@ export function processFlightEngine(
 
                 let weeklyDemandResult = { economy: 350, business: 35, first: 7, origin: originIata ?? '', destination: destinationIata ?? '' };
 
-                if (origin && destination && route) {
+                if (origin && destination) {
                     const now = new Date(simulatedTimestamp);
                     const season = getSeason(destination.latitude, now);
                     const prosperity = getProsperityIndex(tick);
 
-                    const originHub = HUB_CLASSIFICATIONS[route.originIata] ?? null;
-                    const destHub = HUB_CLASSIFICATIONS[route.destinationIata] ?? null;
-                    const originState = originHub ? hubStates.get(route.originIata) ?? null : null;
-                    const destState = destHub ? hubStates.get(route.destinationIata) ?? null : null;
+                    const originHub = originIata ? HUB_CLASSIFICATIONS[originIata] ?? null : null;
+                    const destHub = destinationIata ? HUB_CLASSIFICATIONS[destinationIata] ?? null : null;
+                    const originState = originHub && originIata ? hubStates.get(originIata) ?? null : null;
+                    const destState = destHub && destinationIata ? hubStates.get(destinationIata) ?? null : null;
                     const hubModifier = getHubDemandModifier(
                         originHub?.tier ?? null,
                         destHub?.tier ?? null,
@@ -213,8 +219,8 @@ export function processFlightEngine(
                     );
                     const weeklyDemand = calculateDemand(origin, destination, season, prosperity, hubModifier);
                     weeklyDemandResult = {
-                        origin: route.originIata,
-                        destination: route.destinationIata,
+                        origin: originIata ?? '',
+                        destination: destinationIata ?? '',
                         economy: weeklyDemand.economy,
                         business: weeklyDemand.business,
                         first: weeklyDemand.first,
@@ -231,22 +237,29 @@ export function processFlightEngine(
                     seatsOffered: model.capacity.economy + model.capacity.business + model.capacity.first
                 });
 
-                if (route) {
+                if (route || (isOrphan && hasFareSnapshot)) {
                     // --- NEW MP ALLOCATION LOGIC ---
-                    const routeKey = `${route.originIata}-${route.destinationIata}`;
-                    const competitorOffers = globalRouteRegistry.get(routeKey) || [];
+                    const routeKey = originIata && destinationIata ? `${originIata}-${destinationIata}` : '';
+                    const competitorOffers = route && routeKey ? globalRouteRegistry.get(routeKey) || [] : [];
 
                     // Frequency for our offer: how many planes we (the player) have on this route?
-                    const ourFrequency = Math.max(1, route.assignedAircraftIds.length * 7);
+                    const ourFrequency = route
+                        ? Math.max(1, route.assignedAircraftIds.length * 7)
+                        : Math.max(1, ac.flight?.frequencyPerWeek ?? 7);
 
                     // Travel time for our current aircraft
-                    const ourTravelTime = Math.round((route.distanceKm / (model.speedKmh || 800)) * 60);
+                    const distanceForOffer = route?.distanceKm ?? ac.flight?.distanceKm ?? 0;
+                    const ourTravelTime = Math.round((distanceForOffer / (model.speedKmh || 800)) * 60);
+
+                    const fareEconomy = route?.fareEconomy ?? ac.flight?.fareEconomy ?? fp(0);
+                    const fareBusiness = route?.fareBusiness ?? ac.flight?.fareBusiness ?? fp(0);
+                    const fareFirst = route?.fareFirst ?? ac.flight?.fareFirst ?? fp(0);
 
                     const ourOffer: FlightOffer = {
                         airlinePubkey: playerPubkey,
-                        fareEconomy: route.fareEconomy,
-                        fareBusiness: route.fareBusiness,
-                        fareFirst: route.fareFirst,
+                        fareEconomy,
+                        fareBusiness,
+                        fareFirst,
                         frequencyPerWeek: ourFrequency,
                         travelTimeMinutes: ourTravelTime,
                         stops: 0,
@@ -254,11 +267,11 @@ export function processFlightEngine(
                         brandScore: playerBrandScore,
                     };
 
-                    const allOffers = [ourOffer, ...competitorOffers];
+                    const allOffers = route ? [ourOffer, ...competitorOffers] : [ourOffer];
 
                     // --- PRICE WAR DYNAMICS ---
-                    const pw = detectPriceWar(allOffers);
-                    if (pw.isPriceWar) {
+                    const pw = route ? detectPriceWar(allOffers) : { isPriceWar: false, lowPricedAirlines: [] as string[] };
+                    if (pw.isPriceWar && route) {
                         // Stimulation: Increase route demand by 10%
                         weeklyDemandResult.economy = Math.floor(weeklyDemandResult.economy * 1.1);
                         weeklyDemandResult.business = Math.floor(weeklyDemandResult.business * 1.1);
@@ -279,7 +292,11 @@ export function processFlightEngine(
                     }
 
                     const allocations = allocatePassengers(allOffers, weeklyDemandResult);
-                    const ourWeeklyAllocation = allocations.get(playerPubkey) || { economy: 0, business: 0, first: 0 };
+                    const ourWeeklyAllocation = allocations.get(playerPubkey)
+                        || (route
+                            ? { economy: 0, business: 0, first: 0 }
+                            : allocations.get(ourOffer.airlinePubkey))
+                        || { economy: 0, business: 0, first: 0 };
 
                     // Per-flight allocation (Weekly allocation / frequency)
                     const paxE = Math.min(model.capacity.economy, Math.floor(ourWeeklyAllocation.economy / ourFrequency));
@@ -291,9 +308,9 @@ export function processFlightEngine(
                         passengersEconomy: paxE,
                         passengersBusiness: paxB,
                         passengersFirst: paxF,
-                        fareEconomy: route.fareEconomy,
-                        fareBusiness: route.fareBusiness,
-                        fareFirst: route.fareFirst,
+                        fareEconomy,
+                        fareBusiness,
+                        fareFirst,
                         seatsOffered: model.capacity.economy + model.capacity.business + model.capacity.first
                     });
                 }
@@ -340,6 +357,7 @@ export function processFlightEngine(
                 ac.turnaroundEndTick = tick + Math.max(1, turnaroundTicks);
                 hasChanges = true;
 
+                const includePassengerDetails = !isFerry && (route || (isOrphan && hasFareSnapshot));
                 const landingEvent: TimelineEvent = {
                     id: `evt-landing-${ac.id}-${tick}`,
                     tick,
@@ -353,8 +371,8 @@ export function processFlightEngine(
                     revenue: rev.revenueTotal,
                     cost: cost.costTotal,
                     profit: profit,
-                    description: `${ac.name} ${isFerry ? 'ferried' : 'landed'} at ${ac.flight?.destinationIata}. Net Profit: ${profit > 0 ? '+' : ''}${fpToNumber(profit)}`,
-                    details: isFerry ? undefined : {
+                    description: `${ac.name} ${isFerry ? 'ferried' : isOrphan ? 'landed (orphaned route)' : 'landed'} at ${ac.flight?.destinationIata}. Net Profit: ${profit > 0 ? '+' : ''}${fpToNumber(profit)}`,
+                    details: includePassengerDetails ? {
                         passengers: {
                             economy: rev.actualEconomy,
                             business: rev.actualBusiness,
@@ -378,7 +396,7 @@ export function processFlightEngine(
                             leasing: cost.costLeasing,
                             overhead: cost.costOverhead
                         }
-                    }
+                    } : undefined
                 };
                 events.push(landingEvent);
                 console.log(`[FlightEngine] Plane ${ac.name} landed. Event generated:`, landingEvent.id);
