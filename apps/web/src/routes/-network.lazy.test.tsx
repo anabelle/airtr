@@ -33,6 +33,7 @@ describe("Network route", () => {
       airline: { id: "airline" },
       initializeIdentity: vi.fn(),
       isLoading: false,
+      viewedPubkey: null,
     });
     render(<NetworkRoute />);
     expect(screen.getByText("Route Manager")).toBeInTheDocument();

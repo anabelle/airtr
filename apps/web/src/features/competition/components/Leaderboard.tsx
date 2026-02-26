@@ -46,12 +46,14 @@ function LeaderboardRow({
   isOwn,
   metric,
   value,
+  onView,
 }: {
   row: LeaderboardRowData;
   index: number;
   isOwn: boolean;
   metric: LeaderboardMetric;
   value: number | FixedPoint;
+  onView: (pubkey: string) => void;
 }) {
   const profile = useNostrProfile(row.ceoPubkey);
   const npub = profile.npub;
@@ -115,6 +117,15 @@ function LeaderboardRow({
         </div>
       </div>
       <div className="flex w-1/2 items-center justify-end gap-6">
+        {!isOwn && (
+          <button
+            type="button"
+            onClick={() => onView(row.ceoPubkey)}
+            className="rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          >
+            View As
+          </button>
+        )}
         <div className="hidden text-right text-xs text-muted-foreground sm:block">
           <div className="text-[10px] uppercase">Fleet</div>
           <div className="font-mono text-sm text-foreground">{row.fleet}</div>
@@ -148,6 +159,7 @@ export function Leaderboard() {
   const routes = useAirlineStore((s) => s.routes);
   const globalFleet = useAirlineStore((s) => s.globalFleet);
   const globalRoutes = useAirlineStore((s) => s.globalRoutes);
+  const viewAs = useAirlineStore((s) => s.viewAs);
   const currentTick = useEngineStore((s) => s.tick);
   const [metric, setMetric] = useState<LeaderboardMetric>("balance");
 
@@ -237,6 +249,7 @@ export function Leaderboard() {
                 isOwn={isOwn}
                 metric={metric}
                 value={value}
+                onView={viewAs}
               />
             );
           })}

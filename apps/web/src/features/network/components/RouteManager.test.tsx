@@ -4,11 +4,13 @@ import { RouteManager } from "./RouteManager";
 
 const mockUseAirlineStore = vi.fn();
 const mockUseEngineStore = vi.fn();
+const mockUseActiveAirline = vi.fn();
 
 vi.mock("@airtr/store", () => {
   return {
     useAirlineStore: () => mockUseAirlineStore(),
     useEngineStore: () => mockUseEngineStore(),
+    useActiveAirline: () => mockUseActiveAirline(),
   };
 });
 
@@ -62,6 +64,12 @@ vi.mock("sonner", () => {
 describe("RouteManager", () => {
   it("returns null when airline or home airport missing", () => {
     mockUseAirlineStore.mockReturnValue({ airline: null, routes: [] });
+    mockUseActiveAirline.mockReturnValue({
+      airline: null,
+      routes: [],
+      fleet: [],
+      isViewingOther: false,
+    });
     mockUseEngineStore.mockReturnValue({ homeAirport: null, tick: 0 });
     const { container } = render(<RouteManager />);
     expect(container.firstChild).toBeNull();
@@ -69,7 +77,6 @@ describe("RouteManager", () => {
 
   it("renders network manager when data available", () => {
     mockUseAirlineStore.mockReturnValue({
-      airline: { hubs: ["JFK"], brandScore: 0.6 },
       pubkey: "pub",
       routes: [],
       openRoute: vi.fn(),
@@ -78,6 +85,12 @@ describe("RouteManager", () => {
       closeRoute: vi.fn(),
       globalRouteRegistry: new Map(),
       competitors: new Map(),
+    });
+    mockUseActiveAirline.mockReturnValue({
+      airline: { hubs: ["JFK"], brandScore: 0.6 },
+      routes: [],
+      fleet: [],
+      isViewingOther: false,
     });
     mockUseEngineStore.mockReturnValue({
       homeAirport: {

@@ -23,6 +23,7 @@ export const useAirlineStore = create<AirlineState>()((...a) => ({
   ...createNetworkSlice(...a),
   ...createEngineSlice(...a),
   ...createWorldSlice(...a),
+  viewedPubkey: null,
 }));
 
 // --- Side Effects ---

@@ -10,6 +10,7 @@ type AirlineStoreState = {
   routes: unknown[];
   globalFleet: unknown[];
   globalRoutes: unknown[];
+  viewAs: (pubkey: string | null) => void;
 };
 type EngineStoreState = { tick: number };
 
@@ -69,6 +70,7 @@ describe("Leaderboard", () => {
       routes: [],
       globalFleet: [],
       globalRoutes: [],
+      viewAs: vi.fn(),
     });
     mockUseEngineStore.mockReturnValue({ tick: 0 });
 

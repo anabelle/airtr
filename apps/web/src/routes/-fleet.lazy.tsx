@@ -4,9 +4,10 @@ import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
   const { airline, initializeIdentity, isLoading } = useAirlineStore();
+  const isViewingOther = useAirlineStore((state) => Boolean(state.viewedPubkey));
   const fleetSize = useAirlineStore((state) => state.fleet.length);
 
-  if (!airline) {
+  if (!airline && !isViewingOther) {
     return (
       <PanelLayout>
         <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center">

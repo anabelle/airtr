@@ -11,13 +11,14 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const airline = useAirlineStore((state) => state.airline);
+  const { airline, viewedPubkey } = useAirlineStore((state) => state);
+  const hasAirlineContext = Boolean(airline || viewedPubkey);
 
   return (
     <div className="pointer-events-auto flex h-full w-16 md:w-20 flex-col items-center border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all">
       <div className="flex flex-1 flex-col space-y-4">
         {navItems.map((item) => {
-          const isDisabled = item.requiresAirline && !airline;
+          const isDisabled = item.requiresAirline && !hasAirlineContext;
           return (
             <Link
               key={item.to}

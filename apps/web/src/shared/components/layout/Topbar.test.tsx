@@ -6,18 +6,39 @@ import { Topbar } from "./Topbar";
 
 const mockUseAirlineStore = vi.fn();
 
+const mockUseActiveAirline = vi.fn();
+
 vi.mock("@airtr/store", () => {
   return {
-    useAirlineStore: () => mockUseAirlineStore(),
+    useAirlineStore: (selector?: (state: { airline: AirlineEntity | null }) => unknown) => {
+      const state = mockUseAirlineStore();
+      return selector ? selector(state) : state;
+    },
+    useActiveAirline: () => mockUseActiveAirline(),
+  };
+});
+
+vi.mock("@tanstack/react-router", () => {
+  return {
+    useNavigate: () => vi.fn(),
   };
 });
 
 describe("Topbar", () => {
   it("renders connect prompt when no airline", () => {
-    mockUseAirlineStore.mockReturnValue({
+    mockUseAirlineStore.mockImplementation((selector?: (state: { airline: null }) => unknown) => {
+      const state = {
+        airline: null,
+        initializeIdentity: vi.fn(),
+        isLoading: false,
+        viewAs: vi.fn(),
+      };
+      return selector ? selector(state) : state;
+    });
+    mockUseActiveAirline.mockReturnValue({
       airline: null,
-      initializeIdentity: vi.fn(),
-      isLoading: false,
+      timeline: [],
+      isViewingOther: false,
     });
     render(<Topbar />);
     expect(screen.getByText("AirTR")).toBeInTheDocument();
@@ -45,7 +66,22 @@ describe("Topbar", () => {
       routeIds: [],
     };
 
-    mockUseAirlineStore.mockReturnValue({ airline });
+    mockUseAirlineStore.mockImplementation(
+      (selector?: (state: { airline: AirlineEntity }) => unknown) => {
+        const state = {
+          airline,
+          initializeIdentity: vi.fn(),
+          isLoading: false,
+          viewAs: vi.fn(),
+        };
+        return selector ? selector(state) : state;
+      },
+    );
+    mockUseActiveAirline.mockReturnValue({
+      airline,
+      timeline: [],
+      isViewingOther: false,
+    });
     render(<Topbar />);
     expect(screen.getByText("Test Air")).toBeInTheDocument();
     expect(screen.getByText("TEST")).toBeInTheDocument();

@@ -33,6 +33,7 @@ describe("Fleet route", () => {
       airline: { id: "airline" },
       initializeIdentity: vi.fn(),
       isLoading: false,
+      viewedPubkey: null,
       fleet: [],
     });
     render(<FleetRoute />);

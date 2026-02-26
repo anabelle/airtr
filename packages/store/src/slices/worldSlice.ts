@@ -31,6 +31,7 @@ export interface WorldSlice {
   globalFleetByOwner: Map<string, AircraftInstance[]>;
   globalRoutes: Route[];
   globalRoutesByOwner: Map<string, Route[]>;
+  viewAs: (pubkey: string | null) => void;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
   syncCompetitor: (competitorPubkey: string) => Promise<void>;
   processGlobalTick: (tick: number) => Promise<void>;
@@ -119,6 +120,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
   globalFleetByOwner: new Map(),
   globalRoutes: [],
   globalRoutesByOwner: new Map(),
+  viewAs: (pubkey) => set({ viewedPubkey: pubkey }),
 
   processGlobalTick: async (tick: number) => {
     if (isProcessingGlobal) return;

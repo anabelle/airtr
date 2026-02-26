@@ -19,6 +19,7 @@ type EngineStoreState = { tick: number; tickProgress: number };
 
 const mockUseAirlineStore = vi.fn();
 const mockUseEngineStore = vi.fn();
+const mockUseActiveAirline = vi.fn();
 
 vi.mock("@airtr/store", () => {
   return {
@@ -26,6 +27,7 @@ vi.mock("@airtr/store", () => {
       selector(mockUseAirlineStore() as AirlineStoreState),
     useEngineStore: (selector: Selector<EngineStoreState>) =>
       selector(mockUseEngineStore() as EngineStoreState),
+    useActiveAirline: () => mockUseActiveAirline(),
   };
 });
 
@@ -75,16 +77,19 @@ vi.mock("@/features/network/hooks/useRouteDemand", () => {
 describe("FleetManager", () => {
   it("renders empty state when fleet is empty", () => {
     mockUseAirlineStore.mockReturnValue({
-      airline: { hubs: ["JFK"] },
-      fleet: [],
-      routes: [],
-      timeline: [],
       sellAircraft: vi.fn(),
       buyoutAircraft: vi.fn(),
       assignAircraftToRoute: vi.fn(),
       listAircraft: vi.fn(),
       cancelListing: vi.fn(),
       ferryAircraft: vi.fn(),
+    });
+    mockUseActiveAirline.mockReturnValue({
+      airline: { hubs: ["JFK"] },
+      fleet: [],
+      routes: [],
+      timeline: [],
+      isViewingOther: false,
     });
     mockUseEngineStore.mockReturnValue({ tick: 0, tickProgress: 0 });
 
@@ -95,6 +100,14 @@ describe("FleetManager", () => {
 
   it("uses elasticity-adjusted load factor in route options", () => {
     mockUseAirlineStore.mockReturnValue({
+      sellAircraft: vi.fn(),
+      buyoutAircraft: vi.fn(),
+      assignAircraftToRoute: vi.fn(),
+      listAircraft: vi.fn(),
+      cancelListing: vi.fn(),
+      ferryAircraft: vi.fn(),
+    });
+    mockUseActiveAirline.mockReturnValue({
       airline: { hubs: ["JFK"] },
       fleet: [
         {
@@ -130,12 +143,7 @@ describe("FleetManager", () => {
         },
       ],
       timeline: [],
-      sellAircraft: vi.fn(),
-      buyoutAircraft: vi.fn(),
-      assignAircraftToRoute: vi.fn(),
-      listAircraft: vi.fn(),
-      cancelListing: vi.fn(),
-      ferryAircraft: vi.fn(),
+      isViewingOther: false,
     });
     mockUseEngineStore.mockReturnValue({ tick: 0, tickProgress: 0 });
 

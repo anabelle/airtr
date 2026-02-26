@@ -4,8 +4,9 @@ import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function NetworkPage() {
   const { airline, initializeIdentity, isLoading } = useAirlineStore();
+  const isViewingOther = useAirlineStore((state) => Boolean(state.viewedPubkey));
 
-  if (!airline) {
+  if (!airline && !isViewingOther) {
     return (
       <PanelLayout>
         <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center">

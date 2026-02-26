@@ -25,6 +25,7 @@ export interface AirlineState {
   actionSeq: number;
   latestCheckpoint: Checkpoint | null;
   pubkey: string | null;
+  viewedPubkey: string | null;
   identityStatus: IdentityStatus;
   isLoading: boolean;
   error: string | null;
@@ -64,6 +65,7 @@ export interface AirlineState {
   globalFleetByOwner: Map<string, AircraftInstance[]>;
   globalRoutes: Route[];
   globalRoutesByOwner: Map<string, Route[]>;
+  viewAs: (pubkey: string | null) => void;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
   syncCompetitor: (competitorPubkey: string) => Promise<void>;
   processGlobalTick: (tick: number) => Promise<void>;

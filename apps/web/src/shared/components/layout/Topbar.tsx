@@ -1,10 +1,15 @@
 import { fpFormat } from "@airtr/core";
-import { useAirlineStore } from "@airtr/store";
+import { useActiveAirline, useAirlineStore } from "@airtr/store";
+import { useNavigate } from "@tanstack/react-router";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 
 export function Topbar() {
-  const { airline, initializeIdentity, isLoading } = useAirlineStore();
-  const timeline = useAirlineStore((state) => state.timeline);
+  const airline = useAirlineStore((state) => state.airline);
+  const initializeIdentity = useAirlineStore((state) => state.initializeIdentity);
+  const isLoading = useAirlineStore((state) => state.isLoading);
+  const viewAs = useAirlineStore((state) => state.viewAs);
+  const { airline: activeAirline, timeline, isViewingOther } = useActiveAirline();
+  const navigate = useNavigate();
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
   const pulse = useFinancialPulse(safeTimeline);
   const avgLoadFactor = pulse.avgLoadFactor;
@@ -35,6 +40,8 @@ export function Topbar() {
     );
   }
 
+  if (!activeAirline) return null;
+
   return (
     <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
       <div className="flex items-center space-x-4">
@@ -42,21 +49,33 @@ export function Topbar() {
         <div
           className="flex h-8 w-8 items-center justify-center rounded uppercase text-[10px] font-bold shadow-sm"
           style={{
-            backgroundColor: airline.livery.primary,
-            color: airline.livery.secondary,
-            border: `1px solid ${airline.livery.secondary}40`,
+            backgroundColor: activeAirline.livery.primary,
+            color: activeAirline.livery.secondary,
+            border: `1px solid ${activeAirline.livery.secondary}40`,
           }}
         >
-          {airline.icaoCode}
+          {activeAirline.icaoCode}
         </div>
         <div>
           <h1 className="text-sm font-bold tracking-tight text-foreground leading-none">
-            {airline.name}
+            {activeAirline.name}
           </h1>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
-            {airline.callsign}
+            {activeAirline.callsign}
           </p>
         </div>
+        {isViewingOther && (
+          <button
+            type="button"
+            onClick={() => {
+              viewAs(null);
+              navigate({ to: "/" });
+            }}
+            className="ml-4 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          >
+            Back to Your Airline
+          </button>
+        )}
       </div>
 
       {/* Critical Macro Metrics */}
@@ -66,7 +85,7 @@ export function Topbar() {
             Corporate Balance
           </span>
           <span className="font-mono text-sm font-bold text-green-400 mt-1">
-            {fpFormat(airline.corporateBalance)}
+            {fpFormat(activeAirline.corporateBalance)}
           </span>
         </div>
         <div className="flex flex-col items-end">
@@ -74,7 +93,7 @@ export function Topbar() {
             Stock Price
           </span>
           <span className="font-mono text-sm font-bold text-primary mt-1">
-            {fpFormat(airline.stockPrice)}
+            {fpFormat(activeAirline.stockPrice)}
           </span>
         </div>
         <div className="flex flex-col items-end">
@@ -82,8 +101,8 @@ export function Topbar() {
             Brand / Tier
           </span>
           <span className="font-mono text-sm font-bold text-foreground mt-1 text-right">
-            {(airline.brandScore * 10).toFixed(1)}{" "}
-            <span className="text-muted-foreground">T{airline.tier}</span>
+            {(activeAirline.brandScore * 10).toFixed(1)}{" "}
+            <span className="text-muted-foreground">T{activeAirline.tier}</span>
           </span>
         </div>
         <div className="flex flex-col items-end">

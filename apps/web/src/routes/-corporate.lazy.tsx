@@ -1,7 +1,7 @@
 import type { Airport, FixedPoint, TimelineEvent } from "@airtr/core";
 import { fp, fpFormat, fpSub, fpToNumber, TICK_DURATION } from "@airtr/core";
 import { getHubPricingForIata } from "@airtr/data";
-import { useAirlineStore, useEngineStore } from "@airtr/store";
+import { useActiveAirline, useAirlineStore, useEngineStore } from "@airtr/store";
 import {
   Building2,
   CheckCircle2,
@@ -303,12 +303,14 @@ function HubCard({
   onSwitch,
   onClose,
   canClose,
+  isReadOnly,
 }: {
   iata: string;
   isActive: boolean;
   onSwitch: () => void;
   onClose: () => void;
   canClose: boolean;
+  isReadOnly: boolean;
 }) {
   const pricing = getHubPricingForIata(iata);
 
@@ -339,16 +341,23 @@ function HubCard({
           <button
             type="button"
             onClick={onSwitch}
-            className="text-[9px] font-bold uppercase text-muted-foreground border border-border/50 px-2.5 py-1 rounded transition-colors hover:text-foreground hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={isReadOnly}
+            className="text-[9px] font-bold uppercase text-muted-foreground border border-border/50 px-2.5 py-1 rounded transition-colors hover:text-foreground hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Set HQ
           </button>
           <button
             type="button"
             onClick={onClose}
-            disabled={!canClose}
+            disabled={!canClose || isReadOnly}
             className="text-[9px] font-bold uppercase text-rose-300/70 border border-rose-400/20 px-2.5 py-1 rounded transition-colors hover:text-rose-200 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:opacity-40 disabled:cursor-not-allowed"
-            title={!canClose ? "Cannot close last hub" : undefined}
+            title={
+              isReadOnly
+                ? "Viewing another airline"
+                : !canClose
+                  ? "Cannot close last hub"
+                  : undefined
+            }
           >
             Close
           </button>
@@ -647,8 +656,7 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 
 export default function CorporateDashboard() {
   const { airline, modifyHubs, initializeIdentity, isLoading } = useAirlineStore();
-  const timeline = useAirlineStore((s) => s.timeline);
-  const routes = useAirlineStore((s) => s.routes);
+  const { timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
 
   const [pendingAction, setPendingAction] = useState<{
@@ -667,7 +675,7 @@ export default function CorporateDashboard() {
     [airline?.hubs],
   );
 
-  if (!airline) {
+  if (!airline && !isViewingOther) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="max-w-md space-y-4 rounded-2xl border border-border/60 bg-background/70 p-6 text-center shadow-2xl backdrop-blur-xl">
@@ -816,7 +824,7 @@ export default function CorporateDashboard() {
                 Operations Centers ({airline.hubs.length})
               </p>
             </div>
-            <HubPicker currentHub={null} onSelect={handleAddHub} />
+            {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
           </div>
           <div className="grid grid-cols-1 gap-2">
             {airline.hubs.map((hub) => (
@@ -826,7 +834,8 @@ export default function CorporateDashboard() {
                 isActive={homeAirport?.iata === hub}
                 onSwitch={() => handleSwitchActiveHub(hub)}
                 onClose={() => handleCloseHub(hub)}
-                canClose={airline.hubs.length > 1}
+                canClose={!isViewingOther && airline.hubs.length > 1}
+                isReadOnly={isViewingOther}
               />
             ))}
           </div>
@@ -836,11 +845,22 @@ export default function CorporateDashboard() {
         <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
 
         {/* 5. Activity Log — collapsed by default */}
-        <ActivityLog timeline={timeline} />
+        {isViewingOther ? (
+          <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
+              Activity Log
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Timeline data is not available for other airlines yet.
+            </p>
+          </section>
+        ) : (
+          <ActivityLog timeline={timeline} />
+        )}
       </div>
 
       {/* Hub Confirmation Dialog */}
-      {pendingAction && pendingPricing && (
+      {!isViewingOther && pendingAction && pendingPricing && (
         <HubConfirmDialog
           action={pendingAction}
           pricing={pendingPricing}

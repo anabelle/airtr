@@ -23,7 +23,7 @@ import {
   scaleToAddressableMarket,
 } from "@airtr/core";
 import { airports as ALL_AIRPORTS, HUB_CLASSIFICATIONS } from "@airtr/data";
-import { useAirlineStore, useEngineStore } from "@airtr/store";
+import { useActiveAirline, useAirlineStore, useEngineStore } from "@airtr/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   AlertCircle,
@@ -95,10 +95,9 @@ const calculateElasticityDisplay = (
 };
 
 export function RouteManager() {
+  const { airline, routes, fleet, isViewingOther } = useActiveAirline();
   const {
-    airline,
     pubkey,
-    routes,
     openRoute,
     updateRouteFares,
     rebaseRoute,
@@ -108,7 +107,6 @@ export function RouteManager() {
   } = useAirlineStore();
   const confirm = useConfirm();
   const { homeAirport, tick } = useEngineStore();
-  const fleet = useAirlineStore((state) => state.fleet);
   const { tab } = useSearch({ from: "/network" });
   const navigate = useNavigate({ from: "/network" });
   const setTab = (newTab: "active" | "opportunities") => {
@@ -513,12 +511,14 @@ export function RouteManager() {
           ) : null}
           <div className="flex bg-muted/50 p-1 rounded-xl border border-border/50">
             <button
+              type="button"
               onClick={() => setTab("active")}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               Active Network ({activeRoutes.length})
             </button>
             <button
+              type="button"
               onClick={() => setTab("opportunities")}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "opportunities" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
@@ -600,7 +600,7 @@ export function RouteManager() {
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        {suspendedRoutes.length > 0 && (
+        {suspendedRoutes.length > 0 && !isViewingOther && (
           <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -653,6 +653,7 @@ export function RouteManager() {
                             ))}
                         </select>
                         <button
+                          type="button"
                           onClick={async () => {
                             const fallbackHub = airline.hubs.find(
                               (hub) => hub !== route.destinationIata,
@@ -678,6 +679,7 @@ export function RouteManager() {
                       </div>
                     )}
                     <button
+                      type="button"
                       onClick={async () => {
                         const approved = await confirm({
                           title: "Close route?",
@@ -716,6 +718,7 @@ export function RouteManager() {
           </div>
           {searchQuery && (
             <button
+              type="button"
               onClick={() => setSearchQuery("")}
               className="text-xs font-bold text-muted-foreground hover:text-foreground"
             >
@@ -729,12 +732,15 @@ export function RouteManager() {
             <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
               <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground font-medium">Your network is empty.</p>
-              <button
-                onClick={() => setTab("opportunities")}
-                className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-              >
-                Browse Market Opportunities
-              </button>
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  onClick={() => setTab("opportunities")}
+                  className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                >
+                  Browse Market Opportunities
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -855,49 +861,58 @@ export function RouteManager() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => {
-                              setFareEditor({
-                                routeId: route.id,
-                                originIata: route.originIata,
-                                destinationIata: route.destinationIata,
-                                distanceKm: route.distanceKm,
-                              });
-                              setFareInputs({
-                                e: fpToNumber(route.fareEconomy).toString(),
-                                b: fpToNumber(route.fareBusiness).toString(),
-                                f: fpToNumber(route.fareFirst).toString(),
-                              });
-                              setFareError(null);
-                            }}
-                            className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
-                          >
-                            Edit Fares
-                          </button>
+                          {!isViewingOther && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFareEditor({
+                                    routeId: route.id,
+                                    originIata: route.originIata,
+                                    destinationIata: route.destinationIata,
+                                    distanceKm: route.distanceKm,
+                                  });
+                                  setFareInputs({
+                                    e: fpToNumber(route.fareEconomy).toString(),
+                                    b: fpToNumber(route.fareBusiness).toString(),
+                                    f: fpToNumber(route.fareFirst).toString(),
+                                  });
+                                  setFareError(null);
+                                }}
+                                className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
+                              >
+                                Edit Fares
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const approved = await confirm({
+                                    title: "Close route?",
+                                    description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
+                                    confirmLabel: "Close Route",
+                                    tone: "destructive",
+                                  });
+                                  if (!approved) return;
+                                  try {
+                                    await closeRoute(route.id);
+                                  } catch (err) {
+                                    const message =
+                                      err instanceof Error ? err.message : "Route close failed";
+                                    toast.error("Route close failed", { description: message });
+                                  }
+                                }}
+                                className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
+                              >
+                                Close Route
+                              </button>
+                            </>
+                          )}
 
                           <button
-                            onClick={async () => {
-                              const approved = await confirm({
-                                title: "Close route?",
-                                description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
-                                confirmLabel: "Close Route",
-                                tone: "destructive",
-                              });
-                              if (!approved) return;
-                              try {
-                                await closeRoute(route.id);
-                              } catch (err) {
-                                const message =
-                                  err instanceof Error ? err.message : "Route close failed";
-                                toast.error("Route close failed", { description: message });
-                              }
-                            }}
-                            className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
+                            type="button"
+                            className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all font-mono"
                           >
-                            Close Route
-                          </button>
-
-                          <button className="px-4 py-2 bg-accent/20 text-accent-foreground border border-accent/20 rounded-xl text-sm font-bold hover:bg-accent/30 transition-all font-mono">
                             {assignedCount} Planes
                           </button>
                         </div>
@@ -1075,7 +1090,7 @@ export function RouteManager() {
 
                         return (
                           <div className="grid grid-cols-1 gap-2">
-                            {offers.map((offer: FlightOffer, idx: number) => {
+                            {offers.map((offer: FlightOffer) => {
                               const comp = competitors.get(offer.airlinePubkey);
 
                               // Calculate estimated share for this offer vs ours
@@ -1101,7 +1116,7 @@ export function RouteManager() {
 
                               return (
                                 <div
-                                  key={idx}
+                                  key={`${offer.airlinePubkey}-${offer.frequencyPerWeek}-${offer.fareEconomy}`}
                                   className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-2.5 border border-border/50"
                                 >
                                   <div className="flex items-center gap-3">
@@ -1258,8 +1273,9 @@ export function RouteManager() {
                         <CheckCircle2 className="h-4 w-4" />
                         Route Open
                       </div>
-                    ) : (
+                    ) : !isViewingOther ? (
                       <button
+                        type="button"
                         onClick={async () => {
                           const approved = await confirm({
                             title: "Open route?",
@@ -1287,7 +1303,7 @@ export function RouteManager() {
                         <PlusCircle className="h-4 w-4" />
                         Open Route ({fpFormat(ROUTE_SLOT_FEE, 0)})
                       </button>
-                    )}
+                    ) : null}
                   </div>
                   {!isAlreadyOpen && originSlotControlled && !canOpenFromOrigin && (
                     <div className="mt-3 text-xs text-amber-400">
@@ -1295,8 +1311,6 @@ export function RouteManager() {
                       another hub.
                     </div>
                   )}
-
-                  {/* Small Demand Breakdown bar */}
                   <div className="mt-4 flex h-1 w-full rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full bg-zinc-500"
@@ -1332,9 +1346,11 @@ export function RouteManager() {
       </div>
       {fareEditor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
+          <button
+            type="button"
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => !isSavingFares && setFareEditor(null)}
+            aria-label="Close fare editor"
           />
           <div className="relative z-10 w-full max-w-xl rounded-2xl border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
             <div className="flex items-start justify-between border-b border-border/50 px-6 py-5">
@@ -1361,10 +1377,14 @@ export function RouteManager() {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="rounded-xl border border-border/50 bg-background/60 p-4">
-                  <label className="text-[10px] uppercase text-muted-foreground font-semibold">
+                  <label
+                    htmlFor="fare-economy"
+                    className="text-[10px] uppercase text-muted-foreground font-semibold"
+                  >
                     Economy
                   </label>
                   <input
+                    id="fare-economy"
                     type="number"
                     min="0"
                     step="1"
@@ -1414,10 +1434,14 @@ export function RouteManager() {
                   ) : null}
                 </div>
                 <div className="rounded-xl border border-border/50 bg-background/60 p-4">
-                  <label className="text-[10px] uppercase text-muted-foreground font-semibold">
+                  <label
+                    htmlFor="fare-business"
+                    className="text-[10px] uppercase text-muted-foreground font-semibold"
+                  >
                     Business
                   </label>
                   <input
+                    id="fare-business"
                     type="number"
                     min="0"
                     step="1"
@@ -1468,10 +1492,14 @@ export function RouteManager() {
                   ) : null}
                 </div>
                 <div className="rounded-xl border border-border/50 bg-background/60 p-4">
-                  <label className="text-[10px] uppercase text-muted-foreground font-semibold">
+                  <label
+                    htmlFor="fare-first"
+                    className="text-[10px] uppercase text-muted-foreground font-semibold"
+                  >
                     First
                   </label>
                   <input
+                    id="fare-first"
                     type="number"
                     min="0"
                     step="1"

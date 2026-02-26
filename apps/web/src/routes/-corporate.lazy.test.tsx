@@ -49,10 +49,18 @@ vi.mock("@airtr/store", () => {
       const state = {
         airline: mockAirline,
         modifyHubs: vi.fn(),
-        timeline: mockTimeline,
+        initializeIdentity: vi.fn(),
+        isLoading: false,
+        viewedPubkey: null,
       };
       return selector ? selector(state) : state;
     },
+    useActiveAirline: () => ({
+      airline: mockAirline,
+      timeline: mockTimeline,
+      routes: [],
+      isViewingOther: false,
+    }),
     useEngineStore: (selector?: (s: unknown) => unknown) => {
       const state = { homeAirport: { iata: "JFK" }, tick: 200 };
       return selector ? selector(state) : state;
