@@ -14,7 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "@airtr/core": "workspace:^",
-    "@nostr-dev-kit/ndk": "^2.10.1"
+    "@nostr-dev-kit/ndk": "^3.0.3"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

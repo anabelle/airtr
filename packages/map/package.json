@@ -13,7 +13,7 @@
   "dependencies": {
     "@airtr/core": "workspace:*",
     "@airtr/data": "workspace:*",
-    "maplibre-gl": "^5.1.0"
+    "maplibre-gl": "^5.19.0"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.16",
