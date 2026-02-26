@@ -225,11 +225,27 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
               <p className="text-[9px] uppercase font-bold text-white/20 mb-2 tracking-widest">
                 Revenue Breakdown
               </p>
-              <DetailRow
-                label="Tickets"
-                value={fpFormat(event.details.revenue.tickets, 0)}
-                color="text-emerald-400"
-              />
+              {event.details.revenue.economy !== undefined && (
+                <DetailRow
+                  label="Economy Tickets"
+                  value={fpFormat(event.details.revenue.economy, 0)}
+                  color="text-emerald-400"
+                />
+              )}
+              {event.details.revenue.business !== undefined && (
+                <DetailRow
+                  label="Business Tickets"
+                  value={fpFormat(event.details.revenue.business, 0)}
+                  color="text-amber-400"
+                />
+              )}
+              {event.details.revenue.first !== undefined && (
+                <DetailRow
+                  label="First Class Tickets"
+                  value={fpFormat(event.details.revenue.first, 0)}
+                  color="text-violet-400"
+                />
+              )}
               <DetailRow
                 label="Ancillary"
                 value={fpFormat(event.details.revenue.ancillary, 0)}

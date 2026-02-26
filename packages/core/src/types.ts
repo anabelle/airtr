@@ -340,6 +340,9 @@ export interface TimelineEvent {
     flightDurationTicks?: number;
     revenue?: {
       tickets: FixedPoint;
+      economy: FixedPoint;
+      business: FixedPoint;
+      first: FixedPoint;
       ancillary: FixedPoint;
     };
     costs?: {
