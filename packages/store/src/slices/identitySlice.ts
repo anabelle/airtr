@@ -91,8 +91,9 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       });
       let scopedActions = actions;
       if (checkpoint) {
+        const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
         scopedActions = actions.filter(
-          (entry) => (entry.event.created_at ?? 0) >= checkpoint.createdAt,
+          (entry) => (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds,
         );
         if (scopedActions.length === 0) scopedActions = actions;
       }
