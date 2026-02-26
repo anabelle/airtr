@@ -86,7 +86,8 @@ describe('season', () => {
         });
 
         it('returns 1.0 for unknown tag', () => {
-            expect(getSeasonalMultiplier('unknown' as any, 'summer')).toBe(1.0);
+            const tag = 'unknown' as unknown as Parameters<typeof getSeasonalMultiplier>[0];
+            expect(getSeasonalMultiplier(tag, 'summer')).toBe(1.0);
         });
     });
 });

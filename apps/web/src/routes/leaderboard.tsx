@@ -1,17 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { PanelLayout } from '@/shared/components/layout/PanelLayout';
-import { Leaderboard } from '@/features/competition/components/Leaderboard';
+import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/leaderboard')({
-    component: LeaderboardPage,
+    component: lazyRouteComponent(() => import('./-leaderboard.lazy')),
 });
-
-function LeaderboardPage() {
-    return (
-        <PanelLayout>
-            <div className="flex h-full w-full flex-col p-6">
-                <Leaderboard />
-            </div>
-        </PanelLayout>
-    );
-}

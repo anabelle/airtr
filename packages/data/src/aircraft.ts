@@ -1,4 +1,4 @@
-import type { AircraftModel, FixedPoint } from '@airtr/core';
+import type { AircraftModel } from '@airtr/core';
 import { fp } from '@airtr/core';
 
 export const aircraftModels: AircraftModel[] = [

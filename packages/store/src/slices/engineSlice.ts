@@ -58,7 +58,7 @@ export const createEngineSlice: StateCreator<
             let currentFleet = [...fleet];
             let currentBalance = airline.corporateBalance;
             let currentBrandScore = airline.brandScore || 0.5;
-            let currentHubs = airline.hubs || [];
+            const currentHubs = airline.hubs || [];
             let currentTimeline = [...get().timeline];
             let anyChanges = false;
 

@@ -136,8 +136,8 @@ function App() {
 
   const formatPax = (n: number) => n.toLocaleString();
   const formatDist = (km: number) => {
-    if (km < 1000) return `${Math.round(km)} km`;
-    return `${(km / 1000).toFixed(1)}K km`;
+    if (km < 1000) return `${Math.round(km)} km`;
+    return `${(km / 1000).toFixed(1)}K km`;
   };
 
   if (!homeAirport || !userLocation) {

@@ -1,15 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { PanelLayout } from '@/shared/components/layout/PanelLayout';
-import { RouteManager } from '@/features/network/components/RouteManager';
+import { createFileRoute, lazyRouteComponent } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/network')({
-  component: NetworkPage,
+  component: lazyRouteComponent(() => import('./-network.lazy')),
 });
-
-function NetworkPage() {
-  return (
-    <PanelLayout>
-      <RouteManager />
-    </PanelLayout>
-  );
-}

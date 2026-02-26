@@ -32,7 +32,7 @@ export const createIdentitySlice: StateCreator<
     [],
     [],
     IdentitySlice
-> = (set, _get) => ({
+> = (set) => ({
     pubkey: null,
     identityStatus: 'checking',
     isLoading: false,
@@ -117,9 +117,10 @@ export const createIdentitySlice: StateCreator<
                 identityStatus: 'ready',
                 isLoading: false,
             });
-        } catch (error: any) {
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to initialize identity.';
             set({
-                error: error.message,
+                error: message,
                 identityStatus: 'ready',
                 isLoading: false,
             });
@@ -168,8 +169,9 @@ export const createIdentitySlice: StateCreator<
             };
 
             set({ airline, isLoading: false, fleet: [], routes: [], timeline: [] });
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to create airline.';
+            set({ error: message, isLoading: false });
         }
     },
 });
