@@ -1,6 +1,7 @@
 import { getProsperityIndex } from "@airtr/core";
 import { airports as AIRPORTS } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
+import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 
 export function Ticker() {
   const season = useEngineStore((s) => (s.routes.length > 0 ? s.routes[0]?.season : "winter"));
@@ -14,15 +15,8 @@ export function Ticker() {
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
 
   const prosperity = getProsperityIndex(tick);
-  const recentLoadFactor = (() => {
-    const landings = safeTimeline
-      .filter((event) => event.type === "landing" && event.details?.loadFactor !== undefined)
-      .slice(0, 20);
-    if (landings.length === 0) return null;
-    const avg =
-      landings.reduce((sum, event) => sum + (event.details?.loadFactor ?? 0), 0) / landings.length;
-    return Math.round(avg * 100);
-  })();
+  const pulse = useFinancialPulse(safeTimeline);
+  const recentLoadFactor = pulse.flightCount > 0 ? Math.round(pulse.avgLoadFactor * 100) : null;
 
   if (!homeAirport) return null;
 

@@ -1,14 +1,5 @@
 import type { Airport, FixedPoint, TimelineEvent } from "@airtr/core";
-import {
-  FP_ZERO,
-  fp,
-  fpFormat,
-  fpSub,
-  fpSum,
-  fpToNumber,
-  TICK_DURATION,
-  TICKS_PER_HOUR,
-} from "@airtr/core";
+import { fp, fpFormat, fpSub, fpToNumber, TICK_DURATION } from "@airtr/core";
 import { getHubPricingForIata } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
 import {
@@ -23,93 +14,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
+import type { FinancialPulse as FinancialPulseData } from "@/features/corporate/hooks/useFinancialPulse";
+import {
+  RECENT_FLIGHT_COUNT,
+  useFinancialPulse,
+} from "@/features/corporate/hooks/useFinancialPulse";
+import { useRoutePerformance } from "@/features/corporate/hooks/useRoutePerformance";
 import { HubPicker } from "@/features/network/components/HubPicker";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
-
-/* ------------------------------------------------------------------ */
-/*  useFinancialPulse — derived financial metrics from timeline        */
-/* ------------------------------------------------------------------ */
-
-const RECENT_FLIGHT_COUNT = 20;
-
-interface FinancialPulse {
-  /** Net income rate in FixedPoint per hour */
-  netIncomeRate: FixedPoint;
-  /** Whether net income rate is positive */
-  isPositive: boolean;
-  /** Total revenue from recent flights (FP) */
-  totalRevenue: FixedPoint;
-  /** Total costs from recent flights (FP) */
-  totalCosts: FixedPoint;
-  /** Average load factor (0-1) */
-  avgLoadFactor: number;
-  /** Average profit per flight (FP) */
-  avgProfitPerFlight: FixedPoint;
-  /** Number of flights analyzed */
-  flightCount: number;
-}
-
-function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
-  return useMemo(() => {
-    const landings = timeline
-      .filter((e) => e.type === "landing" && e.revenue !== undefined && e.cost !== undefined)
-      .slice(0, RECENT_FLIGHT_COUNT);
-
-    if (landings.length === 0) {
-      return {
-        netIncomeRate: FP_ZERO,
-        isPositive: true,
-        totalRevenue: FP_ZERO,
-        totalCosts: FP_ZERO,
-        avgLoadFactor: 0,
-        avgProfitPerFlight: FP_ZERO,
-        flightCount: 0,
-      };
-    }
-
-    const revenues = landings.map((e) => e.revenue!);
-    const costs = landings.map((e) => e.cost!);
-    const profits = landings.map((e) => e.profit ?? fpSub(e.revenue!, e.cost!));
-
-    const totalRevenue = fpSum(revenues);
-    const totalCosts = fpSum(costs);
-    const totalProfit = fpSum(profits);
-
-    // Load factors (plain numbers, not FP)
-    const loadFactors = landings
-      .map((e) => e.details?.loadFactor)
-      .filter((lf): lf is number => lf !== undefined);
-    const avgLoadFactor =
-      loadFactors.length > 0
-        ? loadFactors.reduce((sum, lf) => sum + lf, 0) / loadFactors.length
-        : 0;
-
-    // Time span in ticks between newest and oldest flight
-    const newestTick = landings[0]!.tick;
-    const oldestTick = landings[landings.length - 1]!.tick;
-    const spanTicks = Math.max(newestTick - oldestTick, 1);
-    const spanHours = spanTicks / TICKS_PER_HOUR;
-
-    // Net income rate = total profit / span hours
-    // We compute in regular numbers then convert back to FP for display
-    const netIncomeRateNum = fpToNumber(totalProfit) / Math.max(spanHours, 0.01);
-    const netIncomeRate = fp(netIncomeRateNum);
-
-    // Avg profit per flight
-    const avgProfitNum = fpToNumber(totalProfit) / landings.length;
-    const avgProfitPerFlight = fp(avgProfitNum);
-
-    return {
-      netIncomeRate,
-      isPositive: totalProfit >= 0,
-      totalRevenue,
-      totalCosts,
-      avgLoadFactor,
-      avgProfitPerFlight,
-      flightCount: landings.length,
-    };
-  }, [timeline]);
-}
 
 /* ------------------------------------------------------------------ */
 /*  Financial Pulse                                                    */
@@ -121,7 +33,7 @@ function FinancialPulse({
   hubOpex,
 }: {
   corporateBalance: FixedPoint;
-  pulse: FinancialPulse;
+  pulse: FinancialPulseData;
   hubOpex: number;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -703,50 +615,7 @@ export default function CorporateDashboard() {
 
   const pulse = useFinancialPulse(timeline);
 
-  const routePerformance = useMemo(() => {
-    const landings = timeline.filter(
-      (event) =>
-        event.type === "landing" &&
-        event.details?.routeId &&
-        event.profit !== undefined &&
-        event.details?.loadFactor !== undefined,
-    );
-
-    const grouped = new Map<string, TimelineEvent[]>();
-    for (const landing of landings) {
-      const routeId = landing.details?.routeId;
-      if (!routeId) continue;
-      const bucket = grouped.get(routeId) ?? [];
-      bucket.push(landing);
-      grouped.set(routeId, bucket);
-    }
-
-    return Array.from(grouped.entries()).map(([routeId, events]) => {
-      const latest = events[0];
-      const totalProfit = fpSum(events.map((event) => event.profit ?? FP_ZERO));
-      const avgLoadFactor =
-        events.reduce((sum, event) => sum + (event.details?.loadFactor ?? 0), 0) / events.length;
-      const newestTick = events[0]?.tick ?? 0;
-      const oldestTick = events[events.length - 1]?.tick ?? newestTick;
-      const spanTicks = Math.max(newestTick - oldestTick, 1);
-      const spanHours = spanTicks / TICKS_PER_HOUR;
-      const profitPerHour = fp(fpToNumber(totalProfit) / Math.max(spanHours, 0.01));
-
-      const route = routes.find((item) => item.id === routeId);
-      const fleetCount = route?.assignedAircraftIds.length ?? 0;
-      const label = route
-        ? `${route.originIata} → ${route.destinationIata}`
-        : `${latest?.originIata ?? ""} → ${latest?.destinationIata ?? ""}`.trim();
-
-      return {
-        routeId,
-        label,
-        fleetCount,
-        avgLoadFactor,
-        profitPerHour,
-      };
-    });
-  }, [routes, timeline]);
+  const routePerformance = useRoutePerformance(timeline, routes);
 
   const currentMonthlyOpex = useMemo(
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,

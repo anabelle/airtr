@@ -1,19 +1,13 @@
 import { fpFormat } from "@airtr/core";
 import { useAirlineStore } from "@airtr/store";
-import { useMemo } from "react";
+import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 
 export function Topbar() {
   const { airline } = useAirlineStore();
   const timeline = useAirlineStore((state) => state.timeline);
-  const avgLoadFactor = useMemo(() => {
-    const safeTimeline = Array.isArray(timeline) ? timeline : [];
-    const landings = safeTimeline
-      .filter((event) => event.type === "landing" && event.details?.loadFactor !== undefined)
-      .slice(0, 20);
-    if (landings.length === 0) return 0;
-    const sum = landings.reduce((total, event) => total + (event.details?.loadFactor ?? 0), 0);
-    return sum / landings.length;
-  }, [timeline]);
+  const safeTimeline = Array.isArray(timeline) ? timeline : [];
+  const pulse = useFinancialPulse(safeTimeline);
+  const avgLoadFactor = pulse.avgLoadFactor;
 
   if (!airline) return null;
 
