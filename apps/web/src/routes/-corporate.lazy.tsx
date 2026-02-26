@@ -1,8 +1,25 @@
-import type { Airport } from "@airtr/core";
-import { fp, fpFormat, fpSub } from "@airtr/core";
+import type { Airport, FixedPoint, TimelineEvent } from "@airtr/core";
+import {
+  FP_ZERO,
+  fp,
+  fpFormat,
+  fpSub,
+  fpSum,
+  fpToNumber,
+  TICK_DURATION,
+  TICKS_PER_HOUR,
+} from "@airtr/core";
 import { getHubPricingForIata } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
-import { Building2, CheckCircle2, Landmark, MapPin, Palette, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
@@ -10,41 +27,376 @@ import { HubPicker } from "@/features/network/components/HubPicker";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 /* ------------------------------------------------------------------ */
-/*  Section Header                                                     */
+/*  useFinancialPulse — derived financial metrics from timeline        */
 /* ------------------------------------------------------------------ */
 
-function SectionHeader({
-  icon: Icon,
-  children,
+const RECENT_FLIGHT_COUNT = 20;
+
+interface FinancialPulse {
+  /** Net income rate in FixedPoint per hour */
+  netIncomeRate: FixedPoint;
+  /** Whether net income rate is positive */
+  isPositive: boolean;
+  /** Total revenue from recent flights (FP) */
+  totalRevenue: FixedPoint;
+  /** Total costs from recent flights (FP) */
+  totalCosts: FixedPoint;
+  /** Average load factor (0-1) */
+  avgLoadFactor: number;
+  /** Average profit per flight (FP) */
+  avgProfitPerFlight: FixedPoint;
+  /** Number of flights analyzed */
+  flightCount: number;
+}
+
+function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
+  return useMemo(() => {
+    const landings = timeline
+      .filter((e) => e.type === "landing" && e.revenue !== undefined && e.cost !== undefined)
+      .slice(0, RECENT_FLIGHT_COUNT);
+
+    if (landings.length === 0) {
+      return {
+        netIncomeRate: FP_ZERO,
+        isPositive: true,
+        totalRevenue: FP_ZERO,
+        totalCosts: FP_ZERO,
+        avgLoadFactor: 0,
+        avgProfitPerFlight: FP_ZERO,
+        flightCount: 0,
+      };
+    }
+
+    const revenues = landings.map((e) => e.revenue!);
+    const costs = landings.map((e) => e.cost!);
+    const profits = landings.map((e) => e.profit ?? fpSub(e.revenue!, e.cost!));
+
+    const totalRevenue = fpSum(revenues);
+    const totalCosts = fpSum(costs);
+    const totalProfit = fpSum(profits);
+
+    // Load factors (plain numbers, not FP)
+    const loadFactors = landings
+      .map((e) => e.details?.loadFactor)
+      .filter((lf): lf is number => lf !== undefined);
+    const avgLoadFactor =
+      loadFactors.length > 0
+        ? loadFactors.reduce((sum, lf) => sum + lf, 0) / loadFactors.length
+        : 0;
+
+    // Time span in ticks between newest and oldest flight
+    const newestTick = landings[0]!.tick;
+    const oldestTick = landings[landings.length - 1]!.tick;
+    const spanTicks = Math.max(newestTick - oldestTick, 1);
+    const spanHours = spanTicks / TICKS_PER_HOUR;
+
+    // Net income rate = total profit / span hours
+    // We compute in regular numbers then convert back to FP for display
+    const netIncomeRateNum = fpToNumber(totalProfit) / Math.max(spanHours, 0.01);
+    const netIncomeRate = fp(netIncomeRateNum);
+
+    // Avg profit per flight
+    const avgProfitNum = fpToNumber(totalProfit) / landings.length;
+    const avgProfitPerFlight = fp(avgProfitNum);
+
+    return {
+      netIncomeRate,
+      isPositive: totalProfit >= 0,
+      totalRevenue,
+      totalCosts,
+      avgLoadFactor,
+      avgProfitPerFlight,
+      flightCount: landings.length,
+    };
+  }, [timeline]);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Financial Pulse                                                    */
+/* ------------------------------------------------------------------ */
+
+function FinancialPulse({
+  corporateBalance,
+  pulse,
+  hubOpex,
 }: {
-  icon: React.ElementType;
-  children: React.ReactNode;
+  corporateBalance: FixedPoint;
+  pulse: FinancialPulse;
+  hubOpex: number;
 }) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
   return (
-    <div className="flex items-center gap-2 text-muted-foreground px-1 mb-3">
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      <h3 className="text-[10px] uppercase font-bold tracking-wider">{children}</h3>
+    <section className="space-y-3">
+      <div className="rounded-xl border border-border/50 bg-background/50 p-5">
+        {/* Main balance + rate */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Corporate Balance
+            </p>
+            <p
+              className="text-2xl font-black text-foreground"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {fpFormat(corporateBalance, 0)}
+            </p>
+          </div>
+
+          {pulse.flightCount > 0 && (
+            <div className="shrink-0 text-right space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Net Income Rate
+              </p>
+              <div
+                className={`flex items-center justify-end gap-1 text-lg font-black ${
+                  pulse.isPositive ? "text-emerald-400" : "text-rose-400"
+                }`}
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {pulse.isPositive ? (
+                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <TrendingDown className="h-4 w-4" aria-hidden="true" />
+                )}
+                {fpFormat(pulse.netIncomeRate, 0)}/hr
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Last {pulse.flightCount} flight{pulse.flightCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Hub OPEX subtitle */}
+        <p
+          className="mt-2 text-xs text-muted-foreground"
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          Hub OPEX: {fpFormat(fp(hubOpex), 0)}/mo
+        </p>
+
+        {/* Progressive disclosure toggle */}
+        {pulse.flightCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowBreakdown((s) => !s)}
+            className="mt-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
+            {showBreakdown ? (
+              <>
+                <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                Hide P&L
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                View P&L Breakdown
+              </>
+            )}
+          </button>
+        )}
+
+        {/* P&L breakdown (level 2) */}
+        {showBreakdown && pulse.flightCount > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/30 pt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            <PnlCell
+              label="Total Revenue"
+              value={fpFormat(pulse.totalRevenue, 0)}
+              color="text-emerald-400"
+            />
+            <PnlCell
+              label="Total Costs"
+              value={fpFormat(pulse.totalCosts, 0)}
+              color="text-rose-400"
+            />
+            <PnlCell
+              label="Avg Load Factor"
+              value={`${Math.round(pulse.avgLoadFactor * 100)}%`}
+              color={
+                pulse.avgLoadFactor >= 0.75
+                  ? "text-emerald-400"
+                  : pulse.avgLoadFactor >= 0.5
+                    ? "text-yellow-400"
+                    : "text-rose-400"
+              }
+            />
+            <PnlCell
+              label="Avg Profit/Flight"
+              value={fpFormat(pulse.avgProfitPerFlight, 0)}
+              color={pulse.avgProfitPerFlight >= 0 ? "text-emerald-400" : "text-rose-400"}
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PnlCell({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p
+        className={`text-sm font-mono font-bold ${color}`}
+        style={{ fontVariantNumeric: "tabular-nums" }}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Stat Cell                                                          */
+/*  Company Profile                                                    */
 /* ------------------------------------------------------------------ */
 
-function StatCell({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
+function CompanyProfile({
+  name,
+  icaoCode,
+  callsign,
+  tier,
+  brandScore,
+  status,
+}: {
+  name: string;
+  icaoCode: string;
+  callsign: string;
+  tier: number;
+  brandScore: number;
+  status: string;
+}) {
+  const statusColors: Record<string, string> = {
+    private: "bg-primary/10 border-primary/20 text-primary",
+    public: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+    chapter11: "bg-rose-500/10 border-rose-500/20 text-rose-400",
+    liquidated: "bg-muted border-border text-muted-foreground",
+  };
+
+  const tierLabels: Record<number, string> = {
+    1: "Regional Startup",
+    2: "National Carrier",
+    3: "Intercontinental",
+    4: "Global Mega-Carrier",
+  };
+
   return (
-    <div className="rounded-xl border border-border/50 bg-background/50 p-5 space-y-2">
-      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <p
-        className="text-xl font-bold text-foreground"
-        style={{ fontVariantNumeric: "tabular-nums" }}
-      >
-        {value}
-      </p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+    <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        {/* Left: identity */}
+        <div className="min-w-0 space-y-1">
+          <h2
+            className="text-lg font-bold tracking-tight text-foreground truncate"
+            style={{ textWrap: "balance" }}
+          >
+            {name}
+          </h2>
+          <p className="text-xs text-muted-foreground font-mono">
+            {icaoCode}
+            <span className="mx-1.5 text-muted-foreground/40">/</span>
+            {callsign}
+          </p>
+        </div>
+
+        {/* Right: tier + status */}
+        <div className="shrink-0 flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Tier {tier}
+          </span>
+          <span
+            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${statusColors[status] ?? statusColors.private}`}
+          >
+            {status}
+          </span>
+        </div>
+      </div>
+
+      {/* Brand score bar */}
+      <div className="mt-3 flex items-center gap-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+          Brand
+        </span>
+        <div className="flex-1 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-500"
+            style={{ width: `${Math.round(brandScore * 100)}%` }}
+          />
+        </div>
+        <span
+          className="text-[10px] font-mono font-bold text-muted-foreground shrink-0"
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {Math.round(brandScore * 100)}%
+        </span>
+      </div>
+
+      {/* Tier label */}
+      <p className="mt-2 text-[10px] text-muted-foreground">{tierLabels[tier] ?? `Tier ${tier}`}</p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hub Card                                                           */
+/* ------------------------------------------------------------------ */
+
+function HubCard({
+  iata,
+  isActive,
+  onSwitch,
+  onClose,
+  canClose,
+}: {
+  iata: string;
+  isActive: boolean;
+  onSwitch: () => void;
+  onClose: () => void;
+  canClose: boolean;
+}) {
+  const pricing = getHubPricingForIata(iata);
+
+  return (
+    <div
+      className={`rounded-lg border p-3 flex items-center justify-between transition-colors ${
+        isActive ? "bg-primary/5 border-primary/40" : "bg-background/30 border-border/30"
+      }`}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="font-mono text-base font-black text-foreground">{iata}</span>
+        <span className="text-[9px] font-bold uppercase text-muted-foreground">{pricing.tier}</span>
+        {isActive && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+            <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
+            HQ
+          </span>
+        )}
+        <span
+          className="text-[9px] font-mono text-muted-foreground"
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {fpFormat(fp(pricing.monthlyOpex), 0)}/mo
+        </span>
+      </div>
+      {!isActive && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={onSwitch}
+            className="text-[9px] font-bold uppercase text-muted-foreground border border-border/50 px-2.5 py-1 rounded transition-colors hover:text-foreground hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Set HQ
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={!canClose}
+            className="text-[9px] font-bold uppercase text-rose-300/70 border border-rose-400/20 px-2.5 py-1 rounded transition-colors hover:text-rose-200 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={!canClose ? "Cannot close last hub" : undefined}
+          >
+            Close
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -212,69 +564,123 @@ function HubConfirmDialog({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Hub Card                                                           */
+/*  Compact Activity Log                                               */
 /* ------------------------------------------------------------------ */
 
-function HubCard({
-  iata,
-  isActive,
-  onSwitch,
-  onClose,
-  canClose,
-}: {
-  iata: string;
-  isActive: boolean;
-  onSwitch: () => void;
-  onClose: () => void;
-  canClose: boolean;
-}) {
-  const pricing = getHubPricingForIata(iata);
+function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const tick = useEngineStore((s) => s.tick);
+
+  const recentEvents = useMemo(() => timeline.slice(0, 5), [timeline]);
+
+  const getRelativeTime = (eventTick: number, currentTick: number) => {
+    const diffSecs = Math.max(0, (currentTick - eventTick) * (TICK_DURATION / 1000));
+    if (diffSecs < 10) return "Now";
+    if (diffSecs < 60) return `${Math.floor(diffSecs)}s`;
+    if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m`;
+    if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h`;
+    return `${Math.floor(diffSecs / 86400)}d`;
+  };
+
+  if (timeline.length === 0) {
+    return (
+      <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
+          Activity Log
+        </p>
+        <p className="text-xs text-muted-foreground">
+          No events yet. Your history will appear here.
+        </p>
+      </section>
+    );
+  }
 
   return (
-    <div
-      className={`rounded-lg border p-4 flex items-center justify-between transition-colors ${
-        isActive ? "bg-primary/5 border-primary/40" : "bg-background/30 border-border/30 opacity-80"
-      }`}
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <span className="font-mono text-xl font-black text-foreground">{iata}</span>
-        <span className="text-[10px] font-bold uppercase text-muted-foreground">
-          {pricing.tier}
-        </span>
-        {isActive && (
-          <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-            <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
-            HQ
-          </span>
-        )}
-        <span
-          className="text-[10px] font-mono text-muted-foreground"
-          style={{ fontVariantNumeric: "tabular-nums" }}
+    <section className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          Activity Log
+        </p>
+        <button
+          type="button"
+          onClick={() => setExpanded((s) => !s)}
+          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
-          {fpFormat(fp(pricing.monthlyOpex), 0)}/mo
-        </span>
+          {expanded ? (
+            <>
+              <ChevronUp className="h-3 w-3" aria-hidden="true" />
+              Collapse
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+              View All
+            </>
+          )}
+        </button>
       </div>
-      {!isActive && (
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onSwitch}
-            className="text-[10px] font-bold uppercase text-muted-foreground border border-white/10 px-3 py-1.5 rounded transition-colors hover:text-foreground hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Set as HQ
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={!canClose}
-            className="text-[10px] font-bold uppercase text-rose-300/70 border border-rose-400/20 px-3 py-1.5 rounded transition-colors hover:text-rose-200 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:opacity-40 disabled:cursor-not-allowed"
-            title={!canClose ? "Cannot close last hub" : undefined}
-          >
-            Close
-          </button>
+
+      {/* Compact list (level 1) */}
+      {!expanded && (
+        <div className="px-4 pb-3 space-y-1">
+          {recentEvents.map((event) => (
+            <div
+              key={event.id}
+              className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-0"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 w-6 text-right">
+                  {getRelativeTime(event.tick, tick)}
+                </span>
+                <span className="text-[10px] font-bold uppercase text-muted-foreground shrink-0">
+                  {event.type.replace("_", " ")}
+                </span>
+                {event.originIata && event.destinationIata && (
+                  <span className="text-[10px] font-mono text-muted-foreground/60 truncate">
+                    {event.originIata}&rarr;{event.destinationIata}
+                  </span>
+                )}
+              </div>
+              {event.profit !== undefined && (
+                <span
+                  className={`text-[10px] font-mono font-bold shrink-0 ${
+                    event.profit >= 0 ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                  style={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {event.profit >= 0 ? "+" : ""}
+                  {fpFormat(event.profit, 0)}
+                </span>
+              )}
+            </div>
+          ))}
         </div>
       )}
-    </div>
+
+      {/* Full timeline (level 2) */}
+      {expanded && <AirlineTimeline />}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Livery Strip                                                       */
+/* ------------------------------------------------------------------ */
+
+function LiveryStrip({ primary, secondary }: { primary: string; secondary: string }) {
+  return (
+    <section className="rounded-xl border border-border/50 bg-background/50 p-3">
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+          Livery
+        </span>
+        <div className="flex-1 h-3 rounded-full border border-border/30 flex overflow-hidden">
+          <div className="h-full" style={{ width: "70%", backgroundColor: primary }} />
+          <div className="h-full" style={{ width: "30%", backgroundColor: secondary }} />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -284,13 +690,17 @@ function HubCard({
 
 export default function CorporateDashboard() {
   const { airline, modifyHubs } = useAirlineStore();
+  const timeline = useAirlineStore((s) => s.timeline);
   const homeAirport = useEngineStore((s) => s.homeAirport);
+
   const [pendingAction, setPendingAction] = useState<{
     type: "add" | "switch" | "remove";
     iata: string;
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const pulse = useFinancialPulse(timeline);
 
   const currentMonthlyOpex = useMemo(
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,
@@ -352,51 +762,36 @@ export default function CorporateDashboard() {
 
   return (
     <PanelLayout>
-      <div className="flex h-full w-full flex-col p-6 overflow-y-auto custom-scrollbar">
-        {/* ---- Page Header ---- */}
-        <div className="mb-8 flex items-center justify-between pr-10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Building2 className="h-6 w-6 text-primary" aria-hidden="true" />
+      <div className="flex h-full w-full flex-col gap-4 p-5 pr-12 overflow-y-auto custom-scrollbar">
+        {/* 1. Financial Pulse — the heartbeat */}
+        <FinancialPulse
+          corporateBalance={airline.corporateBalance}
+          pulse={pulse}
+          hubOpex={currentMonthlyOpex}
+        />
+
+        {/* 2. Company Profile — identity + tier/brand/status */}
+        <CompanyProfile
+          name={airline.name}
+          icaoCode={airline.icaoCode}
+          callsign={airline.callsign}
+          tier={airline.tier}
+          brandScore={airline.brandScore}
+          status={airline.status}
+        />
+
+        {/* 3. Hub Operations — actionable */}
+        <section className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Operations Centers ({airline.hubs.length})
+              </p>
             </div>
-            <h2
-              className="text-2xl font-bold tracking-tight text-foreground"
-              style={{ textWrap: "balance" }}
-            >
-              {airline.name}
-            </h2>
-          </div>
-          <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold uppercase text-primary">
-            {airline.status}
-          </span>
-        </div>
-
-        {/* ---- Identity & Finance ---- */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <StatCell
-            label="ICAO / Callsign"
-            value={
-              <span className="font-mono">
-                {airline.icaoCode}
-                <span className="mx-2 text-muted-foreground/40">/</span>
-                {airline.callsign}
-              </span>
-            }
-          />
-          <StatCell
-            label="Corporate Balance"
-            value={<span className="text-green-400">{fpFormat(airline.corporateBalance, 0)}</span>}
-            sub={`Hub OPEX: ${fpFormat(fp(currentMonthlyOpex), 0)}/mo`}
-          />
-        </div>
-
-        {/* ---- Hubs ---- */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <SectionHeader icon={MapPin}>Operations Centers</SectionHeader>
             <HubPicker currentHub={null} onSelect={handleAddHub} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-2">
             {airline.hubs.map((hub) => (
               <HubCard
                 key={hub}
@@ -410,51 +805,14 @@ export default function CorporateDashboard() {
           </div>
         </section>
 
-        {/* ---- Livery ---- */}
-        <section className="mb-8">
-          <SectionHeader icon={Palette}>Corporate Livery</SectionHeader>
-          <div className="rounded-lg border border-border/30 bg-background/30 p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-10 rounded-lg border border-border/50 flex overflow-hidden shadow-inner">
-                <div
-                  className="h-full"
-                  style={{ width: "70%", backgroundColor: airline.livery.primary }}
-                />
-                <div
-                  className="h-full"
-                  style={{ width: "30%", backgroundColor: airline.livery.secondary }}
-                />
-              </div>
-              <div className="shrink-0 flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div
-                    className="h-6 w-6 rounded border border-border/50"
-                    style={{ backgroundColor: airline.livery.primary }}
-                  />
-                  <span className="text-[9px] text-muted-foreground mt-1">Primary</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div
-                    className="h-6 w-6 rounded border border-border/50"
-                    style={{ backgroundColor: airline.livery.secondary }}
-                  />
-                  <span className="text-[9px] text-muted-foreground mt-1">Secondary</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* 4. Livery — compact */}
+        <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
 
-        {/* ---- Audit Trail ---- */}
-        <section>
-          <SectionHeader icon={Landmark}>Operations Ledger</SectionHeader>
-          <div className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
-            <AirlineTimeline />
-          </div>
-        </section>
+        {/* 5. Activity Log — collapsed by default */}
+        <ActivityLog timeline={timeline} />
       </div>
 
-      {/* ---- Hub Confirmation Dialog ---- */}
+      {/* Hub Confirmation Dialog */}
       {pendingAction && pendingPricing && (
         <HubConfirmDialog
           action={pendingAction}
