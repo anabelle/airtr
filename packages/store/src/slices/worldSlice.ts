@@ -167,6 +167,7 @@ export const createWorldSlice: StateCreator<
 
     syncWorld: async () => {
         try {
+            const existingState = get();
             const results = await loadGlobalAirlines();
             const competitors = new Map<string, AirlineEntity>();
             const registry = new Map<string, FlightOffer[]>();
@@ -176,16 +177,30 @@ export const createWorldSlice: StateCreator<
             // Process results into maps and flat arrays
             for (const { airline, fleet, routes } of results) {
                 // Skip our own airline if it's in the global results
-                if (airline.ceoPubkey === get().pubkey) continue;
+                if (airline.ceoPubkey === existingState.pubkey) continue;
+
+                const existingCompetitor = existingState.competitors.get(airline.ceoPubkey) ?? null;
+                const existingLastTick = existingCompetitor?.lastTick ?? -1;
+                const parsedLastTick = airline.lastTick ?? 0;
+
+                const resolvedAirline = existingCompetitor && existingLastTick > parsedLastTick
+                    ? existingCompetitor
+                    : airline;
+                const resolvedFleet = existingCompetitor && existingLastTick > parsedLastTick
+                    ? existingState.globalFleet.filter(ac => ac.ownerPubkey === airline.ceoPubkey)
+                    : fleet;
+                const resolvedRoutes = existingCompetitor && existingLastTick > parsedLastTick
+                    ? existingState.globalRoutes.filter(route => route.airlinePubkey === airline.ceoPubkey)
+                    : routes;
 
                 // Just store as-is; processGlobalTick will catch up incrementally
                 // This avoids race conditions between sync and tick processing
-                competitors.set(airline.ceoPubkey, airline);
-                allGlobalFleet.push(...fleet);
-                allGlobalRoutes.push(...routes);
+                competitors.set(airline.ceoPubkey, resolvedAirline);
+                allGlobalFleet.push(...resolvedFleet);
+                allGlobalRoutes.push(...resolvedRoutes);
 
                 // For each route, create a FlightOffer
-                for (const route of routes) {
+                for (const route of resolvedRoutes) {
                     if (route.status !== 'active') continue;
 
                     const key = `${route.originIata}-${route.destinationIata}`;
@@ -198,7 +213,7 @@ export const createWorldSlice: StateCreator<
                     let avgTravelTime = 0;
                     if (route.assignedAircraftIds.length > 0) {
                         const modelIds = route.assignedAircraftIds.map((id: string) => {
-                            const ac = fleet.find((a: AircraftInstance) => a.id === id);
+                            const ac = resolvedFleet.find((a: AircraftInstance) => a.id === id);
                             return ac?.modelId;
                         }).filter(Boolean);
 
@@ -211,7 +226,7 @@ export const createWorldSlice: StateCreator<
                     }
 
                     const offer: FlightOffer = {
-                        airlinePubkey: airline.ceoPubkey,
+                        airlinePubkey: resolvedAirline.ceoPubkey,
                         fareEconomy: route.fareEconomy,
                         fareBusiness: route.fareBusiness,
                         fareFirst: route.fareFirst,
@@ -219,7 +234,7 @@ export const createWorldSlice: StateCreator<
                         travelTimeMinutes: Math.round(avgTravelTime) || 480,
                         stops: 0,
                         serviceScore: 0.7,
-                        brandScore: airline.brandScore || 0.5,
+                        brandScore: resolvedAirline.brandScore || 0.5,
                     };
 
                     offers.push(offer);
