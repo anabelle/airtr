@@ -195,7 +195,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
 
     return (
         <aside
-            className="pointer-events-auto fixed z-30 w-[min(360px,calc(100vw-2rem))] max-h-[80vh] rounded-2xl border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl overflow-hidden left-4 right-4 bottom-4 sm:left-auto sm:right-4 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2"
+            className="pointer-events-auto fixed z-30 w-[min(480px,calc(100vw-2rem))] max-h-[80vh] rounded-2xl border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl overflow-hidden left-4 right-4 bottom-4 sm:left-auto sm:right-4 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2"
             aria-live="polite"
         >
             <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">

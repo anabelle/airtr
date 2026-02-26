@@ -8,6 +8,7 @@ import { NARROWBODY_BODY_SVG, TURBOPROP_BODY_SVG, WIDEBODY_BODY_SVG, REGIONAL_BO
 import { toast } from 'sonner';
 import { useConfirm } from '@/shared/lib/useConfirm';
 import { getAircraftTimer } from '../utils/aircraftTimers';
+import { getAircraftBaseHub } from '../utils/aircraftBaseHub';
 
 const timerStyleMap = {
     enroute: {
@@ -192,6 +193,7 @@ export function FleetManager() {
                             const timerStyle = timer ? timerStyleMap[timer.kind] : null;
                             const isAssignmentLocked = ac.status === 'enroute';
                             const isScrapLocked = ac.status !== 'idle';
+                            const baseHub = getAircraftBaseHub(ac, routes, airline);
                             const locationLabel = ac.status === 'enroute' && ac.flight
                                 ? `Enroute: ${ac.flight.originIata} → ${ac.flight.destinationIata}`
                                 : ac.status === 'delivery'
@@ -262,7 +264,7 @@ export function FleetManager() {
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">Base Hub</p>
-                                                    <p className="font-mono text-xs text-accent font-bold">{ac.baseAirportIata}</p>
+                                                    <p className="font-mono text-xs text-accent font-bold">{baseHub}</p>
                                                 </div>
                                             <div>
                                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">Condition</p>
