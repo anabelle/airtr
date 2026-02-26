@@ -599,8 +599,15 @@ export function FleetManager() {
                               confirmLabel: isLease ? "Return" : "Scrap",
                               cancelLabel: "Cancel",
                               tone: "destructive",
-                            }).then((approved: boolean) => {
-                              if (approved) sellAircraft(ac.id);
+                            }).then(async (approved: boolean) => {
+                              if (!approved) return;
+                              try {
+                                await sellAircraft(ac.id);
+                              } catch (err) {
+                                const message =
+                                  err instanceof Error ? err.message : "Unknown error";
+                                toast.error("Scrap failed", { description: message });
+                              }
                             });
                           }}
                           className={`flex items-center justify-center p-2 rounded-lg border transition-all ${isScrapLocked ? "bg-muted/20 text-muted-foreground border-border/50 cursor-not-allowed" : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white"}`}
@@ -723,8 +730,15 @@ export function FleetManager() {
                                   confirmLabel: "Buyout",
                                   cancelLabel: "Cancel",
                                   tone: "default",
-                                }).then((approved: boolean) => {
-                                  if (approved) buyoutAircraft(ac.id);
+                                }).then(async (approved: boolean) => {
+                                  if (!approved) return;
+                                  try {
+                                    await buyoutAircraft(ac.id);
+                                  } catch (err) {
+                                    const message =
+                                      err instanceof Error ? err.message : "Unknown error";
+                                    toast.error("Buyout failed", { description: message });
+                                  }
                                 });
                               }}
                               className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500 hover:text-white transition-all"
