@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "ops": {
+      "description": "Operations agent - handles server management, deployments, Docker, monitoring, DevOps",
+      "mode": "primary",
+      "tools": {
+        "bash": true,
+        "read": true,
+        "glob": true,
+        "grep": true,
+        "write": true,
+        "edit": true,
+        "webfetch": true,
+        "websearch": true
+      }
+    }
+  }
+}

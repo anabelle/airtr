@@ -79,3 +79,23 @@ agents:
       - audio
     max_concurrent_tasks: 1
     max_retries: 3
+
+  - id: agent-ops
+    name: "Operations Agent"
+    description: "Server management, deployments, Docker, monitoring, DevOps"
+    capabilities:
+      - docker
+      - linux
+      - nginx
+      - systemd
+      - monitoring
+      - logging
+      - security
+      - deployments
+      - cron-jobs
+      - reverse-proxy
+    preferred_zones:
+      - ops
+      - devops
+    max_concurrent_tasks: 1
+    max_retries: 3
