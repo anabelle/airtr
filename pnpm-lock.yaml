@@ -86,6 +86,9 @@ importers:
       maplibre-gl:
         specifier: ^5.18.0
         version: 5.18.0
+      nostr-tools:
+        specifier: ^2.23.1
+        version: 2.23.1(typescript@5.9.3)
       react:
         specifier: ^19.2.0
         version: 19.2.4

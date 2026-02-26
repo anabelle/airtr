@@ -15,6 +15,7 @@ export interface LeaderboardRow {
   name: string;
   icaoCode: string;
   ceoPubkey: string;
+  liveryPrimary: string;
   balance: FixedPoint;
   fleet: number;
   routes: number;
@@ -65,6 +66,7 @@ export function buildLeaderboardRows(
     name: entry.name,
     icaoCode: entry.icaoCode,
     ceoPubkey: entry.ceoPubkey,
+    liveryPrimary: entry.livery.primary,
     balance: entry.corporateBalance,
     fleet: entry.fleetIds.length,
     routes: entry.routeIds.length,

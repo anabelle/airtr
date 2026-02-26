@@ -182,6 +182,8 @@ function CompanyProfile({
   ceoPubkey?: string | null;
 }) {
   const profile = useNostrProfile(ceoPubkey ?? null);
+  const npub = profile.npub;
+  const airlinePrimary = useAirlineStore((s) => s.airline?.livery.primary);
   const fallbackName = ceoPubkey
     ? `${ceoPubkey.slice(0, 8)}...${ceoPubkey.slice(-4)}`
     : "Unknown CEO";
@@ -218,7 +220,14 @@ function CompanyProfile({
             {callsign}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="h-7 w-7 overflow-hidden rounded-full border border-border/60 bg-muted/40">
+            <a
+              href={npub ? `https://primal.net/p/${npub}` : undefined}
+              target={npub ? "_blank" : undefined}
+              rel={npub ? "noreferrer" : undefined}
+              className="h-7 w-7 overflow-hidden rounded-full border border-border/60 bg-muted/40"
+              aria-label={npub ? `Open ${displayName} on Primal` : undefined}
+              style={airlinePrimary ? { boxShadow: `0 0 0 2px ${airlinePrimary}` } : undefined}
+            >
               {profile.image ? (
                 <img
                   src={profile.image}
@@ -231,7 +240,7 @@ function CompanyProfile({
                   {profile.isLoading ? "" : avatarLetter}
                 </div>
               )}
-            </div>
+            </a>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="truncate font-semibold text-foreground">{displayName}</span>

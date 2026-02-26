@@ -33,6 +33,7 @@ vi.mock("@/features/competition/leaderboardMetrics", () => {
         name: "Test Air",
         icaoCode: "TST",
         ceoPubkey: "pubkey",
+        liveryPrimary: "#ff3333",
         balance: 0,
         fleet: 1,
         routes: 2,
@@ -52,6 +53,8 @@ vi.mock("@/shared/hooks/useNostrProfile", () => {
       displayName: null,
       image: null,
       nip05: null,
+      lud16: null,
+      npub: null,
       isLoading: false,
     }),
   };

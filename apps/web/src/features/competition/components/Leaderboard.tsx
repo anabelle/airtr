@@ -54,6 +54,7 @@ function LeaderboardRow({
   value: number | FixedPoint;
 }) {
   const profile = useNostrProfile(row.ceoPubkey);
+  const npub = profile.npub;
   const displayName =
     profile.displayName ||
     profile.name ||
@@ -65,7 +66,14 @@ function LeaderboardRow({
       className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isOwn ? "border-primary/40 bg-primary/10" : "border-border/50 bg-background/40 hover:bg-accent/10"}`}
     >
       <div className="flex w-1/2 items-center gap-3">
-        <div className="h-10 w-10 overflow-hidden rounded-full border border-border/50 bg-background/60">
+        <a
+          href={npub ? `https://primal.net/p/${npub}` : undefined}
+          target={npub ? "_blank" : undefined}
+          rel={npub ? "noreferrer" : undefined}
+          className="h-10 w-10 overflow-hidden rounded-full border border-border/50 bg-background/60"
+          aria-label={npub ? `Open ${displayName} on Primal` : undefined}
+          style={row.liveryPrimary ? { boxShadow: `0 0 0 2px ${row.liveryPrimary}` } : undefined}
+        >
           {profile.image ? (
             <img
               src={profile.image}
@@ -78,7 +86,7 @@ function LeaderboardRow({
               {profile.isLoading ? "" : avatarLetter}
             </div>
           )}
-        </div>
+        </a>
         <div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-foreground">{row.name}</span>
@@ -94,6 +102,14 @@ function LeaderboardRow({
               <span className="ml-2 rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
                 {profile.nip05}
               </span>
+            )}
+            {!isOwn && profile.lud16 && (
+              <a
+                href={`lightning:${profile.lud16}`}
+                className="ml-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300"
+              >
+                Zap
+              </a>
             )}
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { ensureConnected, getNDK } from "@airtr/nostr";
 import type { NDKUserProfile } from "@nostr-dev-kit/ndk";
+import { nip19 } from "nostr-tools";
 import { useEffect, useState } from "react";
 
 export interface NostrProfileState {
@@ -7,6 +8,8 @@ export interface NostrProfileState {
   displayName: string | null;
   image: string | null;
   nip05: string | null;
+  lud16: string | null;
+  npub: string | null;
   isLoading: boolean;
 }
 
@@ -84,6 +87,16 @@ export function useNostrProfile(pubkey: string | null): NostrProfileState {
     displayName: profile?.displayName ?? null,
     image: getProfileImage(profile),
     nip05: profile?.nip05 ?? null,
+    lud16: profile?.lud16 ?? null,
+    npub: pubkey ? getNpub(pubkey) : null,
     isLoading,
   };
+}
+
+function getNpub(pubkey: string): string | null {
+  try {
+    return nip19.npubEncode(pubkey);
+  } catch {
+    return null;
+  }
 }
