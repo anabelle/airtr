@@ -41,11 +41,14 @@ describe("solar", () => {
     it("produces valid polygon rings", () => {
       const overlay = computeNightOverlay(new Date("2024-06-20T12:00:00Z"), 5);
       for (const feature of overlay.features) {
-        const [outer, hole] = feature.geometry.coordinates;
+        const [outer, ...holes] = feature.geometry.coordinates;
         expect(outer.length).toBeGreaterThan(3);
-        expect(hole.length).toBeGreaterThan(3);
         expect(outer[0]).toEqual(outer[outer.length - 1]);
-        expect(hole[0]).toEqual(hole[hole.length - 1]);
+        expect(holes.length).toBeGreaterThan(0);
+        for (const hole of holes) {
+          expect(hole.length).toBeGreaterThanOrEqual(3);
+          expect(hole[0]).toEqual(hole[hole.length - 1]);
+        }
       }
     });
   });

@@ -2,7 +2,6 @@ import {
   type Airport,
   calculateDemand,
   calculatePriceElasticity,
-  calculateSupplyPressure,
   calculateShares,
   type FixedPoint,
   type FlightOffer,
@@ -11,23 +10,25 @@ import {
   fpFormat,
   fpScale,
   fpToNumber,
-  NATURAL_LF_CEILING,
   getProsperityIndex,
   getSeason,
   getSuggestedFares,
+  haversineDistance,
+  NATURAL_LF_CEILING,
   PRICE_ELASTICITY_BUSINESS,
   PRICE_ELASTICITY_ECONOMY,
   PRICE_ELASTICITY_FIRST,
-  haversineDistance,
   ROUTE_SLOT_FEE,
-  scaleToAddressableMarket,
   type Season,
+  scaleToAddressableMarket,
 } from "@airtr/core";
 import { airports as ALL_AIRPORTS, HUB_CLASSIFICATIONS } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   Globe,
   MapPin,
@@ -37,8 +38,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useConfirm } from "@/shared/lib/useConfirm";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import { useConfirm } from "@/shared/lib/useConfirm";
 
 const toneDotClass = {
   emerald: "bg-emerald-500",
@@ -277,17 +278,6 @@ export function RouteManager() {
     }, 0);
     return Math.round(weeklyTotal / 7);
   }, [airportIndex, originActiveRoutes, planningOriginAirport, tick]);
-
-  const calculateWeeklySeats = useCallback(
-    (route: { assignedAircraftIds: string[] }) =>
-      route.assignedAircraftIds.reduce((total, aircraftId) => {
-        const aircraft = fleet.find((item) => item.id === aircraftId);
-        if (!aircraft) return total;
-        const cabin = aircraft.configuration ?? { economy: 0, business: 0, first: 0, cargoKg: 0 };
-        return total + (cabin.economy + cabin.business + cabin.first) * 7;
-      }, 0),
-    [fleet],
-  );
 
   const originHubMeta = planningOriginAirport
     ? HUB_CLASSIFICATIONS[planningOriginAirport.iata]
@@ -752,43 +742,17 @@ export function RouteManager() {
                 const market = prospectMarkets.find(
                   (p) => p.destination.iata === route.destinationIata,
                 );
-                const now = new Date();
-                const prosperity = getProsperityIndex(tick);
-                const originAirport = airportIndex.get(route.originIata);
-                const destinationAirport = airportIndex.get(route.destinationIata);
-                const fallbackDemand =
-                  originAirport && destinationAirport
-                    ? calculateDemand(
-                        originAirport,
-                        destinationAirport,
-                        getSeason(destinationAirport.latitude, now),
-                        prosperity,
-                        1.0,
-                      )
-                    : null;
                 const assignedCount = route.assignedAircraftIds.length;
-                const demandSource = market?.demand ?? fallbackDemand;
-                const marketDemand = demandSource
-                  ? demandSource.economy + demandSource.business + demandSource.first
-                  : 0;
-                const addressableDemand = demandSource
-                  ? scaleToAddressableMarket({
-                      origin: route.originIata,
-                      destination: route.destinationIata,
-                      economy: demandSource.economy,
-                      business: demandSource.business,
-                      first: demandSource.first,
-                    })
-                  : null;
-                const addressableTotal = addressableDemand
-                  ? addressableDemand.economy + addressableDemand.business + addressableDemand.first
-                  : 0;
-                const totalWeeklySeats = calculateWeeklySeats(route);
-                const pressureMultiplier = calculateSupplyPressure(
-                  totalWeeklySeats,
-                  addressableTotal,
-                );
-                const loadFactor = Math.round(pressureMultiplier * 100);
+                const demandSnapshot = getRouteDemandSnapshot(route, tick, fleet);
+                const { addressableDemand } = demandSnapshot;
+                const marketDemand =
+                  demandSnapshot.totalDemand.economy +
+                  demandSnapshot.totalDemand.business +
+                  demandSnapshot.totalDemand.first;
+                const addressableTotal =
+                  addressableDemand.economy + addressableDemand.business + addressableDemand.first;
+                const totalWeeklySeats = demandSnapshot.totalWeeklySeats;
+                const loadFactor = Math.round(demandSnapshot.pressureMultiplier * 100);
                 const supplyRatio = addressableTotal > 0 ? totalWeeklySeats / addressableTotal : 0;
                 const lfTone =
                   loadFactor >= 80
@@ -808,25 +772,18 @@ export function RouteManager() {
                     : supplyRatio < 0.7
                       ? "Underserved"
                       : "Balanced";
-                const suggestedRouteFares = getSuggestedFares(route.distanceKm);
-                const economyTone = getFareTone(route.fareEconomy, suggestedRouteFares.economy);
-                const businessTone = getFareTone(route.fareBusiness, suggestedRouteFares.business);
-                const firstTone = getFareTone(route.fareFirst, suggestedRouteFares.first);
-                const economyElasticity = calculatePriceElasticity(
+                const economyTone = getFareTone(
                   route.fareEconomy,
-                  suggestedRouteFares.economy,
-                  PRICE_ELASTICITY_ECONOMY,
+                  demandSnapshot.referenceFareEconomy,
                 );
-                const businessElasticity = calculatePriceElasticity(
+                const businessTone = getFareTone(
                   route.fareBusiness,
-                  suggestedRouteFares.business,
-                  PRICE_ELASTICITY_BUSINESS,
+                  demandSnapshot.referenceFareBusiness,
                 );
-                const firstElasticity = calculatePriceElasticity(
-                  route.fareFirst,
-                  suggestedRouteFares.first,
-                  PRICE_ELASTICITY_FIRST,
-                );
+                const firstTone = getFareTone(route.fareFirst, demandSnapshot.referenceFareFirst);
+                const economyElasticity = demandSnapshot.elasticityEconomy;
+                const businessElasticity = demandSnapshot.elasticityBusiness;
+                const firstElasticity = demandSnapshot.elasticityFirst;
                 const showPriceEffect =
                   Math.abs(1 - economyElasticity) > 0.05 ||
                   Math.abs(1 - businessElasticity) > 0.05 ||
@@ -1023,6 +980,25 @@ export function RouteManager() {
                               >
                                 F: {firstElasticity.toFixed(2)}x
                               </span>
+                            </div>
+                          )}
+                          {demandSnapshot.suggestedFleetDelta !== 0 && (
+                            <div className="mt-2 flex items-center gap-1.5 text-[9px] font-semibold">
+                              {demandSnapshot.suggestedFleetDelta > 0 ? (
+                                <>
+                                  <ArrowUp className="h-3 w-3 text-emerald-400" />
+                                  <span className="text-emerald-400">
+                                    +{demandSnapshot.suggestedFleetDelta} aircraft suggested
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <ArrowDown className="h-3 w-3 text-amber-400" />
+                                  <span className="text-amber-400">
+                                    {demandSnapshot.suggestedFleetDelta} aircraft suggested
+                                  </span>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>

@@ -105,6 +105,71 @@ function destinationPoint(
   return [normalizeLongitude(lon2 * RAD_TO_DEG), lat2 * RAD_TO_DEG];
 }
 
+function ringArea(coords: number[][]): number {
+  let sum = 0;
+  for (let i = 0; i < coords.length - 1; i += 1) {
+    const [x1, y1] = coords[i];
+    const [x2, y2] = coords[i + 1];
+    sum += (x2 - x1) * (y2 + y1);
+  }
+  return sum;
+}
+
+function closeRing(coords: number[][]): number[][] {
+  if (coords.length === 0) return coords;
+  const [firstLng, firstLat] = coords[0];
+  const [lastLng, lastLat] = coords[coords.length - 1];
+  if (firstLng !== lastLng || firstLat !== lastLat) {
+    coords.push([firstLng, firstLat]);
+  }
+  return coords;
+}
+
+function ensureOrientation(coords: number[][], clockwise: boolean): number[][] {
+  if (coords.length < 4) return coords;
+  const area = ringArea(coords);
+  const isClockwise = area > 0;
+  if (isClockwise !== clockwise) {
+    return [...coords].reverse();
+  }
+  return coords;
+}
+
+function splitDateline(ring: number[][]): number[][][] {
+  if (ring.length === 0) return [];
+  const rings: number[][][] = [];
+  let current: number[][] = [];
+  const first = ring[0];
+  current.push(first);
+
+  for (let i = 1; i < ring.length; i += 1) {
+    const [prevLng, prevLat] = ring[i - 1];
+    const [nextLng, nextLat] = ring[i];
+    const delta = nextLng - prevLng;
+
+    if (Math.abs(delta) > 180) {
+      const crossLng = prevLng > 0 ? 180 : -180;
+      const t = (crossLng - prevLng) / delta;
+      const crossLat = prevLat + t * (nextLat - prevLat);
+      current.push([crossLng, crossLat]);
+      closeRing(current);
+      rings.push(current);
+
+      const oppositeLng = crossLng === 180 ? -180 : 180;
+      current = [
+        [oppositeLng, crossLat],
+        [nextLng, nextLat],
+      ];
+    } else {
+      current.push([nextLng, nextLat]);
+    }
+  }
+
+  closeRing(current);
+  rings.push(current);
+  return rings;
+}
+
 function buildDayCircle(
   subsolarLat: number,
   subsolarLng: number,
@@ -116,16 +181,7 @@ function buildDayCircle(
   for (let bearing = 0; bearing <= 360; bearing += stepDeg) {
     coords.push(destinationPoint(subsolarLat, subsolarLng, bearing, radiusDeg));
   }
-
-  if (coords.length > 0) {
-    const [firstLng, firstLat] = coords[0];
-    const [lastLng, lastLat] = coords[coords.length - 1];
-    if (firstLng !== lastLng || firstLat !== lastLat) {
-      coords.push([firstLng, firstLat]);
-    }
-  }
-
-  return coords;
+  return closeRing(coords);
 }
 
 function buildNightPolygon(
@@ -136,18 +192,21 @@ function buildNightPolygon(
   const { lat, lng } = getSubsolarPoint(date);
   const dayCircle = buildDayCircle(lat, lng, altitudeDeg, stepDeg);
 
-  const worldRing = [
-    [-180, -90],
-    [180, -90],
-    [180, 90],
-    [-180, 90],
-    [-180, -90],
-  ];
+  const worldRing = ensureOrientation(
+    closeRing([
+      [-180, -90],
+      [180, -90],
+      [180, 90],
+      [-180, 90],
+      [-180, -90],
+    ]),
+    false,
+  );
 
-  const holeRing = [...dayCircle].reverse();
+  const holes = splitDateline(dayCircle).map((ring) => ensureOrientation(ring, true));
   return {
     type: "Polygon",
-    coordinates: [worldRing, holeRing],
+    coordinates: [worldRing, ...holes],
   };
 }
 
