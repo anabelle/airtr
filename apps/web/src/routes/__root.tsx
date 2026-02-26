@@ -41,13 +41,13 @@ export const Route = createRootRoute({
         <div className="absolute inset-0 z-20 flex flex-col pointer-events-none">
           <IdentityGate>
             {/* Shell is only visible when Identity is fully established */}
-            <div className="flex h-full w-full flex-col">
+            <div className="flex h-full w-full min-h-0 flex-col">
               <Topbar />
 
-              <div className="flex flex-1 overflow-hidden relative pb-10">
+              <div className="flex flex-1 min-h-0 overflow-hidden relative pb-10">
                 <Sidebar />
 
-                <main className="relative flex-1 p-6 h-full overflow-hidden pointer-events-none flex">
+                <main className="relative flex-1 min-h-0 p-6 pointer-events-none flex">
                   <Outlet />
                 </main>
               </div>
