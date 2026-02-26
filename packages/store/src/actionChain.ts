@@ -1,6 +1,7 @@
 import { computeActionChainHash, type GameActionEnvelope } from "@airtr/core";
 import { type NDKEvent, publishAction } from "@airtr/nostr";
 import type { AirlineState } from "./types";
+import { enqueueSerialUpdate } from "./utils/asyncQueue";
 
 export async function updateActionChainHashFromEvent(params: {
   action: GameActionEnvelope;
@@ -26,6 +27,6 @@ export async function publishActionWithChain(params: {
 }): Promise<NDKEvent> {
   const { action, get, set } = params;
   const event = await publishAction(action);
-  await updateActionChainHashFromEvent({ action, event, get, set });
+  await enqueueSerialUpdate(() => updateActionChainHashFromEvent({ action, event, get, set }));
   return event;
 }
