@@ -1,5 +1,5 @@
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import { AirportInfoPanel } from "./AirportInfoPanel";
 
 type Selector<T> = (state: T) => unknown;
@@ -28,6 +28,7 @@ vi.mock("@airtr/store", () => {
 vi.mock("@tanstack/react-router", () => {
   return {
     useNavigate: () => vi.fn(),
+    useSearch: () => ({ airportTab: "info" }),
   };
 });
 

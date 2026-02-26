@@ -31,17 +31,31 @@ Aircraft position interpolation now runs via `requestAnimationFrame` instead of 
 ### 6. Debounced Viewport Updates
 Arc re-computation on pan/zoom is debounced at 150ms to avoid thrashing during continuous map interaction.
 
-### 7. Two-Layer SDF Livery Rendering
-Aircraft icons use MapLibre's SDF (Signed Distance Field) icon rendering to display per-airline livery colors without generating unique bitmaps per airline. Each aircraft type has two SVG icons:
+### 7. Two-Layer SDF Livery Rendering (Family-Specific Icons)
+Aircraft icons use MapLibre's SDF (Signed Distance Field) icon rendering to display per-airline livery colors without generating unique bitmaps per airline. Each aircraft **family** (12 families: ATR, Dash8, A220, E-Jet, A320, B737, A330, B787, B777, A350, A380, B747) has two distinct SVG icons sourced from tar1090 ADS-B tracker paths:
 - **Body layer**: the airplane silhouette, tinted with the airline's `primary` livery color via `icon-color`.
 - **Accent layer**: detail shapes (engine rings, wing stripes, tail details) overlaid at the same position/rotation, tinted with the airline's `secondary` livery color.
 
+Icon selection uses a 12-way `match` expression on each feature's `familyId` property (e.g., `["match", ["get", "familyId"], "atr", "airplane-atr", "b747", "airplane-b747", ...]`). All 24 icons (12 body + 12 accent) are registered once at map init via the `FAMILY_ICONS` map exported from `packages/map/src/icons.ts`.
+
 Both layers read `primaryColor` and `secondaryColor` from GeoJSON feature properties, falling back to neutral defaults when no livery is set. This scales to unlimited airlines with zero icon atlas regeneration — only two draw calls per fleet source (player + global), regardless of how many distinct liveries are visible.
 
-### 8. React StrictMode WebGL Compatibility
+### 8. Zoom-Based Icon Size Interpolation
+Aircraft icon size scales with zoom level to prevent visual clutter at low zoom. Each feature carries a `sizeScale` property computed from the aircraft's real-world wingspan (`wingspanM / 35.8 * baseSize`), which is then multiplied by a zoom-dependent factor:
+
+| Zoom Level | Scale Multiplier | Typical View |
+|------------|-----------------|--------------|
+| 2 | 0.15x | Globe |
+| 5 | 0.40x | Continent |
+| 8 | 0.70x | Regional |
+| 12 | 1.00x | City |
+
+This uses MapLibre's `["interpolate", ["linear"], ["zoom"], ...]` expression with embedded `["*", ["get", "sizeScale"], factor]` at each stop, so both zoom level and per-aircraft wingspan affect the final rendered size.
+
+### 9. React StrictMode WebGL Compatibility
 React 19 StrictMode double-mounts components in dev (Mount → Unmount → Re-mount). Map cleanup is deferred via `setTimeout(100ms)` so that StrictMode's immediate re-mount can cancel the pending `map.remove()` and reuse the still-alive WebGL context. This prevents "WebGL context was lost" crashes during development.
 
-### 9. Tiered Airport Classification (Map Readability)
+### 10. Tiered Airport Classification (Map Readability)
 Airports are classified client-side into a small set of visual tiers to improve map readability at a glance:
 - **Active hub** (player's primary hub): pulsing green glow + largest radius
 - **Player hub** (other owned hubs): green, slightly smaller
@@ -120,7 +134,8 @@ Only load and simulate other players' planes that are "nearby" or "on shared rou
 | Zoom-Adaptive LOD | Low | Rendering Speed | **Implemented** |
 | Arc Memoization | Low | CPU Reduction | **Implemented** |
 | RAF Flight Animation | Low | Visual Quality | **Implemented** |
-| Two-Layer SDF Livery | Low | Visual Identity | **Implemented** |
+| Two-Layer SDF Livery (12 families) | Low | Visual Identity | **Implemented** |
+| Zoom-Based Icon Sizing | Low | Map Readability | **Implemented** |
 | StrictMode WebGL Fix | Low | Dev Stability | **Implemented** |
 | Tiered Airport Classes | Low | Map Readability | **Implemented** |
 | Custom WebGL Layer | High | Rendering Speed | Proposed |

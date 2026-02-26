@@ -29,6 +29,10 @@ export interface AircraftModel {
     type: 'turboprop' | 'regional' | 'narrowbody' | 'widebody';
     generation: 'legacy' | 'modern' | 'nextgen';  // Affects efficiency & costs
     
+    // Physical Dimensions
+    wingspanM: number;            // Wingspan in meters (real-world spec, used for map icon sizing)
+    engineCount: 2 | 4;           // Number of engines
+
     // Specifications (real aviation data)
     rangeKm: number;          // Max range in kilometers
     speedKmh: number;         // Cruising speed
@@ -56,35 +60,34 @@ export interface AircraftModel {
         cabin: number;            // Flight attendants (1 per 50 pax typically)
     };
     
-    // Lifecycle
+    // Lifecycle & Progression
     economicLifeYears: number;    // 20-25 years typical
     residualValuePercent: number; // 10-15% after full life
-    
-    // Game Progression
     unlockTier: number;
-    familyId: string;             // For commonality bonuses (e.g., "a320", "b737")
+    familyId: string;             // For commonality bonuses AND map icon selection (e.g., "a320", "b737")
+    deliveryTimeTicks: number;    // Ticks from purchase until aircraft is available
 }
 ```
 
 *MVP Catalog with Real Data (Sources: IATA MCX 2023, Boeing/Airbus specs):*
 
-| Aircraft | Type | Seats | Range km | Price | CASM | Blk Hrs | Turn min | Family |
-|----------|------|-------|----------|-------|------|---------|----------|--------|
-| ATR 72-600 | Turboprop | 70 | 1,528 | $26M | $0.18 | 8-10 | 25 | atr |
-| Dash 8-Q400 | Turboprop | 78 | 2,037 | $32M | $0.16 | 8-10 | 25 | dash8 |
-| A220-300 | Regional | 135 | 6,300 | $55M | $0.10 | 11-12 | 30 | a220 |
-| E190-E2 | Regional | 114 | 5,300 | $53M | $0.11 | 11-12 | 30 | ejet |
-| A320neo | Narrowbody | 180 | 6,300 | $110M | $0.08 | 12-13 | 35 | a320 |
-| B737-800 | Narrowbody | 189 | 5,765 | $106M | $0.09 | 12-13 | 35 | b737 |
-| B737 MAX 8 | Narrowbody | 178 | 6,570 | $121M | $0.07 | 12-13 | 35 | b737 |
-| A321neo | Narrowbody | 244 | 7,400 | $129M | $0.07 | 12-13 | 40 | a320 |
-| A330-300 | Widebody | 300 | 11,750 | $264M | $0.07 | 13-14 | 60 | a330 |
-| A330-900 | Widebody | 293 | 13,300 | $296M | $0.06 | 13-14 | 60 | a330 |
-| B787-9 | Widebody | 290 | 14,140 | $292M | $0.05 | 13-14 | 55 | b787 |
-| B777-300ER | Widebody | 396 | 13,650 | $375M | $0.05 | 13-14 | 60 | b777 |
-| A350-900 | Widebody | 325 | 15,000 | $317M | $0.05 | 13-14 | 55 | a350 |
-| A380-800 | Widebody | 525 | 15,200 | $446M | $0.06 | 13-14 | 90 | a380 |
-| B747-8 | Widebody | 410 | 14,310 | $418M | $0.06 | 13-14 | 75 | b747 |
+| Aircraft | Type | Seats | Range km | Price | CASM | Blk Hrs | Turn min | Family | Wingspan | Eng |
+|----------|------|-------|----------|-------|------|---------|----------|--------|----------|-----|
+| ATR 72-600 | Turboprop | 70 | 1,528 | $26M | $0.18 | 8-10 | 25 | atr | 27.05m | 2 |
+| Dash 8-Q400 | Turboprop | 78 | 2,037 | $32M | $0.16 | 8-10 | 25 | dash8 | 28.40m | 2 |
+| A220-300 | Regional | 135 | 6,300 | $55M | $0.10 | 11-12 | 30 | a220 | 35.10m | 2 |
+| E190-E2 | Regional | 114 | 5,300 | $53M | $0.11 | 11-12 | 30 | ejet | 33.72m | 2 |
+| A320neo | Narrowbody | 180 | 6,300 | $110M | $0.08 | 12-13 | 35 | a320 | 35.80m | 2 |
+| B737-800 | Narrowbody | 189 | 5,765 | $106M | $0.09 | 12-13 | 35 | b737 | 34.32m | 2 |
+| B737 MAX 8 | Narrowbody | 178 | 6,570 | $121M | $0.07 | 12-13 | 35 | b737 | 35.90m | 2 |
+| A321neo | Narrowbody | 244 | 7,400 | $129M | $0.07 | 12-13 | 40 | a320 | 35.80m | 2 |
+| A330-300 | Widebody | 300 | 11,750 | $264M | $0.07 | 13-14 | 60 | a330 | 60.30m | 2 |
+| A330-900 | Widebody | 293 | 13,300 | $296M | $0.06 | 13-14 | 60 | a330 | 64.00m | 2 |
+| B787-9 | Widebody | 290 | 14,140 | $292M | $0.05 | 13-14 | 55 | b787 | 60.12m | 2 |
+| B777-300ER | Widebody | 396 | 13,650 | $375M | $0.05 | 13-14 | 60 | b777 | 64.80m | 2 |
+| A350-900 | Widebody | 325 | 15,000 | $317M | $0.05 | 13-14 | 55 | a350 | 64.75m | 2 |
+| A380-800 | Widebody | 525 | 15,200 | $446M | $0.06 | 13-14 | 90 | a380 | 79.75m | 4 |
+| B747-8 | Widebody | 410 | 14,310 | $418M | $0.06 | 13-14 | 75 | b747 | 68.40m | 4 |
 
 **Key Insight from Real Airlines:** Low-cost carriers (Ryanair, Southwest) achieve 13-14 block hours/day through quick turnarounds (15-25 min). Hub-and-spoke carriers typically achieve 10-12 hours due to connection timing constraints.
 
@@ -506,7 +509,7 @@ The user interface must feel premium, aviation-authentic, and highly tactical.
 - **CASM Calculator**: Show estimated cost-per-seat-mile based on typical route distance
 
 ### 5.2 The Hangar (Fleet Management)
-- **List View**: Shows all owned `AircraftInstance`s.
+- **List View**: Shows all owned `AircraftInstance`s with family-specific SVG silhouettes (each aircraft `familyId` has a distinct icon sourced from tar1090 ADS-B tracker paths — ATR, Dash8, A220, E-Jet, A320, B737, A330, B787, B777, A350, A380, B747).
 - **Status Indicators**: Colored pill badges indicating `[ IDLE ]` (yellow), `[ FLYING: JFK→LHR ]` (green), or `[ MAINTENANCE ]` (red).
 - **Condition & Hours**: Progress bars showing current `condition` and hours until next required maintenance check.
 - **Actions**:

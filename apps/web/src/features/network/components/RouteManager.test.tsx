@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { RouteManager } from "./RouteManager";
 
 const mockUseAirlineStore = vi.fn();
@@ -43,6 +43,13 @@ vi.mock("@airtr/data", () => {
 vi.mock("@/shared/lib/useConfirm", () => {
   return {
     useConfirm: () => vi.fn(async () => true),
+  };
+});
+
+vi.mock("@tanstack/react-router", () => {
+  return {
+    useNavigate: () => vi.fn(),
+    useSearch: () => ({ tab: "active" }),
   };
 });
 

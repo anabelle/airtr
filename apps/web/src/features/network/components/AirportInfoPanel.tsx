@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { Building2, MapPin, Plane, PlaneTakeoff, Users, X } from "lucide-react";
-import { toast } from "sonner";
-import { airports as AIRPORTS, getHubPricingForIata, HUB_CLASSIFICATIONS } from "@airtr/data";
 import {
+  type Airport,
   fp,
   fpFormat,
   fpScale,
   haversineDistance,
   ROUTE_SLOT_FEE,
-  type Airport,
   type Route,
 } from "@airtr/core";
+import { airports as AIRPORTS, getHubPricingForIata, HUB_CLASSIFICATIONS } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
-import { useConfirm } from "@/shared/lib/useConfirm";
-import { buildGroundTraffic } from "@/features/network/utils/groundTraffic";
-import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Building2, MapPin, Plane, PlaneTakeoff, Users, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { FlightBoard } from "@/features/network/components/FlightBoard";
+import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
+import { buildGroundTraffic } from "@/features/network/utils/groundTraffic";
+import { useConfirm } from "@/shared/lib/useConfirm";
 
 type AirportInfoPanelProps = {
   airport: Airport;
@@ -48,10 +48,26 @@ function routeLabel(route: Route) {
 export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const search = useSearch({ from: "__root__" });
   const { airline, routes, fleet, globalFleet, competitors, modifyHubs, openRoute } =
     useAirlineStore();
   const setHub = useEngineStore((s) => s.setHub);
-  const [activeTab, setActiveTab] = useState<"info" | "departures" | "arrivals">("info");
+
+  // Default to 'info' if no valid tab is in search params
+  const activeTab =
+    search.airportTab === "departures" || search.airportTab === "arrivals"
+      ? search.airportTab
+      : "info";
+
+  const setActiveTab = (newTab: "info" | "departures" | "arrivals") => {
+    navigate({
+      to: window.location.pathname,
+      search: (prev: any) => ({
+        ...prev,
+        airportTab: newTab === "info" ? undefined : newTab, // omit info to keep url clean
+      }),
+    });
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -62,7 +78,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   }, [onClose]);
 
   useEffect(() => {
+    // Reset to info tab when airport changes
     setActiveTab("info");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [airport.iata]);
 
   const hubInfo = HUB_CLASSIFICATIONS[airport.iata];
@@ -529,7 +547,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                 {originHubRoute ? (
                   <button
                     type="button"
-                    onClick={() => navigate({ to: "/network", search: {} })}
+                    onClick={() => navigate({ to: "/network", search: { tab: "active" } })}
                     className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
                   >
                     View Route

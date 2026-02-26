@@ -45,9 +45,8 @@ export function RouteManager() {
   } = useAirlineStore();
   const confirm = useConfirm();
   const { homeAirport, tick } = useEngineStore();
-  const search = useSearch({ from: "/network" });
+  const { tab } = useSearch({ from: "/network" });
   const navigate = useNavigate({ from: "/network" });
-  const tab = search.tab;
   const setTab = (newTab: "active" | "opportunities") => {
     navigate({ search: { tab: newTab } });
   };
