@@ -768,6 +768,11 @@ export function Globe({
 
         // --- Airport GeoJSON (classified) ---
         const presence = latestGroundPresence.current;
+        const existingPresenceImages = new Set(
+            map.listImages().filter(name => name.startsWith('presence-'))
+        );
+        const activePresenceImages = new Set<string>();
+
         const airportGeojson: GeoJSON.FeatureCollection = {
             type: 'FeatureCollection',
             features: airports.map((a) => {
@@ -781,6 +786,7 @@ export function Globe({
                     const canvas = buildPresenceBadge(presenceSegments, 64);
                     map.addImage(presenceKey, canvas, { pixelRatio: 2 });
                 }
+                if (presenceKey) activePresenceImages.add(presenceKey);
 
                 return {
                     type: 'Feature',
@@ -795,6 +801,12 @@ export function Globe({
                 };
             }),
         };
+
+        for (const imageId of existingPresenceImages) {
+            if (!activePresenceImages.has(imageId)) {
+                map.removeImage(imageId);
+            }
+        }
 
         // --- Player flight arcs (with culling + LOD + caching) ---
         const arcFeatures: GeoJSON.Feature[] = [];
@@ -1001,8 +1013,18 @@ export function Globe({
 
         let isAnimating = true;
 
-        const animate = () => {
+        let lastFrame = 0;
+        const animate = (now: number) => {
             if (!isAnimating || !mapRef.current) return;
+            if (document.hidden) {
+                rafId.current = requestAnimationFrame(animate);
+                return;
+            }
+            if (now - lastFrame < 66) {
+                rafId.current = requestAnimationFrame(animate);
+                return;
+            }
+            lastFrame = now;
 
             const bounds = map.getBounds();
             const currentTick = latestTick.current;

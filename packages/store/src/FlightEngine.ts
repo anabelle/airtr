@@ -413,7 +413,6 @@ export function processFlightEngine(
                     } : undefined
                 };
                 events.push(landingEvent);
-                console.log(`[FlightEngine] Plane ${ac.name} landed. Event generated:`, landingEvent.id);
             }
         }
 

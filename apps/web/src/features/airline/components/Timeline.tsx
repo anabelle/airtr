@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import {
     PlaneTakeoff,
@@ -235,6 +236,13 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
 
 export const AirlineTimeline: React.FC = () => {
     const timeline = useAirlineStore((state) => state.timeline);
+    const parentRef = React.useRef<HTMLDivElement | null>(null);
+    const virtualizer = useVirtualizer({
+        count: timeline.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 88,
+        overscan: 6,
+    });
 
     if (!timeline || timeline.length === 0) {
         return (
@@ -252,13 +260,34 @@ export const AirlineTimeline: React.FC = () => {
                 Operations Ledger
             </h2>
 
-            <div className="relative space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            <div
+                ref={parentRef}
+                className="relative max-h-[600px] overflow-y-auto pr-2 custom-scrollbar"
+            >
                 {/* Vertical Line */}
                 <div className="absolute left-[1.125rem] top-2 bottom-2 w-px bg-white/5" />
-
-                {timeline.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                ))}
+                <div
+                    className="relative"
+                    style={{ height: `${virtualizer.getTotalSize()}px` }}
+                >
+                    {virtualizer.getVirtualItems().map((virtualItem) => {
+                        const event = timeline[virtualItem.index];
+                        if (!event) return null;
+                        return (
+                            <div
+                                key={virtualItem.key}
+                                data-index={virtualItem.index}
+                                ref={virtualizer.measureElement}
+                                className="absolute left-0 right-0 pb-3"
+                                style={{
+                                    transform: `translateY(${virtualItem.start}px)`,
+                                }}
+                            >
+                                <EventCard event={event} />
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

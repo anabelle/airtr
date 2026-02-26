@@ -28,17 +28,25 @@ export interface UserLocation {
     source: 'gps' | 'timezone' | 'manual';
 }
 
+let cachedHomeIata: string | null = null;
+let cachedSortedOthers: { airport: Airport; distance: number }[] = [];
+
 function generateRoutes(home: Airport, tick: number): RouteData[] {
     const now = new Date();
     const prosperity = getProsperityIndex(tick);
 
-    const others = AIRPORTS
-        .filter(a => a.iata !== home.iata)
-        .map(a => ({
-            airport: a,
-            distance: haversineDistance(home.latitude, home.longitude, a.latitude, a.longitude),
-        }))
-        .sort((a, b) => a.distance - b.distance);
+    if (cachedHomeIata !== home.iata) {
+        cachedHomeIata = home.iata;
+        cachedSortedOthers = AIRPORTS
+            .filter(a => a.iata !== home.iata)
+            .map(a => ({
+                airport: a,
+                distance: haversineDistance(home.latitude, home.longitude, a.latitude, a.longitude),
+            }))
+            .sort((a, b) => a.distance - b.distance);
+    }
+
+    const others = cachedSortedOthers;
 
     // Pick: 2 short-haul, 2 medium, 2 long-haul
     const picks: Airport[] = [];

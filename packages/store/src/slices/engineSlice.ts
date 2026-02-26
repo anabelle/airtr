@@ -63,6 +63,7 @@ export const createEngineSlice: StateCreator<
             let currentBrandScore = airline.brandScore || 0.5;
             const currentHubs = airline.hubs || [];
             let currentTimeline = [...get().timeline];
+            const timelineEventIds = new Set(currentTimeline.map(event => event.id));
             let anyChanges = false;
 
             const ticksPerDay = 24 * TICKS_PER_HOUR;
@@ -165,12 +166,12 @@ export const createEngineSlice: StateCreator<
                     }
 
                     // Deduplicate events by ID before merging into the timeline
-                    const existingIds = new Set(currentTimeline.map(e => e.id));
-                    const newEvents = result.events.filter(e => !existingIds.has(e.id));
+                    const newEvents = result.events.filter(e => !timelineEventIds.has(e.id));
 
                     if (newEvents.length > 0) {
-                        console.log(`[EngineSlice] Tick ${t}: Captured ${newEvents.length} events. Total timeline now: ${currentTimeline.length + newEvents.length}`);
                         currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
+                        timelineEventIds.clear();
+                        for (const event of currentTimeline) timelineEventIds.add(event.id);
                     }
                 }
 
@@ -196,6 +197,8 @@ export const createEngineSlice: StateCreator<
                             cost: opexCost,
                         };
                         currentTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
+                        timelineEventIds.clear();
+                        for (const event of currentTimeline) timelineEventIds.add(event.id);
                         anyChanges = true;
                     }
                 }

@@ -426,7 +426,6 @@ export async function loadMarketplace(sellerFleets?: SellerFleetIndex): Promise<
     await ensureConnected();
     const ndk = getNDK();
 
-    console.group('[Nostr] loadMarketplace');
     console.info('[Nostr] Fetching marketplace listings (Kind 30079) from relays...');
 
     const filter: NDKFilter = {
@@ -517,7 +516,6 @@ export async function loadMarketplace(sellerFleets?: SellerFleetIndex): Promise<
 
     result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     console.info(`[Nostr] Returning ${result.length} unique marketplace listings.`);
-    console.groupEnd();
     return result;
 }
 /**
