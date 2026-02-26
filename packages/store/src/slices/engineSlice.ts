@@ -185,17 +185,33 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         return;
       }
 
+      let processingError = false;
+      let lastProcessedTick = lastTick;
       for (let t = lastTick + 1; t <= targetTick; t++) {
-        const result = processFlightEngine(
-          t,
-          currentFleet,
-          routes,
-          currentBalance,
-          t - 1,
-          get().globalRouteRegistry,
-          get().pubkey || "",
-          currentBrandScore,
-        );
+        let result: ReturnType<typeof processFlightEngine>;
+        try {
+          result = processFlightEngine(
+            t,
+            currentFleet,
+            routes,
+            currentBalance,
+            t - 1,
+            get().globalRouteRegistry,
+            get().pubkey || "",
+            currentBrandScore,
+          );
+        } catch (error) {
+          processingError = true;
+          console.error("[EngineSlice] processFlightEngine failed", {
+            tick: t,
+            lastTick,
+            targetTick,
+            error,
+          });
+          break;
+        }
+
+        lastProcessedTick = t;
         currentFleet = result.updatedFleet;
         currentBalance = result.corporateBalance;
 
@@ -253,13 +269,49 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         }
       }
 
+      const latestFleet = get().fleet;
+      if (latestFleet.length > 0) {
+        const mergedFleet = new Map(currentFleet.map((ac) => [ac.id, ac]));
+        for (const ac of latestFleet) {
+          if (!mergedFleet.has(ac.id)) mergedFleet.set(ac.id, ac);
+        }
+        currentFleet = Array.from(mergedFleet.values());
+      }
+
+      const simulatedTimestamp = GENESIS_TIME + targetTick * TICK_DURATION;
+      const deliveryEvents: typeof currentTimeline = [];
+      for (const ac of currentFleet) {
+        if (ac.status !== "delivery") continue;
+        if (ac.deliveryAtTick == null || ac.deliveryAtTick > targetTick) continue;
+        ac.status = "idle";
+        anyChanges = true;
+        deliveryEvents.push({
+          id: `evt-delivery-${ac.id}-${targetTick}`,
+          tick: targetTick,
+          timestamp: simulatedTimestamp,
+          type: "delivery",
+          aircraftId: ac.id,
+          aircraftName: ac.name,
+          description: `${ac.name} has been delivered and is ready for operations.`,
+        });
+      }
+
+      if (deliveryEvents.length > 0) {
+        const newEvents = deliveryEvents.filter((e) => !timelineEventIds.has(e.id));
+        if (newEvents.length > 0) {
+          currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
+          timelineEventIds.clear();
+          for (const event of currentTimeline) timelineEventIds.add(event.id);
+        }
+      }
+
       // 3. Update state - We move lastTick to targetTick (which might be less than global tick)
       const refreshedAirline = get().airline;
       const updatedAirline = {
         ...(refreshedAirline ?? airline),
         corporateBalance: currentBalance,
         brandScore: currentBrandScore,
-        lastTick: targetTick,
+        lastTick: processingError ? lastProcessedTick : targetTick,
         timeline: currentTimeline,
       };
       set({ fleet: currentFleet, airline: updatedAirline, timeline: currentTimeline });
