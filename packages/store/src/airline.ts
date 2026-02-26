@@ -89,8 +89,7 @@ const MAX_SYNC_RETRIES = 3;
       since,
       onEvent: (entry) => {
         const { pubkey } = useAirlineStore.getState();
-        if (!pubkey) return;
-        if (entry.event.author.pubkey === pubkey) return;
+        if (pubkey && entry.event.author.pubkey === pubkey) return;
         if (!initialSyncComplete) return;
 
         const now = Date.now();

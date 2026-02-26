@@ -3,13 +3,37 @@ import { useAirlineStore } from "@airtr/store";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 
 export function Topbar() {
-  const { airline } = useAirlineStore();
+  const { airline, initializeIdentity, isLoading } = useAirlineStore();
   const timeline = useAirlineStore((state) => state.timeline);
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
   const pulse = useFinancialPulse(safeTimeline);
   const avgLoadFactor = pulse.avgLoadFactor;
 
-  if (!airline) return null;
+  if (!airline) {
+    return (
+      <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
+        <div className="flex items-center space-x-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/20 text-xs font-bold text-primary">
+            AT
+          </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-tight text-foreground leading-none">AirTR</h1>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
+              Live Aviation Exchange
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={initializeIdentity}
+          disabled={isLoading}
+          className="rounded-md border border-border bg-background/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
+        >
+          {isLoading ? "Connecting..." : "Connect Wallet"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">

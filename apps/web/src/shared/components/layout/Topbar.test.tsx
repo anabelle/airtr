@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { fp } from "@airtr/core";
 import type { AirlineEntity } from "@airtr/core";
+import { fp } from "@airtr/core";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { Topbar } from "./Topbar";
 
 const mockUseAirlineStore = vi.fn();
@@ -13,10 +13,15 @@ vi.mock("@airtr/store", () => {
 });
 
 describe("Topbar", () => {
-  it("renders nothing when no airline", () => {
-    mockUseAirlineStore.mockReturnValue({ airline: null });
-    const { container } = render(<Topbar />);
-    expect(container.firstChild).toBeNull();
+  it("renders connect prompt when no airline", () => {
+    mockUseAirlineStore.mockReturnValue({
+      airline: null,
+      initializeIdentity: vi.fn(),
+      isLoading: false,
+    });
+    render(<Topbar />);
+    expect(screen.getByText("AirTR")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Connect Wallet/i })).toBeInTheDocument();
   });
 
   it("renders airline metrics when available", () => {

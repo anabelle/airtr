@@ -14,7 +14,7 @@ import type { HubAction } from "./slices/networkSlice";
 
 export type { HubAction } from "./slices/networkSlice";
 
-export type IdentityStatus = "checking" | "no-extension" | "ready";
+export type IdentityStatus = "checking" | "no-extension" | "guest" | "ready";
 
 export interface AirlineState {
   airline: AirlineEntity | null;

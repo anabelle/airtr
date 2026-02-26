@@ -55,7 +55,11 @@ export function AirlineCreator() {
     }
   };
 
-  if (identityStatus === "checking" || identityStatus === "no-extension") {
+  if (
+    identityStatus === "checking" ||
+    identityStatus === "no-extension" ||
+    identityStatus === "guest"
+  ) {
     // This is handled by IdentityGate, but keeping safe returns just in case
     return null;
   }
@@ -140,10 +144,14 @@ export function AirlineCreator() {
           <h3 className="text-lg font-semibold tracking-tight">Corporate Branding</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="airline-name"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Company Name
               </label>
               <input
+                id="airline-name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -157,10 +165,14 @@ export function AirlineCreator() {
               ) : null}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="airline-icao"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 ICAO Code <span className="text-muted-foreground font-normal">(3 Letters)</span>
               </label>
               <input
+                id="airline-icao"
                 required
                 maxLength={3}
                 value={icao}
@@ -175,10 +187,14 @@ export function AirlineCreator() {
               ) : null}
             </div>
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <label
+                htmlFor="airline-callsign"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Radio Callsign
               </label>
               <input
+                id="airline-callsign"
                 value={callsign}
                 onChange={(e) => setCallsign(e.target.value)}
                 placeholder={icao ? `${icao.toUpperCase()} HEAVY` : "APEX HEAVY"}

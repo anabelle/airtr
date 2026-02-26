@@ -25,7 +25,7 @@ import type { AirlineState } from "../types";
 
 export interface IdentitySlice {
   pubkey: string | null;
-  identityStatus: "checking" | "no-extension" | "ready";
+  identityStatus: "checking" | "no-extension" | "guest" | "ready";
   isLoading: boolean;
   error: string | null;
   airline: AirlineEntity | null;
@@ -65,7 +65,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
     const extensionReady = await waitForNip07();
     if (!extensionReady) {
-      set({ identityStatus: "no-extension", isLoading: false });
+      set({ identityStatus: "guest", isLoading: false });
       return;
     }
 
@@ -74,7 +74,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
       if (!pubkey) {
         set({
-          identityStatus: "no-extension",
+          identityStatus: "guest",
           isLoading: false,
           error: "Extension did not return a pubkey",
         });

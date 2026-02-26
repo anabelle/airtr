@@ -1,9 +1,34 @@
-import { PanelLayout } from '@/shared/components/layout/PanelLayout';
-import { FleetManager } from '@/features/fleet/components/FleetManager';
-import { useAirlineStore } from '@airtr/store';
+import { useAirlineStore } from "@airtr/store";
+import { FleetManager } from "@/features/fleet/components/FleetManager";
+import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
-  const fleetSize = useAirlineStore(state => state.fleet.length);
+  const { airline, initializeIdentity, isLoading } = useAirlineStore();
+  const fleetSize = useAirlineStore((state) => state.fleet.length);
+
+  if (!airline) {
+    return (
+      <PanelLayout>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center">
+          <div className="max-w-md space-y-4 rounded-2xl border border-border/60 bg-background/70 p-6 shadow-2xl backdrop-blur-xl">
+            <h2 className="text-lg font-semibold">Fleet access locked</h2>
+            <p className="text-sm text-muted-foreground">
+              Connect a Nostr wallet to create an airline and manage aircraft, leases, and
+              maintenance.
+            </p>
+            <button
+              type="button"
+              onClick={initializeIdentity}
+              disabled={isLoading}
+              className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
+            >
+              {isLoading ? "Connecting..." : "Connect Wallet"}
+            </button>
+          </div>
+        </div>
+      </PanelLayout>
+    );
+  }
 
   return (
     <PanelLayout>

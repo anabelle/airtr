@@ -1,5 +1,5 @@
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import { IdentityGate } from "./IdentityGate";
 
 const mockUseAirlineStore = vi.fn();
@@ -35,14 +35,10 @@ describe("IdentityGate", () => {
     expect(screen.getByText(/Establishing secure connection/i)).toBeInTheDocument();
   });
 
-  it("renders extension required prompt and retry action", () => {
-    const initializeIdentity = vi.fn();
+  it("renders children when no extension is available", () => {
     mockUseAirlineStore.mockReturnValue({
       identityStatus: "no-extension",
       airline: null,
-      initializeIdentity,
-      isLoading: false,
-      error: null,
     });
 
     render(
@@ -51,9 +47,7 @@ describe("IdentityGate", () => {
       </IdentityGate>,
     );
 
-    const button = screen.getByRole("button", { name: /Retry Connection/i });
-    fireEvent.click(button);
-    expect(initializeIdentity).toHaveBeenCalled();
+    expect(screen.getByText("App")).toBeInTheDocument();
   });
 
   it("renders airline creator when identity is ready without airline", () => {
@@ -89,6 +83,6 @@ describe("IdentityGate", () => {
       </IdentityGate>,
     );
 
-    expect(screen.getByText("App")).toBeInTheDocument();
+    expect(screen.getAllByText("App").length).toBeGreaterThan(0);
   });
 });
