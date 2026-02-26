@@ -1,9 +1,10 @@
-import { useMemo } from "react";
 import type { DemandResult, FixedPoint, Route } from "@airtr/core";
 import {
-  calculatePriceElasticity,
+  buildHubState,
   calculateDemand,
+  calculatePriceElasticity,
   calculateSupplyPressure,
+  getAirportTraffic,
   getHubCongestionModifier,
   getHubDemandModifier,
   getProsperityIndex,
@@ -16,6 +17,7 @@ import {
 } from "@airtr/core";
 import { airports, HUB_CLASSIFICATIONS } from "@airtr/data";
 import { useAirlineStore, useEngineStore } from "@airtr/store";
+import { useMemo } from "react";
 
 export type RouteDemandSnapshot = {
   totalDemand: DemandResult;
@@ -47,6 +49,7 @@ export function getRouteDemandSnapshot(
   route: Route,
   tick: number,
   fleet: RouteDemandFleet,
+  routes: Route[],
 ): RouteDemandSnapshot {
   const originIata = route.originIata;
   const destinationIata = route.destinationIata;
@@ -96,24 +99,8 @@ export function getRouteDemandSnapshot(
 
   const originHub = originIata ? (HUB_CLASSIFICATIONS[originIata] ?? null) : null;
   const destHub = destinationIata ? (HUB_CLASSIFICATIONS[destinationIata] ?? null) : null;
-  const originState =
-    originHub && originIata
-      ? {
-          hubIata: originIata,
-          spokeCount: 0,
-          weeklyFrequency: 0,
-          avgFrequency: 0,
-        }
-      : null;
-  const destState =
-    destHub && destinationIata
-      ? {
-          hubIata: destinationIata,
-          spokeCount: 0,
-          weeklyFrequency: 0,
-          avgFrequency: 0,
-        }
-      : null;
+  const originState = originHub && originIata ? buildHubState(originIata, routes) : null;
+  const destState = destHub && destinationIata ? buildHubState(destinationIata, routes) : null;
   const hubModifier = getHubDemandModifier(
     originHub?.tier ?? null,
     destHub?.tier ?? null,
@@ -121,8 +108,8 @@ export function getRouteDemandSnapshot(
     destState,
   );
 
-  const originTraffic = 0;
-  const destTraffic = 0;
+  const originTraffic = originIata ? getAirportTraffic(originIata, routes) : 0;
+  const destTraffic = destinationIata ? getAirportTraffic(destinationIata, routes) : 0;
   const originCapacity = originHub?.baseCapacityPerHour ?? 80;
   const destCapacity = destHub?.baseCapacityPerHour ?? 80;
   const originCongestion = getHubCongestionModifier(originCapacity, originTraffic);
@@ -223,6 +210,10 @@ type RouteDemandFleet = {
 export function useRouteDemand(route: Route): RouteDemandSnapshot {
   const tick = useEngineStore((state) => state.tick);
   const fleet = useAirlineStore((state) => state.fleet);
+  const routes = useAirlineStore((state) => state.routes);
 
-  return useMemo(() => getRouteDemandSnapshot(route, tick, fleet), [route, tick, fleet]);
+  return useMemo(
+    () => getRouteDemandSnapshot(route, tick, fleet, routes),
+    [route, tick, fleet, routes],
+  );
 }

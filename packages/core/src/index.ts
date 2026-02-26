@@ -57,7 +57,7 @@ export { calculateBookValue } from "./fleet.js";
 // Geography
 export { haversineDistance } from "./geo.js";
 // Hubs
-export { buildHubState } from "./hub.js";
+export { buildHubState, getAirportTraffic } from "./hub.js";
 // Logging
 export { createLogger } from "./logger.js";
 // PRNG
@@ -66,13 +66,13 @@ export { createPRNG, createTickPRNG } from "./prng.js";
 export { allocatePassengers, calculateShares } from "./qsi.js";
 // Season
 export { getSeason, getSeasonalMultiplier } from "./season.js";
+export type { NightOverlayFeatureCollection } from "./solar.js";
 // Solar
 export {
   computeNightOverlay,
   getSolarDeclination,
   getSubsolarPoint,
 } from "./solar.js";
-export type { NightOverlayFeatureCollection } from "./solar.js";
 export type {
   AircraftInstance,
   AircraftModel,
