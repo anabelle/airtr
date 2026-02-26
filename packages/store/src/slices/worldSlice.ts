@@ -260,7 +260,10 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           new Set(actions.map((entry) => entry.event.author.pubkey)),
         );
         const checkpoints = await loadCheckpoints(authorPubkeys);
-        const competitors = new Map<string, AirlineEntity>();
+        // Seed from existing state so competitors not returned by this
+        // relay fetch are preserved instead of silently dropped.
+        const fetchedPubkeys = new Set<string>();
+        const competitors = new Map<string, AirlineEntity>(existingState.competitors);
         const registry = new Map<string, FlightOffer[]>();
         const allGlobalFleet: AircraftInstance[] = [];
         const allGlobalRoutes: Route[] = [];
@@ -333,6 +336,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           }
 
           competitors.set(authorPubkey, resolvedAirline);
+          fetchedPubkeys.add(authorPubkey);
           allGlobalFleet.push(...resolvedFleet);
           allGlobalRoutes.push(...resolvedRoutes);
 
@@ -377,6 +381,60 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
               brandScore: resolvedAirline.brandScore || 0.5,
             };
 
+            offers.push(offer);
+            registry.set(key, offers);
+          }
+        }
+
+        // Preserve fleet, routes, and registry entries for competitors
+        // that were NOT returned by this relay fetch.  Without this,
+        // a partial/empty relay response silently drops them from state.
+        for (const [pubkey, airline] of competitors) {
+          if (fetchedPubkeys.has(pubkey)) continue;
+          // This competitor was already in state but missing from the
+          // current fetch — carry forward its existing fleet & routes.
+          const preservedFleet = existingState.globalFleetByOwner.get(pubkey) || [];
+          const preservedRoutes = existingState.globalRoutesByOwner.get(pubkey) || [];
+          allGlobalFleet.push(...preservedFleet);
+          allGlobalRoutes.push(...preservedRoutes);
+
+          for (const route of preservedRoutes) {
+            if (route.status !== "active") continue;
+            const key = `${route.originIata}-${route.destinationIata}`;
+            const offers = registry.get(key) || [];
+            const frequency = Math.max(0, route.assignedAircraftIds.length * 7);
+            if (frequency === 0) continue;
+
+            let avgTravelTime = 0;
+            if (route.assignedAircraftIds.length > 0) {
+              const modelIds = route.assignedAircraftIds
+                .map((id: string) => {
+                  const ac = preservedFleet.find((a: AircraftInstance) => a.id === id);
+                  return ac?.modelId;
+                })
+                .filter(Boolean);
+              const times = modelIds.map((mid: string | undefined) => {
+                const model = getAircraftById(mid!);
+                if (!model) return 480;
+                return (route.distanceKm / (model.speedKmh || 800)) * 60;
+              });
+              avgTravelTime =
+                times.length > 0
+                  ? times.reduce((a: number, b: number) => a + b, 0) / times.length
+                  : 480;
+            }
+
+            const offer: FlightOffer = {
+              airlinePubkey: airline.ceoPubkey,
+              fareEconomy: route.fareEconomy,
+              fareBusiness: route.fareBusiness,
+              fareFirst: route.fareFirst,
+              frequencyPerWeek: frequency,
+              travelTimeMinutes: Math.round(avgTravelTime) || 480,
+              stops: 0,
+              serviceScore: 0.7,
+              brandScore: airline.brandScore || 0.5,
+            };
             offers.push(offer);
             registry.set(key, offers);
           }
