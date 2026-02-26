@@ -77,9 +77,9 @@ describe("getRouteDemandSnapshot", () => {
     expect(snapshot.elasticityEconomy).toBe(0.5);
     expect(snapshot.elasticityBusiness).toBe(0.9);
     expect(snapshot.elasticityFirst).toBe(1.1);
-    expect(snapshot.referenceFareEconomy).toBe(100);
-    expect(snapshot.referenceFareBusiness).toBe(200);
-    expect(snapshot.referenceFareFirst).toBe(300);
+    expect(snapshot.referenceFareEconomy).toBe(fp(100));
+    expect(snapshot.referenceFareBusiness).toBe(fp(200));
+    expect(snapshot.referenceFareFirst).toBe(fp(300));
     expect(snapshot.effectiveLoadFactor).toBeCloseTo(0.512, 3);
   });
 

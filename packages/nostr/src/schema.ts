@@ -55,7 +55,7 @@ export interface MarketplaceListing {
 export type ActionEnvelope = import("@airtr/core").GameActionEnvelope;
 
 const ACTION_KIND = 30078;
-const WORLD_ID = "dev-v2";
+const WORLD_ID = "dev-v3";
 const AIRTR_SCHEMA_VERSION = 1;
 const ACTION_D_PREFIX = `airtr:world:${WORLD_ID}:action:`;
 const CHECKPOINT_D_TAG = `airtr:world:${WORLD_ID}:checkpoint`;

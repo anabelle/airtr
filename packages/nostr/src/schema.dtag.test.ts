@@ -14,8 +14,8 @@ describe("buildActionDTag", () => {
       payload: { tick: 99 },
     });
 
-    expect(createTag).toBe("airtr:world:dev-v2:action:airline_create");
-    expect(tickTag).toBe("airtr:world:dev-v2:action:tick_update");
+    expect(createTag).toBe("airtr:world:dev-v3:action:airline_create");
+    expect(tickTag).toBe("airtr:world:dev-v3:action:tick_update");
   });
 
   it("adds entity id and tick for route actions", () => {
@@ -25,7 +25,7 @@ describe("buildActionDTag", () => {
       payload: { routeId: "rt-123", tick: 100 },
     });
 
-    expect(tag).toBe("airtr:world:dev-v2:action:route_open:rt-123:100");
+    expect(tag).toBe("airtr:world:dev-v3:action:route_open:rt-123:100");
   });
 
   it("adds entity id and tick for aircraft actions", () => {
@@ -35,7 +35,7 @@ describe("buildActionDTag", () => {
       payload: { instanceId: "ac-777", tick: 555 },
     });
 
-    expect(tag).toBe("airtr:world:dev-v2:action:aircraft_purchase:ac-777:555");
+    expect(tag).toBe("airtr:world:dev-v3:action:aircraft_purchase:ac-777:555");
   });
 
   it("returns base tag when no identifiers are present", () => {
@@ -45,6 +45,6 @@ describe("buildActionDTag", () => {
       payload: {},
     });
 
-    expect(tag).toBe("airtr:world:dev-v2:action:hub_add");
+    expect(tag).toBe("airtr:world:dev-v3:action:hub_add");
   });
 });
