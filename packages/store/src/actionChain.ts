@@ -26,7 +26,9 @@ export async function publishActionWithChain(params: {
   set: (state: Partial<AirlineState>) => void;
 }): Promise<NDKEvent> {
   const { action, get, set } = params;
-  const event = await publishAction(action);
+  const seq = get().actionSeq;
+  set({ actionSeq: seq + 1 });
+  const event = await publishAction(action, seq);
   await enqueueSerialUpdate(() => updateActionChainHashFromEvent({ action, event, get, set }));
   return event;
 }

@@ -32,11 +32,13 @@ export interface WorldSlice {
   globalRoutes: Route[];
   globalRoutesByOwner: Map<string, Route[]>;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
+  syncCompetitor: (competitorPubkey: string) => Promise<void>;
   processGlobalTick: (tick: number) => Promise<void>;
 }
 
 let isProcessingGlobal = false;
 let isSyncingWorld = false;
+let pendingSyncWorldOptions: { force?: boolean } | null = null;
 const GLOBAL_CATCHUP_CHUNK = 200;
 const MAX_COMPETITOR_CATCHUP = 1000;
 const MAX_TOTAL_COMPETITOR_TICKS = 5000;
@@ -47,6 +49,7 @@ const MONTH_TICKS = 30 * TICKS_PER_DAY;
 export function _resetWorldFlags() {
   isProcessingGlobal = false;
   isSyncingWorld = false;
+  pendingSyncWorldOptions = null;
 }
 
 const buildFleetIndex = (fleet: AircraftInstance[]) => {
@@ -314,7 +317,16 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
   },
 
   syncWorld: async (options?: { force?: boolean }) => {
-    if (isSyncingWorld) return;
+    if (isSyncingWorld) {
+      // Queue at most one follow-up sync instead of silently dropping.
+      // Preserve force if either the queued or current request uses it.
+      if (options?.force || pendingSyncWorldOptions?.force) {
+        pendingSyncWorldOptions = { force: true };
+      } else {
+        pendingSyncWorldOptions = pendingSyncWorldOptions ?? {};
+      }
+      return;
+    }
     if (isProcessingGlobal && !options?.force) return;
     isSyncingWorld = true;
     try {
@@ -715,6 +727,148 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       }
     } finally {
       isSyncingWorld = false;
+      // Drain the queue: if a sync was requested while we were busy, run it now.
+      if (pendingSyncWorldOptions) {
+        const queuedOptions = pendingSyncWorldOptions;
+        pendingSyncWorldOptions = null;
+        void get().syncWorld(queuedOptions);
+      }
+    }
+  },
+
+  syncCompetitor: async (competitorPubkey: string) => {
+    const existingState = get();
+    if (competitorPubkey === existingState.pubkey) return;
+
+    try {
+      // Targeted fetch: only this competitor's actions + checkpoint
+      const [actions, checkpoints] = await Promise.all([
+        loadActionLog({ authors: [competitorPubkey], limit: 500, maxPages: 5 }),
+        loadCheckpoints([competitorPubkey]),
+      ]);
+
+      if (actions.length === 0 && checkpoints.size === 0) return;
+
+      const checkpoint = checkpoints.get(competitorPubkey) ?? null;
+      let scopedEntries = actions;
+      if (checkpoint) {
+        const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
+        scopedEntries = actions.filter(
+          (entry) => (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds,
+        );
+      }
+
+      const replayed = await replayActionLog({
+        pubkey: competitorPubkey,
+        actions: scopedEntries.map((entry) => ({
+          action: entry.action,
+          eventId: entry.event.id,
+          authorPubkey: entry.event.author.pubkey,
+          createdAt: entry.event.created_at ?? null,
+        })),
+        checkpoint,
+      });
+
+      if (!replayed.airline) return;
+
+      const airline = replayed.airline;
+      let resolvedFleet = replayed.fleet;
+      const resolvedRoutes = replayed.routes;
+
+      // Reconcile fleet positions to lastTick
+      if (airline.lastTick != null && resolvedFleet.length > 0) {
+        const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
+          resolvedFleet,
+          resolvedRoutes,
+          airline.lastTick,
+        );
+        resolvedFleet = reconciledFleet;
+        airline.corporateBalance = fpAdd(airline.corporateBalance, balanceDelta);
+      }
+
+      // Merge into existing state — only replace this competitor's data
+      const freshState = get();
+      const updatedCompetitors = new Map(freshState.competitors);
+      updatedCompetitors.set(competitorPubkey, airline);
+
+      // Rebuild global fleet: remove old entries for this competitor, add new ones
+      const updatedGlobalFleet = [
+        ...freshState.globalFleet.filter((ac) => ac.ownerPubkey !== competitorPubkey),
+        ...resolvedFleet,
+      ];
+
+      // Rebuild global routes: remove old entries for this competitor, add new ones
+      const updatedGlobalRoutes = [
+        ...freshState.globalRoutes.filter((rt) => rt.airlinePubkey !== competitorPubkey),
+        ...resolvedRoutes,
+      ];
+
+      // Rebuild route registry: remove old offers from this competitor, add new ones
+      const updatedRegistry = new Map(freshState.globalRouteRegistry);
+      // Remove all offers from this competitor
+      for (const [key, offers] of updatedRegistry) {
+        const filtered = offers.filter((o) => o.airlinePubkey !== competitorPubkey);
+        if (filtered.length > 0) {
+          updatedRegistry.set(key, filtered);
+        } else {
+          updatedRegistry.delete(key);
+        }
+      }
+      // Add new offers from this competitor
+      for (const route of resolvedRoutes) {
+        if (route.status !== "active") continue;
+        const frequency = Math.max(0, route.assignedAircraftIds.length * 7);
+        if (frequency === 0) continue;
+
+        let avgTravelTime = 0;
+        if (route.assignedAircraftIds.length > 0) {
+          const modelIds = route.assignedAircraftIds
+            .map((id: string) => {
+              const ac = resolvedFleet.find((a: AircraftInstance) => a.id === id);
+              return ac?.modelId;
+            })
+            .filter(Boolean);
+          const times = modelIds.map((mid: string | undefined) => {
+            const model = getAircraftById(mid!);
+            if (!model) return 480;
+            return (route.distanceKm / (model.speedKmh || 800)) * 60;
+          });
+          avgTravelTime =
+            times.length > 0
+              ? times.reduce((a: number, b: number) => a + b, 0) / times.length
+              : 480;
+        }
+
+        const key = `${route.originIata}-${route.destinationIata}`;
+        const offers = updatedRegistry.get(key) || [];
+        const offer: FlightOffer = {
+          airlinePubkey: airline.ceoPubkey,
+          fareEconomy: route.fareEconomy,
+          fareBusiness: route.fareBusiness,
+          fareFirst: route.fareFirst,
+          frequencyPerWeek: frequency,
+          travelTimeMinutes: Math.round(avgTravelTime) || 480,
+          stops: 0,
+          serviceScore: 0.7,
+          brandScore: airline.brandScore || 0.5,
+        };
+        offers.push(offer);
+        updatedRegistry.set(key, offers);
+      }
+
+      set({
+        competitors: updatedCompetitors,
+        globalFleet: updatedGlobalFleet,
+        globalFleetByOwner: buildFleetIndex(updatedGlobalFleet),
+        globalRoutes: updatedGlobalRoutes,
+        globalRoutesByOwner: buildRoutesIndex(updatedGlobalRoutes),
+        globalRouteRegistry: updatedRegistry,
+      });
+    } catch (error) {
+      console.error(
+        `[WorldSlice] Failed to sync competitor ${competitorPubkey.slice(0, 8)}...:`,
+        error,
+      );
     }
   },
 });

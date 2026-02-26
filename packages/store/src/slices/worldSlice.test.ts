@@ -2,7 +2,7 @@ import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@airtr/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
-import { createWorldSlice, _resetWorldFlags } from "./worldSlice";
+import { _resetWorldFlags, createWorldSlice } from "./worldSlice";
 
 const mockProcessFlightEngine = vi.fn();
 
@@ -38,6 +38,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     routes: [],
     timeline: [],
     actionChainHash: "",
+    actionSeq: 0,
     latestCheckpoint: null,
     pubkey: "player-pubkey",
     identityStatus: "ready",
@@ -68,6 +69,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     globalRoutes: [],
     globalRoutesByOwner: new Map(),
     syncWorld: vi.fn(),
+    syncCompetitor: vi.fn(),
     processGlobalTick: vi.fn(),
   } as AirlineState;
 
@@ -347,7 +349,7 @@ describe("processGlobalTick", () => {
     expect(ids).toContain("ac-fast");
   });
 
-  it("skips concurrent syncWorld calls", async () => {
+  it("queues concurrent syncWorld calls instead of dropping them", async () => {
     const { loadActionLog } = await import("@airtr/nostr");
     (loadActionLog as unknown as ReturnType<typeof vi.fn>).mockClear();
 
@@ -358,8 +360,11 @@ describe("processGlobalTick", () => {
 
     await Promise.all([first, second]);
 
-    // First call runs, second is skipped because isSyncingWorld is true
-    expect(loadActionLog).toHaveBeenCalledTimes(1);
+    // Wait for the queued follow-up sync to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // First call runs immediately, second is queued and runs after first completes
+    expect(loadActionLog).toHaveBeenCalledTimes(2);
   });
 
   it("skips syncWorld while global tick processing", async () => {

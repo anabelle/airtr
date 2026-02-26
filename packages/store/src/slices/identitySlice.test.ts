@@ -1,6 +1,6 @@
+import type { AirlineEntity, FixedPoint } from "@airtr/core";
 import { describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
-import type { AirlineEntity, FixedPoint } from "@airtr/core";
 import type { AirlineState } from "../types";
 import { createIdentitySlice } from "./identitySlice";
 
@@ -41,6 +41,7 @@ const createSliceState = (overrides: Partial<AirlineState> = {}) => {
     routes: [],
     timeline: [],
     actionChainHash: "",
+    actionSeq: 0,
     latestCheckpoint: null,
     initializeIdentity: vi.fn(),
     createAirline: vi.fn(),

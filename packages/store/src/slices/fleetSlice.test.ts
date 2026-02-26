@@ -35,6 +35,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     routes: [],
     timeline: [],
     actionChainHash: "",
+    actionSeq: 0,
     latestCheckpoint: null,
     pubkey: "test-pubkey",
     identityStatus: "ready",
@@ -65,6 +66,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     globalRoutes: [],
     globalRoutesByOwner: new Map(),
     syncWorld: vi.fn(),
+    syncCompetitor: vi.fn(),
     processGlobalTick: vi.fn(),
   } as AirlineState;
 

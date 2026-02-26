@@ -22,6 +22,7 @@ export interface AirlineState {
   routes: Route[];
   timeline: TimelineEvent[];
   actionChainHash: string;
+  actionSeq: number;
   latestCheckpoint: Checkpoint | null;
   pubkey: string | null;
   identityStatus: IdentityStatus;
@@ -64,5 +65,6 @@ export interface AirlineState {
   globalRoutes: Route[];
   globalRoutesByOwner: Map<string, Route[]>;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
+  syncCompetitor: (competitorPubkey: string) => Promise<void>;
   processGlobalTick: (tick: number) => Promise<void>;
 }

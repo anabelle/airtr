@@ -33,6 +33,7 @@ export interface IdentitySlice {
   routes: Route[];
   timeline: TimelineEvent[];
   actionChainHash: string;
+  actionSeq: number;
   latestCheckpoint: Checkpoint | null;
   initializeIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
@@ -58,6 +59,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   routes: [],
   timeline: [],
   actionChainHash: "",
+  actionSeq: 0,
   latestCheckpoint: null,
 
   initializeIdentity: async () => {
@@ -122,6 +124,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           routes: [],
           timeline: [],
           actionChainHash: "",
+          actionSeq: 0,
           latestCheckpoint: checkpoint,
           identityStatus: "ready",
           isLoading: false,
@@ -242,6 +245,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         routes: reconciledRoutes,
         timeline: loadedAirline?.timeline || [],
         actionChainHash: replayed.actionChainHash,
+        actionSeq: actions.length,
         latestCheckpoint: checkpoint,
         identityStatus: "ready",
         isLoading: false,

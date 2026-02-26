@@ -117,7 +117,7 @@ function parseActionContent(data: unknown): ActionEnvelope | null {
   };
 }
 
-export function buildActionDTag(action: ActionEnvelope): string {
+export function buildActionDTag(action: ActionEnvelope, seq?: number): string {
   const base = `${ACTION_D_PREFIX}${action.action.toLowerCase()}`;
   if (action.action === "AIRLINE_CREATE" || action.action === "TICK_UPDATE") {
     return base;
@@ -132,6 +132,7 @@ export function buildActionDTag(action: ActionEnvelope): string {
   const suffixParts: string[] = [];
   if (id) suffixParts.push(id);
   if (tick !== null) suffixParts.push(String(tick));
+  if (typeof seq === "number" && Number.isFinite(seq)) suffixParts.push(`s${Math.floor(seq)}`);
 
   return suffixParts.length > 0 ? `${base}:${suffixParts.join(":")}` : base;
 }
@@ -152,7 +153,7 @@ export async function publishAirline(): Promise<never> {
 /**
  * Publishes a single game action event to Nostr.
  */
-export async function publishAction(action: ActionEnvelope): Promise<NDKEvent> {
+export async function publishAction(action: ActionEnvelope, seq?: number): Promise<NDKEvent> {
   await ensureConnected();
   const ndk = getNDK();
 
@@ -163,7 +164,7 @@ export async function publishAction(action: ActionEnvelope): Promise<NDKEvent> {
   const event = new NDKEvent(ndk);
   event.kind = ACTION_KIND;
   event.tags = [
-    ["d", buildActionDTag(action)],
+    ["d", buildActionDTag(action, seq)],
     ["world", WORLD_ID],
   ];
 

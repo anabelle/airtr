@@ -35,8 +35,6 @@ export const useAirlineStore = create<AirlineState>()((...a) => ({
 // competitor aircraft position flicker on the map.
 let lastSubscribedTick = -1;
 let initialSyncComplete = false;
-let lastWorldSyncTrigger = 0;
-let pendingWorldSync: ReturnType<typeof setTimeout> | null = null;
 let unsubscribeActionStream: (() => void) | null = null;
 const logger = createLogger("WorldSync");
 const runtimeEnv = (
@@ -45,6 +43,33 @@ const runtimeEnv = (
   }
 ).process?.env?.NODE_ENV;
 const enableRealtimeSyncLogs = runtimeEnv !== "production";
+
+// Batching: collect competitor pubkeys that need targeted sync, flush after
+// a short window so rapid-fire events from the same player coalesce.
+const LIVE_SYNC_BATCH_MS = 1000;
+let pendingCompetitorSyncs = new Set<string>();
+let batchFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushPendingCompetitorSyncs() {
+  batchFlushTimer = null;
+  const pubkeys = pendingCompetitorSyncs;
+  pendingCompetitorSyncs = new Set();
+
+  for (const pubkey of pubkeys) {
+    if (enableRealtimeSyncLogs) {
+      logger.info(`Live sync: fetching competitor ${pubkey.slice(0, 8)}...`);
+    }
+    void useAirlineStore.getState().syncCompetitor(pubkey);
+  }
+}
+
+function queueCompetitorSync(pubkey: string) {
+  pendingCompetitorSyncs.add(pubkey);
+  if (!batchFlushTimer) {
+    batchFlushTimer = setTimeout(flushPendingCompetitorSyncs, LIVE_SYNC_BATCH_MS);
+  }
+}
+
 useEngineStore.subscribe((state) => {
   if (state.tick === lastSubscribedTick) return;
   lastSubscribedTick = state.tick;
@@ -53,9 +78,10 @@ useEngineStore.subscribe((state) => {
   void store.processTick(state.tick);
   void store.processGlobalTick(state.tick);
 
-  // Sync world state every 60 ticks (~3 mins).
+  // Sync world state every 20 ticks (~1 min) as a safety net.
+  // The primary sync path is the live subscription handler above.
   // Skip until the initial eager sync completes to avoid racing with it.
-  if (state.tick % 60 === 0 && initialSyncComplete) {
+  if (state.tick % 20 === 0 && initialSyncComplete) {
     store.syncWorld();
   }
 });
@@ -89,23 +115,19 @@ const MAX_SYNC_RETRIES = 3;
       since,
       onEvent: (entry) => {
         const { pubkey } = useAirlineStore.getState();
+        // Skip our own events — we already applied them locally.
         if (pubkey && entry.event.author.pubkey === pubkey) return;
         if (!initialSyncComplete) return;
 
-        const now = Date.now();
-        const debounceMs = 5000;
-        if (now - lastWorldSyncTrigger < debounceMs) return;
-        lastWorldSyncTrigger = now;
+        const competitorPubkey = entry.event.author.pubkey;
 
         if (enableRealtimeSyncLogs) {
-          logger.info(`Realtime sync queued from ${entry.event.author.pubkey.slice(0, 8)}...`);
+          logger.info(`Live event from ${competitorPubkey.slice(0, 8)}...: ${entry.action.action}`);
         }
 
-        if (pendingWorldSync) clearTimeout(pendingWorldSync);
-        pendingWorldSync = setTimeout(() => {
-          pendingWorldSync = null;
-          void useAirlineStore.getState().syncWorld({ force: true });
-        }, debounceMs);
+        // Queue a targeted sync for just this competitor.
+        // Events arriving within LIVE_SYNC_BATCH_MS are coalesced.
+        queueCompetitorSync(competitorPubkey);
       },
     });
   }
@@ -113,9 +135,9 @@ const MAX_SYNC_RETRIES = 3;
 
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
-    if (pendingWorldSync) {
-      clearTimeout(pendingWorldSync);
-      pendingWorldSync = null;
+    if (batchFlushTimer) {
+      clearTimeout(batchFlushTimer);
+      batchFlushTimer = null;
     }
     if (unsubscribeActionStream) {
       unsubscribeActionStream();
