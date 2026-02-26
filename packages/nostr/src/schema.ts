@@ -54,6 +54,11 @@ export interface MarketplaceListing {
 
 export type ActionEnvelope = import("@airtr/core").GameActionEnvelope;
 
+export interface ActionLogEntry {
+  event: NDKEvent;
+  action: ActionEnvelope;
+}
+
 const ACTION_KIND = 30078;
 const WORLD_ID = "dev-v3";
 const AIRTR_SCHEMA_VERSION = 1;
@@ -200,18 +205,13 @@ export async function loadActionLog(options?: {
   limit?: number;
   maxPages?: number;
   since?: number;
-}): Promise<
-  {
-    event: NDKEvent;
-    action: ActionEnvelope;
-  }[]
-> {
+}): Promise<ActionLogEntry[]> {
   await ensureConnected();
   const ndk = getNDK();
   const { authors, limit, maxPages, since } = options ?? {};
   const pageLimit = limit ?? 1000;
   const pageCap = maxPages ?? 10;
-  const resultsById = new Map<string, { event: NDKEvent; action: ActionEnvelope }>();
+  const resultsById = new Map<string, ActionLogEntry>();
 
   let page = 0;
   let until: number | undefined;
@@ -225,7 +225,7 @@ export async function loadActionLog(options?: {
       ...(since ? { since } : {}),
     };
 
-    const pageResults: { event: NDKEvent; action: ActionEnvelope }[] = [];
+    const pageResults: ActionLogEntry[] = [];
 
     await new Promise<void>((resolve) => {
       const sub = ndk.subscribe(filter, { closeOnEose: true });
@@ -290,6 +290,50 @@ export async function loadActionLog(options?: {
   });
 
   return results;
+}
+
+export async function subscribeActions(options: {
+  onEvent: (entry: ActionLogEntry) => void;
+  authors?: string[];
+  since?: number;
+  onEose?: () => void;
+}): Promise<() => void> {
+  await ensureConnected();
+  const ndk = getNDK();
+  const { onEvent, authors, since, onEose } = options;
+
+  const filter: NDKFilter = {
+    kinds: [ACTION_KIND],
+    ...(authors && authors.length > 0 ? { authors } : {}),
+    ...(since ? { since } : {}),
+  };
+
+  const sub = ndk.subscribe(filter, { closeOnEose: false });
+
+  sub.on("event", (event: NDKEvent) => {
+    if (!hasWorldTag(event, WORLD_ID)) return;
+    if (!isValidEventTimestamp(event.created_at ?? 0)) return;
+    if (!isActionKind(event)) return;
+    const dTag = event.tags.find((tag) => tag[0] === "d")?.[1];
+    if (dTag === CHECKPOINT_D_TAG) return;
+    if (!event.content.trim().startsWith("{")) return;
+
+    try {
+      const parsed = parseActionContent(JSON.parse(event.content));
+      if (!parsed) return;
+      onEvent({ event, action: parsed });
+    } catch {
+      // Ignore malformed action payloads
+    }
+  });
+
+  sub.on("eose", () => {
+    onEose?.();
+  });
+
+  return () => {
+    sub.stop();
+  };
 }
 
 function parseCheckpoint(data: unknown): Checkpoint | null {

@@ -1,4 +1,5 @@
-import { ensureConnected } from "@airtr/nostr";
+import { createLogger } from "@airtr/core";
+import { ensureConnected, subscribeActions } from "@airtr/nostr";
 import { create } from "zustand";
 import { useEngineStore } from "./engine.js";
 import { createEngineSlice } from "./slices/engineSlice.js";
@@ -34,6 +35,16 @@ export const useAirlineStore = create<AirlineState>()((...a) => ({
 // competitor aircraft position flicker on the map.
 let lastSubscribedTick = -1;
 let initialSyncComplete = false;
+let lastWorldSyncTrigger = 0;
+let pendingWorldSync: ReturnType<typeof setTimeout> | null = null;
+let unsubscribeActionStream: (() => void) | null = null;
+const logger = createLogger("WorldSync");
+const runtimeEnv = (
+  globalThis as {
+    process?: { env?: { NODE_ENV?: string } };
+  }
+).process?.env?.NODE_ENV;
+const enableRealtimeSyncLogs = runtimeEnv !== "production";
 useEngineStore.subscribe((state) => {
   if (state.tick === lastSubscribedTick) return;
   lastSubscribedTick = state.tick;
@@ -71,4 +82,45 @@ const MAX_SYNC_RETRIES = 3;
   }
 
   initialSyncComplete = true;
+
+  if (!unsubscribeActionStream) {
+    const since = Math.floor(Date.now() / 1000);
+    unsubscribeActionStream = await subscribeActions({
+      since,
+      onEvent: (entry) => {
+        const { pubkey } = useAirlineStore.getState();
+        if (!pubkey) return;
+        if (entry.event.author.pubkey === pubkey) return;
+        if (!initialSyncComplete) return;
+
+        const now = Date.now();
+        const debounceMs = 5000;
+        if (now - lastWorldSyncTrigger < debounceMs) return;
+        lastWorldSyncTrigger = now;
+
+        if (enableRealtimeSyncLogs) {
+          logger.info(`Realtime sync queued from ${entry.event.author.pubkey.slice(0, 8)}...`);
+        }
+
+        if (pendingWorldSync) clearTimeout(pendingWorldSync);
+        pendingWorldSync = setTimeout(() => {
+          pendingWorldSync = null;
+          void useAirlineStore.getState().syncWorld({ force: true });
+        }, debounceMs);
+      },
+    });
+  }
 })();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (pendingWorldSync) {
+      clearTimeout(pendingWorldSync);
+      pendingWorldSync = null;
+    }
+    if (unsubscribeActionStream) {
+      unsubscribeActionStream();
+      unsubscribeActionStream = null;
+    }
+  });
+}
