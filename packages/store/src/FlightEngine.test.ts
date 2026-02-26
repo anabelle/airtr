@@ -828,6 +828,33 @@ describe("reconcileFleetToTick — flight cycle fast-forward", () => {
     expect(result[0].flight?.arrivalTick).toBeGreaterThan(targetTick);
   });
 
+  it("caps analytical landings when maintenance is overdue", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-ground",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-ground"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    expect(durationTicks).toBeGreaterThan(0);
+
+    const aircraft = makeAircraft({
+      id: "ac-ground",
+      assignedRouteId: "route-ground",
+      status: "idle",
+      routeAssignedAtTick: 0,
+      flightHoursSinceCheck: 599,
+      condition: 1.0,
+    });
+
+    const targetTick = 50000;
+    const { fleet: result } = reconcileFleetToTick([aircraft], [route], targetTick);
+    expect(result[0].flightHoursSinceCheck).toBe(599);
+    expect(result[0].condition).toBe(1.0);
+  });
+
   it("does not modify idle aircraft without assigned route", () => {
     const aircraft = makeAircraft({
       id: "ac-r5",

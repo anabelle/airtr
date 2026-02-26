@@ -687,6 +687,31 @@ function applyFlightHours(updated: AircraftInstance, hoursToAdd: number): void {
 }
 
 const DEFAULT_RECONCILE_LOAD_FACTOR = 0.65;
+const MIN_GROUNDED_CONDITION = 0.2;
+const MAX_HOURS_SINCE_CHECK = 600;
+
+function capLandingsForGrounding(
+  ac: AircraftInstance,
+  landings: number,
+  hoursPerLeg: number,
+  allowCurrentLeg: boolean,
+): number {
+  if (landings <= 0 || hoursPerLeg <= 0) return landings;
+  const remainingHoursByCondition = (ac.condition - MIN_GROUNDED_CONDITION) / 0.00005;
+  const remainingHoursByCheck = MAX_HOURS_SINCE_CHECK - ac.flightHoursSinceCheck;
+  const remainingHours = Math.min(remainingHoursByCondition, remainingHoursByCheck);
+
+  if (allowCurrentLeg) {
+    if (remainingHours <= 0) return Math.min(1, landings);
+    const remainingAfter = remainingHours - hoursPerLeg;
+    const additionalLegs = remainingAfter > 0 ? Math.floor(remainingAfter / hoursPerLeg) : 0;
+    return Math.min(landings, 1 + additionalLegs);
+  }
+
+  if (remainingHours <= 0) return 0;
+  const allowed = Math.floor(remainingHours / hoursPerLeg);
+  return Math.min(landings, Math.max(0, allowed));
+}
 
 function estimateReconcileProfit(
   ac: AircraftInstance,
@@ -815,7 +840,7 @@ export function reconcileFleetToTick(
       applyCyclePhase(updated, route, targetTick, positionInCycle, durationTicks, turnaroundTicks);
       const referenceTick =
         typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
-      const landings = countLandingsBetween(
+      let landings = countLandingsBetween(
         cycleStartTick,
         referenceTick,
         targetTick,
@@ -823,6 +848,7 @@ export function reconcileFleetToTick(
         turnaroundTicks,
       );
       const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+      landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
       applyFlightHours(updated, landings * hoursPerLeg);
       if (landings > 0) {
         const perLegProfit = estimateReconcileProfit(
@@ -863,7 +889,7 @@ export function reconcileFleetToTick(
         );
         const referenceTick =
           typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
-        const landings = countLandingsBetween(
+        let landings = countLandingsBetween(
           cycleStartTick,
           referenceTick,
           targetTick,
@@ -871,6 +897,7 @@ export function reconcileFleetToTick(
           turnaroundTicks,
         );
         const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+        landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
         if (landings > 0) {
           const perLegProfit = estimateReconcileProfit(
@@ -910,7 +937,7 @@ export function reconcileFleetToTick(
     applyCyclePhase(updated, route, targetTick, positionInCycle, durationTicks, turnaroundTicks);
     const referenceTick =
       typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
-    const landings = countLandingsBetween(
+    let landings = countLandingsBetween(
       cycleStartTick,
       referenceTick,
       targetTick,
@@ -918,6 +945,7 @@ export function reconcileFleetToTick(
       turnaroundTicks,
     );
     const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+    landings = capLandingsForGrounding(updated, landings, hoursPerLeg, ac.status === "enroute");
     applyFlightHours(updated, landings * hoursPerLeg);
     if (landings > 0) {
       const perLegProfit = estimateReconcileProfit(

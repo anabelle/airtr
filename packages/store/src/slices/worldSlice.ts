@@ -1,12 +1,22 @@
 import type {
   AircraftInstance,
   AirlineEntity,
+  FixedPoint,
   FlightOffer,
   Route,
   TimelineEvent,
 } from "@airtr/core";
-import { fpAdd, fpFormat, GENESIS_TIME, TICK_DURATION } from "@airtr/core";
-import { getAircraftById } from "@airtr/data";
+import {
+  fp,
+  fpAdd,
+  fpFormat,
+  fpScale,
+  fpSub,
+  GENESIS_TIME,
+  TICK_DURATION,
+  TICKS_PER_HOUR,
+} from "@airtr/core";
+import { getAircraftById, getHubPricingForIata } from "@airtr/data";
 import { getNDK, loadActionLog, loadCheckpoints, MARKETPLACE_KIND, NDKEvent } from "@airtr/nostr";
 import type { StateCreator } from "zustand";
 import { replayActionLog } from "../actionReducer";
@@ -30,6 +40,8 @@ let isSyncingWorld = false;
 const GLOBAL_CATCHUP_CHUNK = 200;
 const MAX_COMPETITOR_CATCHUP = 1000;
 const MAX_TOTAL_COMPETITOR_TICKS = 5000;
+const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
+const MONTH_TICKS = 30 * TICKS_PER_DAY;
 
 /** @internal — test-only helper to reset module-level concurrency flags */
 export function _resetWorldFlags() {
@@ -61,6 +73,40 @@ const buildRoutesIndex = (routes: Route[]) => {
     }
   }
   return byOwner;
+};
+
+const applyMonthlyCosts = (
+  balance: FixedPoint,
+  hubs: string[] | undefined,
+  fleet: AircraftInstance[],
+  fromTick: number,
+  toTick: number,
+): FixedPoint => {
+  const cyclesPrevious = Math.floor(fromTick / MONTH_TICKS);
+  const cyclesCurrent = Math.floor(toTick / MONTH_TICKS);
+  if (cyclesCurrent <= cyclesPrevious) return balance;
+
+  const numCycles = cyclesCurrent - cyclesPrevious;
+  let opexTotal = 0;
+  if (hubs && hubs.length > 0) {
+    for (const hubIata of hubs) {
+      opexTotal += getHubPricingForIata(hubIata).monthlyOpex;
+    }
+  }
+
+  let leaseCost = fp(0);
+  for (const ac of fleet) {
+    if (ac.purchaseType !== "lease") continue;
+    const model = getAircraftById(ac.modelId);
+    if (model) {
+      leaseCost = fpAdd(leaseCost, model.monthlyLease);
+    }
+  }
+
+  const totalLeaseCost = fpScale(leaseCost, numCycles);
+  const totalOpexCost = fpScale(fp(opexTotal), numCycles);
+  const totalCost = fpAdd(totalLeaseCost, totalOpexCost);
+  return fpSub(balance, totalCost);
 };
 
 export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = (set, get) => ({
@@ -151,7 +197,6 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
 
       for (const [competitorPubkey, airline] of competitorList) {
         if (totalTicksProcessed >= MAX_TOTAL_COMPETITOR_TICKS) break;
-
         const airlineLastTick = airline.lastTick ?? tick - 1;
         const compFleet = globalFleetByOwner.get(competitorPubkey) || [];
         const compRoutes = globalRoutesByOwner.get(competitorPubkey) || [];
@@ -167,10 +212,11 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         let currentFleet = [...compFleet];
         let currentBalance = airline.corporateBalance;
 
-        const remainingBudget = MAX_TOTAL_COMPETITOR_TICKS - totalTicksProcessed;
-        const allowedCatchup = Math.min(MAX_COMPETITOR_CATCHUP, remainingBudget);
-        const targetTick = Math.min(tick, airlineLastTick + allowedCatchup);
-        const startTick = airlineLastTick + 1;
+        const remainingBudget = Math.max(0, MAX_TOTAL_COMPETITOR_TICKS - totalTicksProcessed);
+        const backlog = tick - airlineLastTick;
+        const tickBudget = Math.min(backlog, MAX_COMPETITOR_CATCHUP, remainingBudget);
+        const analyticalTarget = tick - tickBudget;
+        const startTick = analyticalTarget + 1;
 
         const competitorRegistry = new Map<string, FlightOffer[]>();
         for (const [routeKey, offers] of globalRegistryEntries) {
@@ -182,45 +228,63 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           competitorRegistry.set(routeKey, [...existing, ...offers]);
         }
 
-        for (let t = startTick; t <= targetTick; t++) {
-          const result = processFlightEngine(
-            t,
+        if (analyticalTarget > airlineLastTick) {
+          const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
             currentFleet,
             compRoutes,
-            currentBalance,
-            t - 1,
-            competitorRegistry,
-            competitorPubkey,
-            airline.brandScore || 0.5,
+            analyticalTarget,
           );
-          currentFleet = result.updatedFleet;
-          currentBalance = result.corporateBalance;
+          currentFleet = reconciledFleet;
+          currentBalance = fpAdd(currentBalance, balanceDelta);
+          currentBalance = applyMonthlyCosts(
+            currentBalance,
+            airline.hubs,
+            currentFleet,
+            airlineLastTick,
+            analyticalTarget,
+          );
+        }
 
-          if (
-            GLOBAL_CATCHUP_CHUNK > 0 &&
-            (t - startTick + 1) % GLOBAL_CATCHUP_CHUNK === 0 &&
-            t < targetTick
-          ) {
-            useEngineStore.setState({
-              catchupProgress: {
-                current: totalTicksProcessed + (t - startTick + 1),
-                target: MAX_TOTAL_COMPETITOR_TICKS,
-                phase: "competitor",
-              },
-            });
-            await new Promise((resolve) => setTimeout(resolve, 0));
+        if (tickBudget > 0) {
+          for (let t = startTick; t <= tick; t++) {
+            const result = processFlightEngine(
+              t,
+              currentFleet,
+              compRoutes,
+              currentBalance,
+              t - 1,
+              competitorRegistry,
+              competitorPubkey,
+              airline.brandScore || 0.5,
+            );
+            currentFleet = result.updatedFleet;
+            currentBalance = result.corporateBalance;
+
+            if (
+              GLOBAL_CATCHUP_CHUNK > 0 &&
+              (t - startTick + 1) % GLOBAL_CATCHUP_CHUNK === 0 &&
+              t < tick
+            ) {
+              useEngineStore.setState({
+                catchupProgress: {
+                  current: totalTicksProcessed + (t - startTick + 1),
+                  target: MAX_TOTAL_COMPETITOR_TICKS,
+                  phase: "competitor",
+                },
+              });
+              await new Promise((resolve) => setTimeout(resolve, 0));
+            }
           }
         }
 
-        const ticksProcessed = Math.max(0, targetTick - airlineLastTick);
-        totalTicksProcessed += ticksProcessed;
+        totalTicksProcessed += Math.max(0, tickBudget);
 
         updatedGlobalFleet.push(...currentFleet);
         processedPubkeys.add(competitorPubkey);
         updatedCompetitors.set(competitorPubkey, {
           ...airline,
           corporateBalance: currentBalance,
-          lastTick: targetTick,
+          lastTick: tick,
         });
         anyChanges = true;
       }
@@ -519,7 +583,6 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           const allRoutesByOwner = buildRoutesIndex(allGlobalRoutes);
 
           for (const [competitorPubkey, airline] of competitorList) {
-            if (totalTicksProcessed >= MAX_TOTAL_COMPETITOR_TICKS) break;
             const airlineLastTick = airline.lastTick ?? initialTick - 1;
             const compFleet = allFleetByOwner.get(competitorPubkey) || [];
             const compRoutes = allRoutesByOwner.get(competitorPubkey) || [];
@@ -532,9 +595,10 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
               continue;
             }
 
-            const remainingBudget = MAX_TOTAL_COMPETITOR_TICKS - totalTicksProcessed;
-            const allowedCatchup = Math.min(MAX_INITIAL_CATCHUP, remainingBudget);
-            const targetTick = Math.min(initialTick, airlineLastTick + allowedCatchup);
+            const remainingBudget = Math.max(0, MAX_TOTAL_COMPETITOR_TICKS - totalTicksProcessed);
+            const backlog = initialTick - airlineLastTick;
+            const tickBudget = Math.min(backlog, MAX_INITIAL_CATCHUP, remainingBudget);
+            const analyticalTarget = initialTick - tickBudget;
             const competitorRegistry = new Map<string, FlightOffer[]>();
             for (const [routeKey, offers] of globalRegistryEntries) {
               const filtered = offers.filter((o) => o.airlinePubkey !== competitorPubkey);
@@ -547,47 +611,65 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
 
             let currentFleet = [...compFleet];
             let currentBalance = airline.corporateBalance;
-            const startTick = airlineLastTick + 1;
+            const startTick = analyticalTarget + 1;
 
-            for (let t = startTick; t <= targetTick; t++) {
-              const result = processFlightEngine(
-                t,
+            if (analyticalTarget > airlineLastTick) {
+              const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
                 currentFleet,
                 compRoutes,
-                currentBalance,
-                t - 1,
-                competitorRegistry,
-                competitorPubkey,
-                airline.brandScore || 0.5,
+                analyticalTarget,
               );
-              currentFleet = result.updatedFleet;
-              currentBalance = result.corporateBalance;
+              currentFleet = reconciledFleet;
+              currentBalance = fpAdd(currentBalance, balanceDelta);
+              currentBalance = applyMonthlyCosts(
+                currentBalance,
+                airline.hubs,
+                currentFleet,
+                airlineLastTick,
+                analyticalTarget,
+              );
+            }
 
-              if (
-                GLOBAL_CATCHUP_CHUNK > 0 &&
-                (t - startTick + 1) % GLOBAL_CATCHUP_CHUNK === 0 &&
-                t < targetTick
-              ) {
-                useEngineStore.setState({
-                  catchupProgress: {
-                    current: totalTicksProcessed + (t - startTick + 1),
-                    target: MAX_TOTAL_COMPETITOR_TICKS,
-                    phase: "competitor",
-                  },
-                });
-                await new Promise((resolve) => setTimeout(resolve, 0));
+            if (tickBudget > 0) {
+              for (let t = startTick; t <= initialTick; t++) {
+                const result = processFlightEngine(
+                  t,
+                  currentFleet,
+                  compRoutes,
+                  currentBalance,
+                  t - 1,
+                  competitorRegistry,
+                  competitorPubkey,
+                  airline.brandScore || 0.5,
+                );
+                currentFleet = result.updatedFleet;
+                currentBalance = result.corporateBalance;
+
+                if (
+                  GLOBAL_CATCHUP_CHUNK > 0 &&
+                  (t - startTick + 1) % GLOBAL_CATCHUP_CHUNK === 0 &&
+                  t < initialTick
+                ) {
+                  useEngineStore.setState({
+                    catchupProgress: {
+                      current: totalTicksProcessed + (t - startTick + 1),
+                      target: MAX_TOTAL_COMPETITOR_TICKS,
+                      phase: "competitor",
+                    },
+                  });
+                  await new Promise((resolve) => setTimeout(resolve, 0));
+                }
               }
             }
 
-            const ticksProcessed = Math.max(0, targetTick - airlineLastTick);
-            totalTicksProcessed += ticksProcessed;
+            totalTicksProcessed += Math.max(0, tickBudget);
 
             updatedGlobalFleet.push(...currentFleet);
             processedPubkeys.add(competitorPubkey);
             updatedCompetitors.set(competitorPubkey, {
               ...airline,
               corporateBalance: currentBalance,
-              lastTick: targetTick,
+              lastTick: initialTick,
             });
           }
 
