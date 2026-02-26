@@ -596,7 +596,7 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
   }
 
   return (
-    <section className="rounded-xl border border-border/50 bg-background/50 overflow-hidden">
+    <section className="rounded-xl border border-border/50 bg-background/50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

@@ -326,7 +326,7 @@ export const AirlineTimeline: React.FC = () => {
         Operations Ledger
       </h2>
 
-      <div ref={parentRef} className="relative max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+      <div ref={parentRef} className="relative max-h-[60vh] overflow-y-auto pr-2">
         {/* Vertical Line */}
         <div className="absolute left-[1.125rem] top-2 bottom-2 w-px bg-white/5" />
         <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
