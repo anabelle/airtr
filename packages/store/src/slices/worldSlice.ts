@@ -98,12 +98,15 @@ export const createWorldSlice: StateCreator<
             for (const [competitorPubkey, airline] of competitors) {
                 const airlineLastTick = airline.lastTick ?? (tick - 1);
 
-                if (airlineLastTick >= tick) continue;
-
                 const compFleet = globalFleet.filter(ac => ac.ownerPubkey === competitorPubkey);
                 const compRoutes = globalRoutes.filter(r => r.airlinePubkey === competitorPubkey);
 
                 if (compFleet.length === 0) continue;
+
+                if (airlineLastTick >= tick) {
+                    updatedGlobalFleet.push(...compFleet);
+                    continue;
+                }
 
                 let currentFleet = [...compFleet];
                 let currentBalance = airline.corporateBalance;
