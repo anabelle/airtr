@@ -1,19 +1,17 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type {
-  Airport,
   AircraftInstance,
+  Airport,
   HubTier,
   NightOverlayFeatureCollection,
   Route,
 } from "@airtr/core";
 import { computeNightOverlay } from "@airtr/core";
-import { HUB_CLASSIFICATIONS } from "@airtr/data";
-
+import { aircraftModels, HUB_CLASSIFICATIONS } from "@airtr/data";
 import { FAMILY_ICONS } from "./icons.js";
 
-import { aircraftModels } from "@airtr/data";
 const aircraftModelMap = new Map(aircraftModels.map((m) => [m.id, m]));
 
 export interface GlobeProps {
@@ -59,8 +57,8 @@ function getGreatCircleInterpolation(
     2 *
     Math.asin(
       Math.sqrt(
-        Math.pow(Math.sin((lat1 - lat2) / 2), 2) +
-          Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lon1 - lon2) / 2), 2),
+        Math.sin((lat1 - lat2) / 2) ** 2 +
+          Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon1 - lon2) / 2) ** 2,
       ),
     );
 
@@ -71,7 +69,7 @@ function getGreatCircleInterpolation(
   const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
   const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
   const z = A * Math.sin(lat1) + B * Math.sin(lat2);
-  const lat = Math.atan2(z, Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2)));
+  const lat = Math.atan2(z, Math.sqrt(x ** 2 + y ** 2));
   const lon = Math.atan2(y, x);
 
   return [(lon * 180) / Math.PI, (lat * 180) / Math.PI];
@@ -537,7 +535,7 @@ export function Globe({
         filter: ["==", ["get", "airportClass"], "active-hub"],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 6, 14, 10, 22],
-          "circle-color": "#4ade80",
+          "circle-color": ["coalesce", ["get", "playerHubColor"], "#4ade80"],
           "circle-opacity": 0.4,
           "circle-blur": 0.8,
         },
@@ -562,9 +560,9 @@ export function Globe({
               "player-hub",
               3,
               "route-dest",
-              1.8,
+              2.1,
               "competitor-hub",
-              2.4,
+              2.9,
               "major",
               2,
               1.6,
@@ -578,9 +576,9 @@ export function Globe({
               "player-hub",
               6,
               "route-dest",
-              3,
+              3.5,
               "competitor-hub",
-              4.5,
+              5.8,
               "major",
               3.5,
               2.3,
@@ -594,9 +592,9 @@ export function Globe({
               "player-hub",
               9,
               "route-dest",
-              4,
+              4.6,
               "competitor-hub",
-              6,
+              8.6,
               "major",
               4,
               2.8,
@@ -606,11 +604,11 @@ export function Globe({
             "match",
             ["get", "airportClass"],
             "active-hub",
-            "#4ade80",
+            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
             "player-hub",
-            "#4ade80",
+            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
             "route-dest",
-            "#cbd5e1",
+            "#e2e8f0",
             "competitor-hub",
             ["coalesce", ["get", "competitorHubColor"], "#f97316"],
             "major",
@@ -625,7 +623,7 @@ export function Globe({
             "player-hub",
             0.85,
             "route-dest",
-            0.5,
+            0.65,
             "competitor-hub",
             0.6,
             "major",
@@ -640,7 +638,7 @@ export function Globe({
             "player-hub",
             1.5,
             "route-dest",
-            0.6,
+            0.8,
             "competitor-hub",
             1,
             "major",
@@ -655,7 +653,7 @@ export function Globe({
             "player-hub",
             "#e2e8f0",
             "route-dest",
-            "#94a3b8",
+            "#ffffff",
             "competitor-hub",
             "#ffe0bf",
             "major",
@@ -991,16 +989,25 @@ export function Globe({
 
     const classifyAirport = (
       airport: Airport,
-    ): { airportClass: AirportClass; competitorHubColor?: string } => {
+    ): {
+      airportClass: AirportClass;
+      competitorHubColor?: string;
+      playerHubColor?: string | null;
+    } => {
       const hubs = latestPlayerHubs.current;
       const routeDestinations = latestPlayerRouteDestinations.current;
       const competitorColors = latestCompetitorHubColors.current;
+      const playerColor = latestPlayerLivery.current?.primary ?? null;
 
-      if (hubs[0] === airport.iata) return { airportClass: "active-hub" };
-      if (hubs.includes(airport.iata)) return { airportClass: "player-hub" };
-      if (routeDestinations.has(airport.iata)) return { airportClass: "route-dest" };
+      if (hubs[0] === airport.iata) {
+        return { airportClass: "active-hub", playerHubColor: playerColor };
+      }
+      if (hubs.includes(airport.iata)) {
+        return { airportClass: "player-hub", playerHubColor: playerColor };
+      }
       const competitorHubColor = competitorColors.get(airport.iata);
       if (competitorHubColor) return { airportClass: "competitor-hub", competitorHubColor };
+      if (routeDestinations.has(airport.iata)) return { airportClass: "route-dest" };
       if (isMajorAirport(airport)) return { airportClass: "major" };
       return { airportClass: "default" };
     };
