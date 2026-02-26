@@ -37,6 +37,8 @@ export interface IdentitySlice {
   createAirline: (params: CreateAirlineParams) => Promise<void>;
 }
 
+const MAX_PLAYER_CATCHUP = 50000;
+
 export type CreateAirlineParams = Pick<
   AirlineEntity,
   "name" | "icaoCode" | "callsign" | "hubs" | "livery"
@@ -177,7 +179,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         (loadedAirline.lastTick == null || loadedAirline.lastTick === 0) &&
         (reconciledFleet.length > 0 || reconciledRoutes.length > 0)
       ) {
-        const fallbackLastTick = Math.max(0, engineTick - 50000);
+        const fallbackLastTick = Math.max(0, engineTick - MAX_PLAYER_CATCHUP);
         console.warn(
           "[IdentitySlice] lastTick missing, clamping to recent history to avoid excessive catchup",
           {
@@ -190,6 +192,22 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           ...loadedAirline,
           lastTick: fallbackLastTick,
         };
+      }
+
+      if (loadedAirline?.lastTick != null) {
+        const oldestAllowedTick = Math.max(0, engineTick - MAX_PLAYER_CATCHUP);
+        if (loadedAirline.lastTick < oldestAllowedTick) {
+          console.warn("[IdentitySlice] lastTick stale, clamping to catchup window", {
+            pubkey,
+            engineTick,
+            lastTick: loadedAirline.lastTick,
+            oldestAllowedTick,
+          });
+          loadedAirline = {
+            ...loadedAirline,
+            lastTick: oldestAllowedTick,
+          };
+        }
       }
 
       set({
