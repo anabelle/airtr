@@ -185,4 +185,39 @@ describe('processGlobalTick', () => {
         expect(ids).toContain('ac-new');
         expect(ids).not.toContain('ac-old');
     });
+
+    it('fast-forwards competitor fleet during initial sync', async () => {
+        const { loadGlobalAirlines } = await import('@airtr/nostr');
+        const pubkey = 'comp-catchup';
+
+        const snapshot = makeAirline(pubkey, 10);
+        const snapshotFleet = [makeAircraft('ac-snap', pubkey)];
+
+        (loadGlobalAirlines as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+            { airline: snapshot, fleet: snapshotFleet, routes: [] },
+        ]);
+
+        mockProcessFlightEngine.mockImplementation((
+            _tick: number,
+            _fleet: AircraftInstance[],
+            _routes: unknown,
+            balance: FixedPoint,
+        ) => ({
+            updatedFleet: [makeAircraft('ac-fast', pubkey)],
+            corporateBalance: balance,
+            hasChanges: false,
+            events: [],
+        }));
+
+        const { state } = createSliceState({
+            competitors: new Map(),
+            globalFleet: [],
+            globalRoutes: [],
+        });
+
+        await state.syncWorld();
+
+        const ids = state.globalFleet.map(ac => ac.id);
+        expect(ids).toContain('ac-fast');
+    });
 });

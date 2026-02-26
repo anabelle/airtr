@@ -242,6 +242,121 @@ export const createWorldSlice: StateCreator<
                 }
             }
 
+            const initialTick = useEngineStore.getState().tick;
+            const MAX_INITIAL_CATCHUP = 10000;
+
+            if (initialTick > 0 && competitors.size > 0) {
+                const playerRouteRegistry = new Map<string, FlightOffer[]>();
+                const playerBrandScore = existingState.airline?.brandScore || 0.5;
+                for (const route of existingState.routes) {
+                    if (route.status !== 'active') continue;
+
+                    const frequency = Math.max(0, route.assignedAircraftIds.length * 7);
+                    if (frequency === 0) continue;
+
+                    let avgTravelTime = 0;
+                    if (route.assignedAircraftIds.length > 0) {
+                        const modelIds = route.assignedAircraftIds.map((id: string) => {
+                            const ac = existingState.fleet.find((a: AircraftInstance) => a.id === id);
+                            return ac?.modelId;
+                        }).filter(Boolean);
+
+                        const times = modelIds.map((mid: string | undefined) => {
+                            const model = getAircraftById(mid!);
+                            if (!model) return 480;
+                            return (route.distanceKm / (model.speedKmh || 800)) * 60;
+                        });
+                        avgTravelTime = times.length > 0 ? times.reduce((a: number, b: number) => a + b, 0) / times.length : 480;
+                    }
+
+                    const key = `${route.originIata}-${route.destinationIata}`;
+                    const offers = playerRouteRegistry.get(key) || [];
+                    const offer: FlightOffer = {
+                        airlinePubkey: existingState.pubkey || '',
+                        fareEconomy: route.fareEconomy,
+                        fareBusiness: route.fareBusiness,
+                        fareFirst: route.fareFirst,
+                        frequencyPerWeek: frequency,
+                        travelTimeMinutes: Math.round(avgTravelTime) || 480,
+                        stops: 0,
+                        serviceScore: 0.7,
+                        brandScore: playerBrandScore,
+                    };
+                    offers.push(offer);
+                    playerRouteRegistry.set(key, offers);
+                }
+
+                const globalRegistryEntries = [...registry.entries()];
+                const updatedGlobalFleet: AircraftInstance[] = [];
+                const updatedCompetitors = new Map(competitors);
+
+                for (const [competitorPubkey, airline] of competitors) {
+                    const airlineLastTick = airline.lastTick ?? (initialTick - 1);
+                    const compFleet = allGlobalFleet.filter(ac => ac.ownerPubkey === competitorPubkey);
+                    const compRoutes = allGlobalRoutes.filter(route => route.airlinePubkey === competitorPubkey);
+
+                    if (compFleet.length === 0) continue;
+
+                    if (airlineLastTick >= initialTick) {
+                        updatedGlobalFleet.push(...compFleet);
+                        continue;
+                    }
+
+                    const targetTick = Math.min(initialTick, airlineLastTick + MAX_INITIAL_CATCHUP);
+                    const competitorRegistry = new Map<string, FlightOffer[]>();
+                    for (const [routeKey, offers] of globalRegistryEntries) {
+                        const filtered = offers.filter(o => o.airlinePubkey !== competitorPubkey);
+                        if (filtered.length > 0) competitorRegistry.set(routeKey, filtered);
+                    }
+                    for (const [routeKey, offers] of playerRouteRegistry) {
+                        const existing = competitorRegistry.get(routeKey) || [];
+                        competitorRegistry.set(routeKey, [...existing, ...offers]);
+                    }
+
+                    let currentFleet = [...compFleet];
+                    let currentBalance = airline.corporateBalance;
+                    const startTick = airlineLastTick + 1;
+
+                    for (let t = startTick; t <= targetTick; t++) {
+                        const result = processFlightEngine(
+                            t,
+                            currentFleet,
+                            compRoutes,
+                            currentBalance,
+                            t - 1,
+                            competitorRegistry,
+                            competitorPubkey,
+                            airline.brandScore || 0.5
+                        );
+                        currentFleet = result.updatedFleet;
+                        currentBalance = result.corporateBalance;
+                    }
+
+                    updatedGlobalFleet.push(...currentFleet);
+                    updatedCompetitors.set(competitorPubkey, {
+                        ...airline,
+                        corporateBalance: currentBalance,
+                        lastTick: targetTick
+                    });
+                }
+
+                const updatedPubkeys = new Set(updatedCompetitors.keys());
+                const finalFleet = [
+                    ...allGlobalFleet.filter(ac => !updatedPubkeys.has(ac.ownerPubkey)),
+                    ...updatedGlobalFleet
+                ];
+
+                set({
+                    competitors: updatedCompetitors,
+                    globalFleet: finalFleet,
+                    globalRoutes: allGlobalRoutes,
+                    globalRouteRegistry: registry
+                });
+
+                await settleMarketplaceSales(get, set, finalFleet);
+                return;
+            }
+
             set({
                 competitors,
                 globalRouteRegistry: registry,
