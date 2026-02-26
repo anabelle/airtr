@@ -1,13 +1,14 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { HubPicker } from '../../network/components/HubPicker';
 import type { Airport } from '@airtr/core';
 import { fp, fpFormat } from '@airtr/core';
 import { getHubPricingForIata } from '@airtr/data';
 import { PlaneTakeoff, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { findAirlineConflicts } from '../utils/airlineConflicts';
 
 export function AirlineCreator() {
-    const { createAirline, identityStatus, isLoading, error } = useAirlineStore();
+    const { createAirline, identityStatus, isLoading, error, competitors } = useAirlineStore();
     const homeAirport = useEngineStore(s => s.homeAirport);
     const setHub = useEngineStore(s => s.setHub);
 
@@ -16,6 +17,11 @@ export function AirlineCreator() {
     const [callsign, setCallsign] = useState('');
     const [primary, setPrimary] = useState('#1a1a2e');
     const [secondary, setSecondary] = useState('#10b981'); // neon greenish accent
+
+    const { nameConflict, icaoConflict } = useMemo(
+        () => findAirlineConflicts(competitors, name, icao),
+        [competitors, name, icao],
+    );
 
     const handleHubChange = (airport: Airport | null) => {
         if (!airport) return;
@@ -128,6 +134,11 @@ export function AirlineCreator() {
                                 placeholder="Apex Global"
                                 className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             />
+                            {nameConflict ? (
+                                <p className="text-xs text-destructive">
+                                    An airline named "{nameConflict}" already exists.
+                                </p>
+                            ) : null}
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -141,6 +152,11 @@ export function AirlineCreator() {
                                 placeholder="APX"
                                 className="flex h-10 w-full uppercase rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             />
+                            {icaoConflict ? (
+                                <p className="text-xs text-destructive">
+                                    ICAO code "{icaoConflict}" is already in use.
+                                </p>
+                            ) : null}
                         </div>
                         <div className="space-y-2 md:col-span-2">
                             <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -182,7 +198,7 @@ export function AirlineCreator() {
 
                 <button
                     type="submit"
-                    disabled={isLoading || !homeAirport || !name || !icao}
+                    disabled={isLoading || !homeAirport || !name || !icao || Boolean(nameConflict) || Boolean(icaoConflict)}
                     className="w-full inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
                 >
                     {isLoading ? (

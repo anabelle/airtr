@@ -53,9 +53,9 @@ describe('buildGroundTraffic', () => {
         expect(isGrounded(makeAircraft({ status: 'delivery' }))).toBe(false);
     });
     it('counts grounded aircraft for player and competitors', () => {
-        const airline = makeAirline({ ceoPubkey: 'player', name: 'Skyline Air' });
+        const airline = makeAirline({ ceoPubkey: 'player', name: 'Skyline Air', icaoCode: 'SKY' });
         const competitors = new Map([
-            ['comp-1', makeAirline({ ceoPubkey: 'comp-1', name: 'NorthWind' })],
+            ['comp-1', makeAirline({ ceoPubkey: 'comp-1', name: 'NorthWind', icaoCode: 'NWD' })],
         ]);
 
         const fleet = [
@@ -73,16 +73,18 @@ describe('buildGroundTraffic', () => {
         expect(result.totalCount).toBe(3);
         expect(result.entries).toHaveLength(2);
         expect(result.entries[0].name).toBe('Skyline Air');
+        expect(result.entries[0].icaoCode).toBe('SKY');
         expect(result.entries[0].count).toBe(2);
         expect(result.entries[1].name).toBe('NorthWind');
+        expect(result.entries[1].icaoCode).toBe('NWD');
         expect(result.entries[1].count).toBe(1);
     });
 
     it('sorts competitors by count and name after player', () => {
-        const airline = makeAirline({ ceoPubkey: 'player', name: 'Skyline Air' });
+        const airline = makeAirline({ ceoPubkey: 'player', name: 'Skyline Air', icaoCode: 'SKY' });
         const competitors = new Map([
-            ['alpha', makeAirline({ ceoPubkey: 'alpha', name: 'Alpha Air' })],
-            ['beta', makeAirline({ ceoPubkey: 'beta', name: 'Beta Air' })],
+            ['alpha', makeAirline({ ceoPubkey: 'alpha', name: 'Alpha Air', icaoCode: 'ALP' })],
+            ['beta', makeAirline({ ceoPubkey: 'beta', name: 'Beta Air', icaoCode: 'BET' })],
         ]);
 
         const fleet = [
@@ -100,6 +102,11 @@ describe('buildGroundTraffic', () => {
             'Skyline Air',
             'Beta Air',
             'Alpha Air',
+        ]);
+        expect(result.entries.map(entry => entry.icaoCode)).toEqual([
+            'SKY',
+            'BET',
+            'ALP',
         ]);
     });
 });

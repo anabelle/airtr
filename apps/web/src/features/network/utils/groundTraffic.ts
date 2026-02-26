@@ -3,6 +3,7 @@ import type { AirlineEntity, AircraftInstance } from '@airtr/core';
 export type GroundTrafficEntry = {
     key: string;
     name: string;
+    icaoCode?: string;
     livery?: AirlineEntity['livery'];
     count: number;
     aircraft: AircraftInstance[];
@@ -34,6 +35,7 @@ export function buildGroundTraffic(
     const addEntry = (
         key: string,
         name: string,
+        icaoCode: string | undefined,
         livery: AirlineEntity['livery'] | undefined,
         aircraft: AircraftInstance,
         isPlayer: boolean,
@@ -48,6 +50,7 @@ export function buildGroundTraffic(
         entries.set(key, {
             key,
             name,
+            icaoCode,
             livery,
             count: 1,
             aircraft: [aircraft],
@@ -61,6 +64,7 @@ export function buildGroundTraffic(
         addEntry(
             airline?.ceoPubkey ?? 'player',
             airline?.name ?? 'Your Airline',
+            airline?.icaoCode,
             airline?.livery,
             aircraft,
             true,
@@ -74,6 +78,7 @@ export function buildGroundTraffic(
         addEntry(
             aircraft.ownerPubkey,
             competitor?.name ?? 'Unknown Carrier',
+            competitor?.icaoCode,
             competitor?.livery,
             aircraft,
             false,

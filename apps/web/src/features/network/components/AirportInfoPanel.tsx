@@ -7,6 +7,7 @@ import { fp, fpFormat, fpScale, haversineDistance, ROUTE_SLOT_FEE, type Airport,
 import { useAirlineStore, useEngineStore } from '@airtr/store';
 import { useConfirm } from '@/shared/lib/useConfirm';
 import { buildGroundTraffic } from '@/features/network/utils/groundTraffic';
+import { buildCompetitorHubEntries } from '@/features/network/utils/competitorHubs';
 import { FlightBoard } from '@/features/network/components/FlightBoard';
 
 type AirportInfoPanelProps = {
@@ -105,13 +106,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         competitors,
     ), [airport.iata, fleet, globalFleet, airline, competitors]);
 
-    const competitorHubNames = useMemo(() => {
-        const names: string[] = [];
-        competitors.forEach((value) => {
-            if (value.hubs?.includes(airport.iata)) names.push(value.name);
-        });
-        return names;
-    }, [competitors, airport.iata]);
+    const competitorHubNames = useMemo(
+        () => buildCompetitorHubEntries(competitors, airport.iata),
+        [competitors, airport.iata],
+    );
 
     const canOpenHub = airline && !isPlayerHub;
     const canSwitchHub = airline && isPlayerHub && !isActiveHub;
@@ -331,9 +329,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                                     Competitor Hubs
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {competitorHubNames.slice(0, 4).map((name) => (
-                                        <span key={name} className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-                                            {name}
+                                    {competitorHubNames.slice(0, 4).map((entry) => (
+                                        <span key={entry.ceoPubkey} className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                                            {entry.name}{entry.icaoCode ? ` (${entry.icaoCode})` : ''}
                                         </span>
                                     ))}
                                     {competitorHubNames.length > 4 ? (
@@ -366,7 +364,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                                                         aria-hidden="true"
                                                     />
                                                     <span className={entry.isPlayer ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
-                                                        {entry.name}
+                                                        {entry.name}{entry.icaoCode ? ` (${entry.icaoCode})` : ''}
                                                     </span>
                                                 </div>
                                                 <span className="font-mono text-xs text-muted-foreground">{entry.count}</span>
