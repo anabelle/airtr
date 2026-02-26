@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useConfirm } from "@/shared/lib/useConfirm";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import { useConfirm } from "@/shared/lib/useConfirm";
 import { getAircraftBaseHub } from "../utils/aircraftBaseHub";
 import { getAircraftTimer } from "../utils/aircraftTimers";
 import { AircraftDealer } from "./AircraftDealer";
@@ -92,7 +92,10 @@ export function FleetManager() {
   const [search, setSearch] = useState("");
   const confirm = useConfirm();
   const routeDemandIndex = useMemo(
-    () => new Map(routes.map((route) => [route.id, getRouteDemandSnapshot(route, tick, fleet)])),
+    () =>
+      new Map(
+        routes.map((route) => [route.id, getRouteDemandSnapshot(route, tick, fleet, routes)]),
+      ),
     [routes, tick, fleet],
   );
   const [listingTarget, setListingTarget] = useState<{

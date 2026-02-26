@@ -25,6 +25,12 @@ vi.mock("@airtr/core", async () => {
   const actual = await vi.importActual<typeof import("@airtr/core")>("@airtr/core");
   return {
     ...actual,
+    buildHubState: vi.fn(() => ({
+      hubIata: "",
+      spokeCount: 0,
+      weeklyFrequency: 0,
+      avgFrequency: 0,
+    })),
     calculateDemand: vi.fn(() => ({
       origin: "JFK",
       destination: "LAX",
@@ -39,6 +45,7 @@ vi.mock("@airtr/core", async () => {
       first: 10,
     })),
     calculateSupplyPressure: vi.fn(() => 0.8),
+    getAirportTraffic: vi.fn(() => 0),
     getSuggestedFares: vi.fn(() => ({ economy: fp(100), business: fp(200), first: fp(300) })),
     calculatePriceElasticity: vi.fn((_actual, _reference, elasticity) => {
       if (elasticity === -1.5) return 0.5;
@@ -67,12 +74,17 @@ describe("getRouteDemandSnapshot", () => {
       status: "active",
     };
 
-    const snapshot = getRouteDemandSnapshot(route, 0, [
-      {
-        id: "ac-1",
-        configuration: { economy: 120, business: 12, first: 4, cargoKg: 0 },
-      },
-    ]);
+    const snapshot = getRouteDemandSnapshot(
+      route,
+      0,
+      [
+        {
+          id: "ac-1",
+          configuration: { economy: 120, business: 12, first: 4, cargoKg: 0 },
+        },
+      ],
+      [],
+    );
 
     expect(snapshot.elasticityEconomy).toBe(0.5);
     expect(snapshot.elasticityBusiness).toBe(0.9);
@@ -97,7 +109,7 @@ describe("getRouteDemandSnapshot", () => {
       status: "active",
     };
 
-    const snapshot = getRouteDemandSnapshot(route, 0, []);
+    const snapshot = getRouteDemandSnapshot(route, 0, [], []);
 
     expect(snapshot.pressureMultiplier).toBe(0.15);
     expect(snapshot.elasticityEconomy).toBe(0.5);

@@ -324,7 +324,7 @@ export function RouteManager() {
     const suggestedFares = getSuggestedFares(fareEditor.distanceKm);
     const activeFareRoute = routes.find((route) => route.id === fareEditor.routeId) ?? null;
     const fareDemandSnapshot = activeFareRoute
-      ? getRouteDemandSnapshot(activeFareRoute, tick, fleet)
+      ? getRouteDemandSnapshot(activeFareRoute, tick, fleet, routes)
       : null;
     const fareInputValues = {
       economy: parseFareInput(fareInputs.e),
@@ -743,7 +743,7 @@ export function RouteManager() {
                   (p) => p.destination.iata === route.destinationIata,
                 );
                 const assignedCount = route.assignedAircraftIds.length;
-                const demandSnapshot = getRouteDemandSnapshot(route, tick, fleet);
+                const demandSnapshot = getRouteDemandSnapshot(route, tick, fleet, routes);
                 const { addressableDemand } = demandSnapshot;
                 const marketDemand =
                   demandSnapshot.totalDemand.economy +
