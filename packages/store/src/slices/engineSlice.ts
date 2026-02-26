@@ -22,7 +22,7 @@ export interface EngineSlice {
 }
 
 let isProcessing = false;
-const CHECKPOINT_INTERVAL = 12000;
+const CHECKPOINT_INTERVAL = 1200;
 
 export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> = (set, get) => ({
   processTick: async (tick: number) => {

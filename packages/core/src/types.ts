@@ -149,6 +149,7 @@ export interface AircraftInstance {
   birthTick: number; // When the aircraft was originally manufactured (for depreciation)
   deliveryAtTick?: number; // When it arrives at truth
   listingPrice?: FixedPoint | null; // If set, the aircraft is listed on the used marketplace
+  routeAssignedAtTick?: number; // When this aircraft was assigned to its current route (cycle anchor)
 
   // Flight state
   flight: FlightState | null;

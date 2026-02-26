@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import type { AircraftInstance, FixedPoint, FlightOffer, Route, TimelineEvent } from "@airtr/core";
-import { fp, fpToNumber, TICKS_PER_HOUR, calculateDemand, getSuggestedFares } from "@airtr/core";
+import { calculateDemand, fp, fpToNumber, getSuggestedFares, TICKS_PER_HOUR } from "@airtr/core";
 import { airports, getAircraftById } from "@airtr/data";
+import { describe, expect, it } from "vitest";
 import { processFlightEngine, reconcileFleetToTick } from "./FlightEngine.js";
 
 const PLAYER_PUBKEY = "player-airline";
@@ -828,24 +828,155 @@ describe("reconcileFleetToTick — flight cycle fast-forward", () => {
     expect(result[0].flight?.arrivalTick).toBeGreaterThan(targetTick);
   });
 
-  it("does not modify idle aircraft", () => {
-    const route = makeRoute({
-      id: "route-r5",
-      originIata: "JFK",
-      destinationIata: "LAX",
-      distanceKm: 3000,
-      assignedAircraftIds: ["ac-r5"],
-    });
+  it("does not modify idle aircraft without assigned route", () => {
     const aircraft = makeAircraft({
       id: "ac-r5",
-      assignedRouteId: "route-r5",
+      assignedRouteId: null,
       status: "idle",
       flight: null,
     });
 
-    const result = reconcileFleetToTick([aircraft], [route], 50000);
+    const result = reconcileFleetToTick([aircraft], [], 50000);
     expect(result[0].status).toBe("idle");
     expect(result[0].flight).toBeNull();
+  });
+
+  it("reconciles idle aircraft WITH assigned route to correct cycle phase", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-r5b",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-r5b"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Aircraft assigned to route at tick 1000, now idle at targetTick 50000
+    const aircraft = makeAircraft({
+      id: "ac-r5b",
+      assignedRouteId: "route-r5b",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 1000,
+    });
+
+    const targetTick = 50000;
+    const result = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    // Should NOT remain idle — should be placed at some phase in the cycle
+    expect(result[0].status).not.toBe("idle");
+    expect(result[0].flight).not.toBeNull();
+
+    // Verify the phase is deterministically correct
+    const elapsed = targetTick - 1000;
+    const positionInCycle = ((elapsed % roundTrip) + roundTrip) % roundTrip;
+
+    if (positionInCycle < durationTicks) {
+      expect(result[0].status).toBe("enroute");
+      expect(result[0].flight?.direction).toBe("outbound");
+    } else if (positionInCycle < durationTicks + turnaroundTicks) {
+      expect(result[0].status).toBe("turnaround");
+      expect(result[0].baseAirportIata).toBe("LAX");
+    } else if (positionInCycle < durationTicks * 2 + turnaroundTicks) {
+      expect(result[0].status).toBe("enroute");
+      expect(result[0].flight?.direction).toBe("inbound");
+    } else {
+      expect(result[0].status).toBe("turnaround");
+      expect(result[0].baseAirportIata).toBe("JFK");
+    }
+  });
+
+  it("idle aircraft with different routeAssignedAtTick end up at different cycle positions", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-r5c",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-r5c1", "ac-r5c2"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Two aircraft assigned at different ticks — offset by a prime number of ticks
+    // that is NOT a divisor of roundTrip, guaranteeing different cycle positions
+    const offset = 137; // small prime, won't align with cycle boundaries
+    const acA = makeAircraft({
+      id: "ac-r5c1",
+      assignedRouteId: "route-r5c",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 1000,
+    });
+    const acB = makeAircraft({
+      id: "ac-r5c2",
+      assignedRouteId: "route-r5c",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 1000 + offset,
+    });
+
+    const targetTick = 1000 + roundTrip * 5 + durationTicks + 1;
+    const result = reconcileFleetToTick([acA, acB], [route], targetTick);
+
+    // Both should be reconciled (not idle)
+    expect(result[0].status).not.toBe("idle");
+    expect(result[1].status).not.toBe("idle");
+
+    // Their positions within the cycle should differ
+    const elapsedA = targetTick - 1000;
+    const elapsedB = targetTick - (1000 + offset);
+    const posA = ((elapsedA % roundTrip) + roundTrip) % roundTrip;
+    const posB = ((elapsedB % roundTrip) + roundTrip) % roundTrip;
+    expect(posA).not.toBe(posB);
+  });
+
+  it("idle aircraft falls back to purchasedAtTick when routeAssignedAtTick is missing", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-r5d",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-r5d"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // No routeAssignedAtTick — should use purchasedAtTick as fallback
+    const aircraft = makeAircraft({
+      id: "ac-r5d",
+      assignedRouteId: "route-r5d",
+      status: "idle",
+      flight: null,
+      purchasedAtTick: 500,
+    });
+
+    const targetTick = 50000;
+    const result = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    // Should be reconciled using purchasedAtTick=500 as cycle anchor
+    expect(result[0].status).not.toBe("idle");
+
+    const elapsed = targetTick - 500;
+    const positionInCycle = ((elapsed % roundTrip) + roundTrip) % roundTrip;
+
+    if (positionInCycle < durationTicks) {
+      expect(result[0].status).toBe("enroute");
+      expect(result[0].flight?.direction).toBe("outbound");
+    } else if (positionInCycle < durationTicks + turnaroundTicks) {
+      expect(result[0].status).toBe("turnaround");
+    } else if (positionInCycle < durationTicks * 2 + turnaroundTicks) {
+      expect(result[0].status).toBe("enroute");
+      expect(result[0].flight?.direction).toBe("inbound");
+    } else {
+      expect(result[0].status).toBe("turnaround");
+    }
   });
 
   it("does not modify aircraft without assigned route", () => {

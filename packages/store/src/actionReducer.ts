@@ -345,6 +345,7 @@ export async function replayActionLog(params: {
         const route = routesById.get(routeId);
         if (!aircraft || !route) break;
         aircraft.assignedRouteId = routeId;
+        aircraft.routeAssignedAtTick = actionTick;
         if (!route.assignedAircraftIds.includes(aircraftId)) {
           route.assignedAircraftIds = [...route.assignedAircraftIds, aircraftId];
         }
