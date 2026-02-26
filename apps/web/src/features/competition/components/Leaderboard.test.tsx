@@ -1,5 +1,5 @@
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import { Leaderboard } from "./Leaderboard";
 
 type Selector<T> = (state: T) => unknown;
@@ -42,6 +42,18 @@ vi.mock("@/features/competition/leaderboardMetrics", () => {
       },
     ],
     sortLeaderboardRows: <T,>(rows: T) => rows,
+  };
+});
+
+vi.mock("@/shared/hooks/useNostrProfile", () => {
+  return {
+    useNostrProfile: () => ({
+      name: null,
+      displayName: null,
+      image: null,
+      nip05: null,
+      isLoading: false,
+    }),
   };
 });
 

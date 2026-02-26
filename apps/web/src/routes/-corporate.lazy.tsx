@@ -22,6 +22,7 @@ import {
 import { useRoutePerformance } from "@/features/corporate/hooks/useRoutePerformance";
 import { HubPicker } from "@/features/network/components/HubPicker";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
+import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
 
 /* ------------------------------------------------------------------ */
 /*  Financial Pulse                                                    */
@@ -170,6 +171,7 @@ function CompanyProfile({
   tier,
   brandScore,
   status,
+  ceoPubkey,
 }: {
   name: string;
   icaoCode: string;
@@ -177,7 +179,14 @@ function CompanyProfile({
   tier: number;
   brandScore: number;
   status: string;
+  ceoPubkey?: string | null;
 }) {
+  const profile = useNostrProfile(ceoPubkey ?? null);
+  const fallbackName = ceoPubkey
+    ? `${ceoPubkey.slice(0, 8)}...${ceoPubkey.slice(-4)}`
+    : "Unknown CEO";
+  const displayName = profile.displayName || profile.name || fallbackName;
+  const avatarLetter = displayName?.[0]?.toUpperCase() ?? "?";
   const statusColors: Record<string, string> = {
     private: "bg-primary/10 border-primary/20 text-primary",
     public: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
@@ -196,7 +205,7 @@ function CompanyProfile({
     <section className="rounded-xl border border-border/50 bg-background/50 p-4">
       <div className="flex items-center justify-between gap-3">
         {/* Left: identity */}
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 space-y-2">
           <h2
             className="text-lg font-bold tracking-tight text-foreground truncate"
             style={{ textWrap: "balance" }}
@@ -208,6 +217,32 @@ function CompanyProfile({
             <span className="mx-1.5 text-muted-foreground/40">/</span>
             {callsign}
           </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="h-7 w-7 overflow-hidden rounded-full border border-border/60 bg-muted/40">
+              {profile.image ? (
+                <img
+                  src={profile.image}
+                  alt={displayName}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-muted-foreground">
+                  {profile.isLoading ? "" : avatarLetter}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate font-semibold text-foreground">{displayName}</span>
+                {profile.nip05 && (
+                  <span className="rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
+                    {profile.nip05}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right: tier + status */}
@@ -735,6 +770,7 @@ export default function CorporateDashboard() {
           tier={airline.tier}
           brandScore={airline.brandScore}
           status={airline.status}
+          ceoPubkey={airline.ceoPubkey}
         />
 
         {/* 3. Hub Operations — actionable */}
