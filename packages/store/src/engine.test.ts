@@ -49,4 +49,28 @@ describe("engine store", () => {
     store.stopEngine();
     expect(useEngineStore.getState().isEngineRunning).toBe(false);
   });
+
+  it("startEngine aligns timeout to next tick boundary", () => {
+    vi.setSystemTime(GENESIS_TIME + TICK_DURATION + 1200);
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+    useEngineStore.getState().startEngine();
+
+    expect(timeoutSpy).toHaveBeenCalled();
+    expect(timeoutSpy.mock.calls[0]?.[1]).toBe(TICK_DURATION - 1200 + 50);
+
+    useEngineStore.getState().stopEngine();
+    timeoutSpy.mockRestore();
+  });
+
+  it("tickProgress continues updating while engine runs", () => {
+    vi.setSystemTime(GENESIS_TIME + TICK_DURATION + 1000);
+    useEngineStore.getState().startEngine();
+    const initialProgress = useEngineStore.getState().tickProgress;
+
+    vi.advanceTimersByTime(1000);
+
+    expect(useEngineStore.getState().tickProgress).not.toBe(initialProgress);
+    useEngineStore.getState().stopEngine();
+  });
 });

@@ -97,7 +97,8 @@ export interface EngineState {
   stopEngine: () => void;
 }
 
-let engineInterval: ReturnType<typeof setInterval> | null = null;
+let engineProgressInterval: ReturnType<typeof setInterval> | null = null;
+let engineTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useEngineStore = create<EngineState>((set, get) => ({
   tick: calculateGlobalTick(),
@@ -142,17 +143,39 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   startEngine: () => {
     const { isEngineRunning, syncTick } = get();
     if (isEngineRunning) return;
+
+    const scheduleNextTick = () => {
+      const now = Date.now();
+      const elapsed = now - GENESIS_TIME;
+      const msIntoTick = ((elapsed % TICK_DURATION) + TICK_DURATION) % TICK_DURATION;
+      const msUntilNextTick = TICK_DURATION - msIntoTick + 50;
+
+      engineTimeout = setTimeout(() => {
+        syncTick();
+        scheduleNextTick();
+      }, msUntilNextTick);
+    };
+
     syncTick();
-    engineInterval = setInterval(() => {
-      syncTick();
+    scheduleNextTick();
+    engineProgressInterval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - GENESIS_TIME;
+      const progress =
+        (((elapsed % TICK_DURATION) + TICK_DURATION) % TICK_DURATION) / TICK_DURATION;
+      set({ tickProgress: progress });
     }, 1000);
     set({ isEngineRunning: true });
   },
 
   stopEngine: () => {
-    if (engineInterval) {
-      clearInterval(engineInterval);
-      engineInterval = null;
+    if (engineTimeout) {
+      clearTimeout(engineTimeout);
+      engineTimeout = null;
+    }
+    if (engineProgressInterval) {
+      clearInterval(engineProgressInterval);
+      engineProgressInterval = null;
     }
     set({ isEngineRunning: false });
   },
