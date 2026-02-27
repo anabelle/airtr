@@ -159,10 +159,10 @@ Demand = K × (Pop_A^α × Pop_B^β × GDP_A^γ × GDP_B^δ) / Distance^θ
 
 Where:
 
-- K = 6.4e-7 (calibrated against real BTS data)
+- K = 5.995e-7 (tuned against BOG routes)
 - α, β = 0.8 (population exponents)
 - γ = 0.6, δ = 0.3 (GDP exponents)
-- θ = 1.2 (distance decay)
+- θ = 1.0 (distance decay, linear)
 
 ### Market Share (QSI)
 
@@ -188,14 +188,19 @@ Every feature must answer: _"If 10,000 players fire this event simultaneously, w
 
 ## Documentation
 
-| Document                                            | Purpose                                           |
-| --------------------------------------------------- | ------------------------------------------------- |
-| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)   | Gameplay vision, engagement loops, sensory design |
-| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md)         | Gravity model, QSI, fixed-point costs             |
-| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)       | IPOs, M&A, bankruptcy, stock mechanics            |
-| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md) | Aircraft depreciation, maintenance, commonality   |
-| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md) | Bitcoin/Lightning revenue streams                 |
-| [ROADMAP.md](docs/ROADMAP.md)                       | Development phases and milestones                 |
+| Document                                                            | Purpose                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------- |
+| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)                   | Gameplay vision, engagement loops, sensory design |
+| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md)                         | Gravity model, QSI, fixed-point costs             |
+| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)                       | IPOs, M&A, bankruptcy, stock mechanics            |
+| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md)                 | Aircraft depreciation, maintenance, commonality   |
+| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md)                 | Bitcoin/Lightning revenue streams                 |
+| [SCALABILITY.md](docs/SCALABILITY.md)                                | Map and rendering scaling strategy                |
+| [UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md)                       | Frontend stack and cross-platform strategy        |
+| [TYCOON_UI_ARCHITECTURE.md](docs/TYCOON_UI_ARCHITECTURE.md)         | Enterprise-grade UI layout and data density       |
+| [AGENT_DEVELOPMENT_PARADIGM.md](docs/AGENT_DEVELOPMENT_PARADIGM.md) | Multi-agent coordination and safety contracts     |
+| [RESEARCH_SOURCES.md](docs/RESEARCH_SOURCES.md)                     | Bibliography and reference sources                |
+| [ROADMAP.md](docs/ROADMAP.md)                                       | Development phases and milestones                 |
 
 ## Community & Support
 
