@@ -11,10 +11,9 @@ vi.mock("./engine.js", () => {
   };
 });
 
-import { useAirlineStore } from "./airline.js";
-
 describe("airline store", () => {
-  it("creates a zustand store with slices", () => {
+  it("creates a zustand store with slices", async () => {
+    const { useAirlineStore } = await import("./airline.js");
     const state = useAirlineStore.getState();
     expect(state).toBeDefined();
     expect(typeof state.initializeIdentity).toBe("function");
@@ -182,18 +181,26 @@ describe("airline store – event buffering during initial sync", () => {
     // Mark competitor-ccc as already known (captured by syncWorld).
     syncWorldCompetitors = new Map([["competitor-ccc", {}]]);
 
-    // Unblock syncWorld.
-    resolveSyncWorld!();
+    // Install fake timers BEFORE unblocking syncWorld so that the
+    // setTimeout inside queueCompetitorSync (called by flushEventBuffer)
+    // is captured by the fake timer infrastructure.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    // Wait for the buffer to be cleared.
-    await vi.waitFor(() => expect(_getEventBuffer()).toHaveLength(0), {
-      timeout: 3000,
-    });
+    try {
+      // Unblock syncWorld.
+      resolveSyncWorld!();
 
-    // Allow the LIVE_SYNC_BATCH_MS (1 000 ms) batch window to expire so that
-    // flushPendingCompetitorSyncs fires and calls syncCompetitor.
-    // 1100 ms = LIVE_SYNC_BATCH_MS (1000) + 100 ms safety margin.
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+      // Wait for the buffer to be cleared.
+      await vi.waitFor(() => expect(_getEventBuffer()).toHaveLength(0), {
+        timeout: 3000,
+      });
+
+      // Advance past LIVE_SYNC_BATCH_MS (1 000 ms) so that
+      // flushPendingCompetitorSyncs fires and calls syncCompetitor.
+      await vi.advanceTimersByTimeAsync(1100);
+    } finally {
+      vi.useRealTimers();
+    }
 
     const syncedPubkeys = syncCompetitorSpy.mock.calls.map((c) => c[0] as string);
 

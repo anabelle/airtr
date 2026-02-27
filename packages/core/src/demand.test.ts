@@ -2,24 +2,25 @@
 // @acars/core — Gravity Demand Model Tests
 // ============================================================
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  calculateBidirectionalDemand,
   calculateDemand,
   calculatePriceElasticity,
-  getProsperityIndex,
-  scaleToAddressableMarket,
   calculateSupplyPressure,
+  getProsperityIndex,
   MAX_PRICE_ELASTICITY_MULTIPLIER,
-  PLAYER_MARKET_CEILING,
   MIN_ADDRESSABLE_WEEKLY,
   MIN_PRICE_ELASTICITY_MULTIPLIER,
   NATURAL_LF_CEILING,
+  PLAYER_MARKET_CEILING,
   PRICE_ELASTICITY_BUSINESS,
   PRICE_ELASTICITY_ECONOMY,
   PRICE_ELASTICITY_FIRST,
+  scaleToAddressableMarket,
 } from "./demand.js";
 import { fp } from "./fixed-point.js";
-import type { Airport, DemandResult } from "./types.js";
+import type { Airport, BidirectionalDemandResult, DemandResult } from "./types.js";
 
 // --- Test airport fixtures ---
 
@@ -346,5 +347,125 @@ describe("calculatePriceElasticity()", () => {
   it("returns neutral for zero reference fare", () => {
     const multiplier = calculatePriceElasticity(fp(200), fp(0), PRICE_ELASTICITY_ECONOMY);
     expect(multiplier).toBeCloseTo(1.0, 6);
+  });
+});
+
+// --- Symmetric airport fixture for bidirectional tests ---
+
+const SYM_A: Airport = {
+  id: "SYM1",
+  name: "Symmetric Airport A",
+  iata: "SYA",
+  icao: "XSYA",
+  latitude: 10.0,
+  longitude: 20.0,
+  altitude: 100,
+  timezone: "UTC",
+  country: "XX",
+  city: "Sym City A",
+  population: 2_000_000,
+  gdpPerCapita: 20_000,
+  tags: ["general"],
+};
+
+const SYM_B: Airport = {
+  id: "SYM2",
+  name: "Symmetric Airport B",
+  iata: "SYB",
+  icao: "XSYB",
+  latitude: 15.0,
+  longitude: 25.0,
+  altitude: 100,
+  timezone: "UTC",
+  country: "XX",
+  city: "Sym City B",
+  population: 2_000_000,
+  gdpPerCapita: 20_000,
+  tags: ["general"],
+};
+
+describe("calculateBidirectionalDemand()", () => {
+  it("calculateDemand(A, B) ≠ calculateDemand(B, A) for airports with different GDP (BOG vs MAD)", () => {
+    const ab = calculateDemand(BOG, MAD, "spring");
+    const ba = calculateDemand(MAD, BOG, "spring");
+    const totalAB = ab.economy + ab.business + ab.first;
+    const totalBA = ba.economy + ba.business + ba.first;
+    expect(totalAB).not.toBe(totalBA);
+  });
+
+  it("returns different outbound vs inbound for asymmetric routes (BOG→MAD)", () => {
+    const result: BidirectionalDemandResult = calculateBidirectionalDemand(BOG, MAD, "spring");
+    const outboundTotal =
+      result.outbound.economy + result.outbound.business + result.outbound.first;
+    const inboundTotal = result.inbound.economy + result.inbound.business + result.inbound.first;
+    expect(outboundTotal).not.toBe(inboundTotal);
+  });
+
+  it("seasonal modulation differs per direction when airports have different tags (BOG business vs CTG beach)", () => {
+    // BOG→CTG in summer: destination is beach → high seasonal bonus
+    const bogCtgSummer = calculateDemand(BOG, CTG, "summer");
+    // CTG→BOG in summer: destination is business hub (BOG) → lower summer demand
+    const ctgBogSummer = calculateDemand(CTG, BOG, "summer");
+    const totalBogCtg = bogCtgSummer.economy + bogCtgSummer.business + bogCtgSummer.first;
+    const totalCtgBog = ctgBogSummer.economy + ctgBogSummer.business + ctgBogSummer.first;
+    expect(totalBogCtg).not.toBe(totalCtgBog);
+  });
+
+  it("returns equal outbound/inbound demand for symmetric airports (same population, GDP, tags)", () => {
+    const result: BidirectionalDemandResult = calculateBidirectionalDemand(SYM_A, SYM_B, "spring");
+    const outboundTotal =
+      result.outbound.economy + result.outbound.business + result.outbound.first;
+    const inboundTotal = result.inbound.economy + result.inbound.business + result.inbound.first;
+    expect(outboundTotal).toBe(inboundTotal);
+  });
+
+  it("outbound result matches direct calculateDemand(origin, dest)", () => {
+    const direct = calculateDemand(BOG, MAD, "spring", 1.0, 1.0);
+    const bidir = calculateBidirectionalDemand(BOG, MAD, "spring", 1.0, 1.0);
+    expect(bidir.outbound.economy).toBe(direct.economy);
+    expect(bidir.outbound.business).toBe(direct.business);
+    expect(bidir.outbound.first).toBe(direct.first);
+    expect(bidir.outbound.origin).toBe(direct.origin);
+    expect(bidir.outbound.destination).toBe(direct.destination);
+  });
+
+  it("inbound result matches direct calculateDemand(dest, origin)", () => {
+    const direct = calculateDemand(MAD, BOG, "spring", 1.0, 1.0);
+    const bidir = calculateBidirectionalDemand(BOG, MAD, "spring", 1.0, 1.0, 1.0);
+    expect(bidir.inbound.economy).toBe(direct.economy);
+    expect(bidir.inbound.business).toBe(direct.business);
+    expect(bidir.inbound.first).toBe(direct.first);
+    expect(bidir.inbound.origin).toBe(direct.origin);
+    expect(bidir.inbound.destination).toBe(direct.destination);
+  });
+
+  it("applies separate hub modifiers per direction", () => {
+    const outboundHubMod = 1.5;
+    const inboundHubMod = 1.2;
+    const result = calculateBidirectionalDemand(
+      BOG,
+      MAD,
+      "spring",
+      1.0,
+      outboundHubMod,
+      inboundHubMod,
+    );
+
+    // Verify outbound uses outboundHubModifier
+    const directOutbound = calculateDemand(BOG, MAD, "spring", 1.0, outboundHubMod);
+    expect(result.outbound.economy).toBe(directOutbound.economy);
+    expect(result.outbound.business).toBe(directOutbound.business);
+    expect(result.outbound.first).toBe(directOutbound.first);
+
+    // Verify inbound uses inboundHubModifier
+    const directInbound = calculateDemand(MAD, BOG, "spring", 1.0, inboundHubMod);
+    expect(result.inbound.economy).toBe(directInbound.economy);
+    expect(result.inbound.business).toBe(directInbound.business);
+    expect(result.inbound.first).toBe(directInbound.first);
+
+    // Different hub modifiers should produce different totals
+    const outTotal = result.outbound.economy + result.outbound.business + result.outbound.first;
+    const inTotal = result.inbound.economy + result.inbound.business + result.inbound.first;
+    expect(outTotal).not.toBe(inTotal);
   });
 });

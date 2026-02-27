@@ -203,13 +203,15 @@ async function startActionSubscription(since: number): Promise<void> {
       logger.warn("Live subscription closed unexpectedly — scheduling re-subscribe...");
       unsubscribeActionStream = null;
       setTimeout(async () => {
-        if (!initialSyncComplete) return;
         try {
           await ensureConnected();
           const freshSince = Math.floor(Date.now() / 1000);
           await startActionSubscription(freshSince);
-          // Full resync to pick up anything missed during the gap.
-          void useAirlineStore.getState().syncWorld({ force: true });
+          // Only trigger a full resync if we've completed the initial sync;
+          // otherwise the IIFE retry loop will handle it.
+          if (initialSyncComplete) {
+            void useAirlineStore.getState().syncWorld({ force: true });
+          }
           logger.info("Re-subscribed successfully after unexpected close.");
         } catch {
           logger.warn("Re-subscribe attempt failed, will retry on next periodic sync.");
@@ -230,7 +232,11 @@ async function startActionSubscription(since: number): Promise<void> {
 
   // Start the subscription NOW (before syncWorld) so events that arrive
   // during the sync window are buffered rather than missed.
-  await startActionSubscription(since);
+  try {
+    await startActionSubscription(since);
+  } catch (err) {
+    logger.warn("Failed to start action subscription, will rely on periodic sync", err);
+  }
 
   for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
     // force: true bypasses the isProcessingGlobal guard so the initial

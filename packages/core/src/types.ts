@@ -76,6 +76,11 @@ export interface DemandResult {
   first: number;
 }
 
+export interface BidirectionalDemandResult {
+  outbound: DemandResult;
+  inbound: DemandResult;
+}
+
 export interface AircraftModel {
   id: string; // e.g., "b737-800"
   manufacturer: string; // e.g., "Boeing"
