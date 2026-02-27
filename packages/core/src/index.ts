@@ -14,6 +14,7 @@ export type { CyclePhase } from "./cycle.js";
 export { countLandingsBetween, getCyclePhase } from "./cycle.js";
 // Demand
 export {
+  calculateBidirectionalDemand,
   calculateDemand,
   calculatePriceElasticity,
   calculateSupplyPressure,
@@ -83,6 +84,7 @@ export type {
   AirlineTickResult,
   Airport,
   AirportTag,
+  BidirectionalDemandResult,
   Checkpoint,
   DemandResult,
   FixedPoint,

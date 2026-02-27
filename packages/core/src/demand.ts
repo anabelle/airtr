@@ -4,7 +4,15 @@
 // See docs/ECONOMIC_MODEL.md §1 for full specification.
 // ============================================================
 
-import type { Airport, DemandResult, FixedPoint, Season, HubState, HubTier } from "./types.js";
+import type {
+  Airport,
+  BidirectionalDemandResult,
+  DemandResult,
+  FixedPoint,
+  Season,
+  HubState,
+  HubTier,
+} from "./types.js";
 import { TICKS_PER_HOUR } from "./types.js";
 import { fpToNumber } from "./fixed-point.js";
 import { haversineDistance } from "./geo.js";
@@ -124,6 +132,34 @@ export function calculateDemand(
     economy: Math.round(totalDemand * ECONOMY_SHARE),
     business: Math.round(totalDemand * BUSINESS_SHARE),
     first: Math.round(totalDemand * FIRST_SHARE),
+  };
+}
+
+/**
+ * Calculate weekly passenger demand in both directions between two airports.
+ *
+ * Because the gravity model uses asymmetric exponents (origin GDP γ=0.6 vs
+ * destination GDP δ=0.3) and destination-based seasonal modulation, demand
+ * from A→B differs from B→A. This function computes both directions by
+ * calling `calculateDemand` twice with swapped origin/destination.
+ *
+ * @param origin - Origin airport (outbound perspective)
+ * @param destination - Destination airport (outbound perspective)
+ * @param season - Current season
+ * @param prosperityIndex - Global economic multiplier (default 1.0)
+ * @param hubModifier - Hub network demand modifier (default 1.0)
+ * @returns Outbound and inbound DemandResult objects
+ */
+export function calculateBidirectionalDemand(
+  origin: Airport,
+  destination: Airport,
+  season: Season,
+  prosperityIndex: number = 1.0,
+  hubModifier: number = 1.0,
+): BidirectionalDemandResult {
+  return {
+    outbound: calculateDemand(origin, destination, season, prosperityIndex, hubModifier),
+    inbound: calculateDemand(destination, origin, season, prosperityIndex, hubModifier),
   };
 }
 
