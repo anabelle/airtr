@@ -76,7 +76,10 @@ export function processFlightEngine(
     }
 
     if (route.originIata) {
-      const current = hubStats.get(route.originIata) ?? { spokeCount: 0, weeklyFrequency: 0 };
+      const current = hubStats.get(route.originIata) ?? {
+        spokeCount: 0,
+        weeklyFrequency: 0,
+      };
       current.spokeCount += 1;
       current.weeklyFrequency += weekly;
       hubStats.set(route.originIata, current);
@@ -85,7 +88,12 @@ export function processFlightEngine(
 
   const hubStates = new Map<
     string,
-    { hubIata: string; spokeCount: number; weeklyFrequency: number; avgFrequency: number }
+    {
+      hubIata: string;
+      spokeCount: number;
+      weeklyFrequency: number;
+      avgFrequency: number;
+    }
   >();
   for (const [hubIata, stats] of hubStats.entries()) {
     hubStates.set(hubIata, {
@@ -342,7 +350,11 @@ export function processFlightEngine(
           const ourWeeklyAllocation = allocations.get(playerPubkey) ||
             (route
               ? { economy: 0, business: 0, first: 0 }
-              : allocations.get(ourOffer.airlinePubkey)) || { economy: 0, business: 0, first: 0 };
+              : allocations.get(ourOffer.airlinePubkey)) || {
+              economy: 0,
+              business: 0,
+              first: 0,
+            };
 
           const totalWeeklySeats =
             ourFrequency * (seatConfig.economy + seatConfig.business + seatConfig.first);
@@ -724,14 +736,76 @@ function capLandingsForGrounding(
   return Math.min(landings, Math.max(0, allowed));
 }
 
-function estimateReconcileProfit(
+/**
+ * Estimate the financial result of a single landing using a simplified demand
+ * model (load-factor based, no QSI / competitor data).
+ *
+ * Used by:
+ * - `reconcileFleetToTick` for balance-delta estimation during fast-forward
+ * - The recovery sweep in `engineSlice.processTick` to produce full-detail
+ *   timeline events when a landing was missed during tick-by-tick catch-up
+ *
+ * Returns the full revenue/cost breakdown so callers can either just grab
+ * `.profit` or build a complete `TimelineEvent.details` object.
+ */
+export interface LandingFinancialResult {
+  profit: FixedPoint;
+  revenue: ReturnType<typeof calculateFlightRevenue>;
+  cost: ReturnType<typeof calculateFlightCost>;
+  details: NonNullable<TimelineEvent["details"]>;
+}
+
+export function estimateLandingFinancials(
   ac: AircraftInstance,
   route: Route,
   model: ReturnType<typeof getAircraftById>,
   hoursPerLeg: number,
   loadFactor: number,
-): FixedPoint {
-  if (!model || hoursPerLeg <= 0) return fp(0);
+): LandingFinancialResult {
+  const empty: LandingFinancialResult = {
+    profit: fp(0),
+    revenue: calculateFlightRevenue({
+      passengersEconomy: 0,
+      passengersBusiness: 0,
+      passengersFirst: 0,
+      fareEconomy: fp(0),
+      fareBusiness: fp(0),
+      fareFirst: fp(0),
+      seatsOffered: 0,
+    }),
+    cost: calculateFlightCost({
+      distanceKm: 0,
+      aircraft: model!,
+      actualPassengers: 0,
+      blockHours: 0,
+    }),
+    details: {
+      passengers: { economy: 0, business: 0, first: 0, total: 0 },
+      seatsOffered: 0,
+      loadFactor: 0,
+      spilledPassengers: 0,
+      routeId: route.id,
+      flightDurationTicks: Math.ceil(hoursPerLeg * TICKS_PER_HOUR),
+      revenue: {
+        tickets: fp(0),
+        economy: fp(0),
+        business: fp(0),
+        first: fp(0),
+        ancillary: fp(0),
+      },
+      costs: {
+        fuel: fp(0),
+        crew: fp(0),
+        maintenance: fp(0),
+        airport: fp(0),
+        navigation: fp(0),
+        leasing: fp(0),
+        overhead: fp(0),
+      },
+    },
+  };
+  if (!model || hoursPerLeg <= 0) return empty;
+
   const clampedLoad = Math.min(1, Math.max(0, loadFactor));
   const seatsEconomy = Math.max(0, ac.configuration.economy);
   const seatsBusiness = Math.max(0, ac.configuration.business);
@@ -741,24 +815,78 @@ function estimateReconcileProfit(
   const passengersBusiness = Math.floor(seatsBusiness * clampedLoad);
   const passengersFirst = Math.floor(seatsFirst * clampedLoad);
 
+  const fareEconomy = route.fareEconomy ?? fp(0);
+  const fareBusiness = route.fareBusiness ?? fp(0);
+  const fareFirst = route.fareFirst ?? fp(0);
+
   const revenue = calculateFlightRevenue({
     passengersEconomy,
     passengersBusiness,
     passengersFirst,
-    fareEconomy: route.fareEconomy,
-    fareBusiness: route.fareBusiness,
-    fareFirst: route.fareFirst,
+    fareEconomy,
+    fareBusiness,
+    fareFirst,
     seatsOffered,
   });
+
+  // Hub-aware airport fees
+  const originIata = ac.flight?.originIata;
+  const destinationIata = ac.flight?.destinationIata;
+  const originHub = originIata ? HUB_CLASSIFICATIONS[originIata] : undefined;
+  const destHub = destinationIata ? HUB_CLASSIFICATIONS[destinationIata] : undefined;
+  const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(250);
+  const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(250);
+  // No live traffic data available; use 0 for baseline fees
+  const originFee = calculateHubLandingFee(originBaseFee, originHub?.baseCapacityPerHour ?? 80, 0);
+  const destFee = calculateHubLandingFee(destBaseFee, destHub?.baseCapacityPerHour ?? 80, 0);
+  const avgFee = (fpToNumber(originFee) + fpToNumber(destFee)) / 2;
+  const airportFeesMultiplier = avgFee / 250;
 
   const cost = calculateFlightCost({
     distanceKm: route.distanceKm,
     aircraft: model,
     actualPassengers: revenue.actualPassengers,
     blockHours: hoursPerLeg,
+    airportFeesMultiplier,
   });
 
-  return fpSub(revenue.revenueTotal, cost.costTotal);
+  const profit = fpSub(revenue.revenueTotal, cost.costTotal);
+
+  const durationTicks = ac.flight
+    ? ac.flight.arrivalTick - ac.flight.departureTick
+    : Math.ceil(hoursPerLeg * TICKS_PER_HOUR);
+
+  const details: NonNullable<TimelineEvent["details"]> = {
+    passengers: {
+      economy: revenue.actualEconomy,
+      business: revenue.actualBusiness,
+      first: revenue.actualFirst,
+      total: revenue.actualPassengers,
+    },
+    seatsOffered: revenue.seatsOffered,
+    loadFactor: revenue.loadFactor,
+    spilledPassengers: revenue.spilledPassengers,
+    routeId: route.id,
+    flightDurationTicks: durationTicks,
+    revenue: {
+      tickets: revenue.revenueTicket,
+      economy: revenue.revenueEconomy,
+      business: revenue.revenueBusiness,
+      first: revenue.revenueFirst,
+      ancillary: revenue.revenueAncillary,
+    },
+    costs: {
+      fuel: cost.costFuel,
+      crew: cost.costCrew,
+      maintenance: cost.costMaintenance,
+      airport: cost.costAirport,
+      navigation: cost.costNavigation,
+      leasing: cost.costLeasing,
+      overhead: cost.costOverhead,
+    },
+  };
+
+  return { profit, revenue, cost, details };
 }
 
 /**
@@ -862,14 +990,14 @@ export function reconcileFleetToTick(
       landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
       applyFlightHours(updated, landings * hoursPerLeg);
       if (landings > 0) {
-        const perLegProfit = estimateReconcileProfit(
+        const perLeg = estimateLandingFinancials(
           updated,
           route,
           model,
           hoursPerLeg,
           updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
         );
-        balanceDelta = fpAdd(balanceDelta, fpScale(perLegProfit, landings));
+        balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
       }
       return updated;
     } else if (ac.status === "delivery") {
@@ -911,14 +1039,14 @@ export function reconcileFleetToTick(
         landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
         if (landings > 0) {
-          const perLegProfit = estimateReconcileProfit(
+          const perLeg = estimateLandingFinancials(
             updated,
             route,
             model,
             hoursPerLeg,
             updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
           );
-          balanceDelta = fpAdd(balanceDelta, fpScale(perLegProfit, landings));
+          balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
         }
         return updated;
       }
@@ -959,14 +1087,14 @@ export function reconcileFleetToTick(
     landings = capLandingsForGrounding(updated, landings, hoursPerLeg, ac.status === "enroute");
     applyFlightHours(updated, landings * hoursPerLeg);
     if (landings > 0) {
-      const perLegProfit = estimateReconcileProfit(
+      const perLeg = estimateLandingFinancials(
         updated,
         route,
         model,
         hoursPerLeg,
         updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
       );
-      balanceDelta = fpAdd(balanceDelta, fpScale(perLegProfit, landings));
+      balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
     }
 
     return updated;

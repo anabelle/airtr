@@ -14,7 +14,7 @@ import { publishCheckpoint } from "@acars/nostr";
 import type { StateCreator } from "zustand";
 import { publishActionWithChain } from "../actionChain";
 import { useEngineStore } from "../engine";
-import { processFlightEngine } from "../FlightEngine";
+import { estimateLandingFinancials, processFlightEngine } from "../FlightEngine";
 import type { AirlineState } from "../types";
 
 export interface EngineSlice {
@@ -35,7 +35,12 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
     // If balance is severely negative (e.g. -$10M), auto-pause operations
     if (fpToNumber(airline.corporateBalance) < -10000000 && airline.status !== "chapter11") {
       const updatedAirline = { ...airline, status: "chapter11" as const };
-      const previousState = { airline, fleet, routes, timeline: get().timeline };
+      const previousState = {
+        airline,
+        fleet,
+        routes,
+        timeline: get().timeline,
+      };
       set({ airline: updatedAirline });
       publishActionWithChain({
         action: {
@@ -74,7 +79,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       const CATCHUP_CHUNK = 2000;
       const targetTick = Math.min(tick, lastTick + MAX_CATCHUP);
       useEngineStore.setState({
-        catchupProgress: { current: lastTick, target: targetTick, phase: "player" },
+        catchupProgress: {
+          current: lastTick,
+          target: targetTick,
+          phase: "player",
+        },
       });
 
       let currentFleet = [...fleet];
@@ -140,7 +149,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           lastTick: targetTick,
           timeline: currentTimeline,
         };
-        set({ fleet: currentFleet, airline: updatedAirline, timeline: currentTimeline });
+        set({
+          fleet: currentFleet,
+          airline: updatedAirline,
+          timeline: currentTimeline,
+        });
         const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
         const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
         if (nextCheckpointTick > previousCheckpointTick) {
@@ -265,7 +278,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
 
         if (CATCHUP_CHUNK > 0 && (t - lastTick) % CATCHUP_CHUNK === 0 && t < targetTick) {
           useEngineStore.setState({
-            catchupProgress: { current: t, target: targetTick, phase: "player" },
+            catchupProgress: {
+              current: t,
+              target: targetTick,
+              phase: "player",
+            },
           });
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
@@ -365,22 +382,64 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             ac.flightHoursSinceCheck += flightHoursData;
             ac.condition = Math.max(0, ac.condition - 0.00005 * flightHoursData);
           }
+
+          // Look up the route to calculate full financial breakdown
+          const isFerry = ac.flight?.purpose === "ferry";
+          const route = !isFerry ? routes.find((r) => r.id === ac.assignedRouteId) : null;
+
+          // Calculate financials BEFORE mutating aircraft state so ac.flight is intact
+          let landingResult: ReturnType<typeof estimateLandingFinancials> | null = null;
+          if (route && !isFerry) {
+            landingResult = estimateLandingFinancials(
+              ac,
+              route,
+              model,
+              flightHoursData,
+              ac.lastKnownLoadFactor ?? 0.65,
+            );
+          }
+
           ac.status = "turnaround";
           ac.baseAirportIata = ac.flight.destinationIata;
           ac.arrivalTickProcessed = ac.flight.arrivalTick;
           ac.turnaroundEndTick = targetTick + turnaroundTicks;
           anyChanges = true;
-          recoveryEvents.push({
-            id: `evt-recovery-landing-${ac.id}-${targetTick}`,
-            tick: targetTick,
-            timestamp: simulatedTimestamp,
-            type: "landing",
-            aircraftId: ac.id,
-            aircraftName: ac.name,
-            originIata: ac.flight.originIata,
-            destinationIata: ac.flight.destinationIata,
-            description: `${ac.name} recovery landing at ${ac.flight.destinationIata}.`,
-          });
+
+          if (landingResult) {
+            // Full financial breakdown using recovery helper
+            currentBalance = fpAdd(currentBalance, landingResult.profit);
+            ac.lastKnownLoadFactor = landingResult.revenue.loadFactor;
+
+            recoveryEvents.push({
+              id: `evt-recovery-landing-${ac.id}-${targetTick}`,
+              tick: targetTick,
+              timestamp: simulatedTimestamp,
+              type: "landing",
+              aircraftId: ac.id,
+              aircraftName: ac.name,
+              routeId: route!.id,
+              originIata: ac.flight.originIata,
+              destinationIata: ac.flight.destinationIata,
+              revenue: landingResult.revenue.revenueTotal,
+              cost: landingResult.cost.costTotal,
+              profit: landingResult.profit,
+              description: `${ac.name} landed at ${ac.flight.destinationIata}. Net Profit: ${landingResult.profit > 0 ? "+" : ""}${fpToNumber(landingResult.profit)}`,
+              details: landingResult.details,
+            });
+          } else {
+            // Ferry or no route — bare event (no financials to calculate)
+            recoveryEvents.push({
+              id: `evt-recovery-landing-${ac.id}-${targetTick}`,
+              tick: targetTick,
+              timestamp: simulatedTimestamp,
+              type: isFerry ? "ferry" : "landing",
+              aircraftId: ac.id,
+              aircraftName: ac.name,
+              originIata: ac.flight.originIata,
+              destinationIata: ac.flight.destinationIata,
+              description: `${ac.name} ${isFerry ? "ferried" : "recovery landing"} at ${ac.flight.destinationIata}.`,
+            });
+          }
         }
 
         if (ac.status === "turnaround" && (ac.turnaroundEndTick || 0) <= targetTick) {
@@ -448,7 +507,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         lastTick: processingError ? lastProcessedTick : targetTick,
         timeline: currentTimeline,
       };
-      set({ fleet: currentFleet, airline: updatedAirline, timeline: currentTimeline });
+      set({
+        fleet: currentFleet,
+        airline: updatedAirline,
+        timeline: currentTimeline,
+      });
       const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
       const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
       if (nextCheckpointTick > previousCheckpointTick) {
