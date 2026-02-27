@@ -8,10 +8,70 @@ import type {
   NightOverlayFeatureCollection,
   Route,
 } from "@acars/core";
-import { computeNightOverlay } from "@acars/core";
+import { computeNightOverlay, computeTerminatorLine } from "@acars/core";
 import { aircraftModels, HUB_CLASSIFICATIONS } from "@acars/data";
 import { getBearing, getGreatCircleInterpolation, makeArcFeature } from "./geo.js";
 import { FAMILY_ICONS } from "./icons.js";
+
+// NASA VIIRS Black Marble 2016 via NASA GIBS WMS (CORS-enabled)
+const NASA_BLACK_MARBLE_URL =
+  "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?" +
+  "SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
+  "&LAYERS=VIIRS_Black_Marble_SoundscapeVNP46A1" +
+  "&FORMAT=image%2Fjpeg&WIDTH=2048&HEIGHT=1024" +
+  "&CRS=CRS%3A84&BBOX=-180,-90,180,90";
+
+const NIGHT_CANVAS_W = 2048;
+const NIGHT_CANVAS_H = 1024;
+
+/**
+ * Draws NASA Black Marble onto `canvas`, clipped to the night-side polygon
+ * with three opacity zones (civil 45% → astro 70% → core 92%).
+ * Uses the even-odd rule so the day-side circle punches a transparent hole.
+ */
+function paintNightCanvas(
+  canvas: HTMLCanvasElement,
+  img: HTMLImageElement,
+  overlay: NightOverlayFeatureCollection,
+): void {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const toX = (lng: number) => ((lng + 180) / 360) * W;
+  const toY = (lat: number) => ((90 - lat) / 180) * H;
+
+  const bands = [
+    { band: "civil", alpha: 0.45 },
+    { band: "astro", alpha: 0.7 },
+    { band: "core", alpha: 0.92 },
+  ] as const;
+
+  for (const { band, alpha } of bands) {
+    const feat = overlay.features.find((f) => f.properties.band === band);
+    if (!feat) continue;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    for (const ring of feat.geometry.coordinates) {
+      let first = true;
+      for (const [lng, lat] of ring) {
+        const x = toX(lng);
+        const y = toY(lat);
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    }
+    ctx.clip("evenodd");
+    ctx.drawImage(img, 0, 0, W, H);
+    ctx.restore();
+  }
+}
 
 const aircraftModelMap = new Map(aircraftModels.map((m) => [m.id, m]));
 
@@ -36,10 +96,10 @@ export interface GlobeProps {
   style?: React.CSSProperties;
 }
 
-const NIGHT_OVERLAY_SOURCE = "night-overlay";
-const NIGHT_CORE_LAYER = "night-core-layer";
-const NIGHT_ASTRO_LAYER = "night-astro-layer";
-const NIGHT_CIVIL_LAYER = "night-civil-layer";
+const NIGHT_CANVAS_SOURCE = "night-canvas";
+const NIGHT_CANVAS_LAYER = "night-canvas-layer";
+const NIGHT_TERMINATOR_SOURCE = "night-terminator";
+const NIGHT_TERMINATOR_LAYER = "night-terminator-layer";
 
 // =============================================================================
 // --- LOD: Adaptive segment count based on zoom level ---
@@ -261,6 +321,9 @@ export function Globe({
   // -------------------------------------------------------------------------
   const rafId = useRef<number>(0);
   const nightOverlayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nightCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const nightImgRef = useRef<HTMLImageElement | null>(null);
+  const nightImgReady = useRef(false);
   const latestTick = useRef(tick);
   const latestTickProgress = useRef(tickProgress);
   const latestFleet = useRef(fleet);
@@ -420,18 +483,82 @@ export function Globe({
       addIcon("airplane-icon", FAMILY_ICONS["a320"].body);
       addIcon("airplane-icon-accent", FAMILY_ICONS["a320"].accent);
 
-      // Sources
-      map.addSource("airports", {
+      // --- Night canvas source (NASA Black Marble clipped to night polygon) ---
+      const nightCanvas = document.createElement("canvas");
+      nightCanvas.width = NIGHT_CANVAS_W;
+      nightCanvas.height = NIGHT_CANVAS_H;
+      nightCanvasRef.current = nightCanvas;
+
+      map.addSource(NIGHT_CANVAS_SOURCE, {
+        type: "canvas",
+        canvas: nightCanvas,
+        coordinates: [
+          [-180, 85.051129],
+          [180, 85.051129],
+          [180, -85.051129],
+          [-180, -85.051129],
+        ],
+        animate: false,
+      });
+      map.addLayer({
+        id: NIGHT_CANVAS_LAYER,
+        type: "raster",
+        source: NIGHT_CANVAS_SOURCE,
+        paint: {
+          "raster-opacity": 1.0,
+          "raster-resampling": "linear",
+          "raster-fade-duration": 600,
+        },
+      });
+
+      // Preload NASA Black Marble image
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        nightImgRef.current = img;
+        nightImgReady.current = true;
+        // Paint immediately once loaded
+        const overlay = computeNightOverlay(new Date(), 1);
+        paintNightCanvas(nightCanvas, img, overlay);
+        map.triggerRepaint();
+      };
+      img.onerror = () => {
+        console.warn("[night] NASA Black Marble failed to load, overlay will remain dark.");
+      };
+      img.src = NASA_BLACK_MARBLE_URL;
+
+      // --- Terminator line source + glow layer ---
+      map.addSource(NIGHT_TERMINATOR_SOURCE, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      map.addSource(NIGHT_OVERLAY_SOURCE, {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        } as NightOverlayFeatureCollection,
+      // Outer glow pass
+      map.addLayer({
+        id: NIGHT_TERMINATOR_LAYER + "-glow",
+        type: "line",
+        source: NIGHT_TERMINATOR_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ff8c42",
+          "line-width": 8,
+          "line-opacity": 0.15,
+          "line-blur": 4,
+        },
       });
+      // Crisp core line
+      map.addLayer({
+        id: NIGHT_TERMINATOR_LAYER,
+        type: "line",
+        source: NIGHT_TERMINATOR_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffb347",
+          "line-width": 1.2,
+          "line-opacity": 0.55,
+          "line-dasharray": [4, 3],
+        },
+      });
+
       map.addSource("flights", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -448,36 +575,9 @@ export function Globe({
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-
-      map.addLayer({
-        id: NIGHT_CIVIL_LAYER,
-        type: "fill",
-        source: NIGHT_OVERLAY_SOURCE,
-        filter: ["==", ["get", "band"], "civil"],
-        paint: {
-          "fill-color": "#0a0a2e",
-          "fill-opacity": 0.12,
-        },
-      });
-      map.addLayer({
-        id: NIGHT_ASTRO_LAYER,
-        type: "fill",
-        source: NIGHT_OVERLAY_SOURCE,
-        filter: ["==", ["get", "band"], "astro"],
-        paint: {
-          "fill-color": "#0a0a2e",
-          "fill-opacity": 0.25,
-        },
-      });
-      map.addLayer({
-        id: NIGHT_CORE_LAYER,
-        type: "fill",
-        source: NIGHT_OVERLAY_SOURCE,
-        filter: ["==", ["get", "band"], "core"],
-        paint: {
-          "fill-color": "#0a0a2e",
-          "fill-opacity": 0.35,
-        },
+      map.addSource("airports", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
       });
 
       // Layer: Global Arcs
@@ -1231,10 +1331,18 @@ export function Globe({
     const map = mapRef.current;
 
     const updateNightOverlay = () => {
-      const overlay = computeNightOverlay(new Date(), 1);
-      (map.getSource(NIGHT_OVERLAY_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
-        overlay,
+      const now = new Date();
+      // Update terminator line
+      const terminatorData = computeTerminatorLine(now, 1);
+      (map.getSource(NIGHT_TERMINATOR_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
+        terminatorData as GeoJSON.FeatureCollection,
       );
+      // Repaint night canvas if image is ready
+      if (nightImgReady.current && nightCanvasRef.current && nightImgRef.current) {
+        const overlay = computeNightOverlay(now, 1);
+        paintNightCanvas(nightCanvasRef.current, nightImgRef.current, overlay);
+        map.triggerRepaint();
+      }
     };
 
     updateNightOverlay();

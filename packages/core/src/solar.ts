@@ -56,7 +56,10 @@ function eclipticObliquity(julian: number): number {
   );
 }
 
-function sunEquatorialPosition(julian: number): { alpha: number; delta: number } {
+function sunEquatorialPosition(julian: number): {
+  alpha: number;
+  delta: number;
+} {
   const lambda = sunEclipticLongitude(julian) * DEG_TO_RAD;
   const epsilon = eclipticObliquity(julian) * DEG_TO_RAD;
   const sinLambda = Math.sin(lambda);
@@ -207,6 +210,44 @@ function buildNightPolygon(
   return {
     type: "Polygon",
     coordinates: [worldRing, ...holes],
+  };
+}
+
+export type TerminatorLineCollection = {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    properties: Record<string, never>;
+    geometry: { type: "LineString"; coordinates: number[][] };
+  }>;
+};
+
+/**
+ * Returns the solar terminator (sun altitude = 0°) as a FeatureCollection of
+ * LineStrings, split at the antimeridian for correct rendering in MapLibre.
+ */
+export function computeTerminatorLine(date: Date, stepDeg = 1): TerminatorLineCollection {
+  const { lat, lng } = getSubsolarPoint(date);
+  const ring = buildDayCircle(lat, lng, 0, stepDeg);
+  const segments = splitDateline(ring);
+  return {
+    type: "FeatureCollection",
+    features: segments.map((seg) => {
+      // splitDateline closes each segment for polygon use (GeoJSON rings).
+      // For LineStrings, strip the closing coordinate to avoid a visual
+      // loop artifact where the line snaps back to the segment's start.
+      const coords =
+        seg.length > 1 &&
+        seg[0][0] === seg[seg.length - 1][0] &&
+        seg[0][1] === seg[seg.length - 1][1]
+          ? seg.slice(0, -1)
+          : seg;
+      return {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: coords },
+      };
+    }),
   };
 }
 

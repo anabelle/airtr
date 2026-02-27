@@ -70,10 +70,11 @@ export { createPRNG, createTickPRNG } from "./prng.js";
 export { allocatePassengers, calculateShares } from "./qsi.js";
 // Season
 export { getSeason, getSeasonalMultiplier } from "./season.js";
-export type { NightOverlayFeatureCollection } from "./solar.js";
+export type { NightOverlayFeatureCollection, TerminatorLineCollection } from "./solar.js";
 // Solar
 export {
   computeNightOverlay,
+  computeTerminatorLine,
   getSolarDeclination,
   getSubsolarPoint,
 } from "./solar.js";
