@@ -29,12 +29,12 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/coverage-v8": "^4.0.18",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.18"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,cjs,mjs,json,css,scss,html}": [
