@@ -168,6 +168,12 @@ export async function replayActionLog(params: {
     airline = { ...airline, corporateBalance: clampedBalance };
   };
 
+  /** Returns true if the airline can afford the given cost. */
+  const canAfford = (cost: FixedPoint): boolean => {
+    if (!airline) return false;
+    return airline.corporateBalance >= cost;
+  };
+
   const resolveEventTimestamp = (tick: number, createdAt: number | null) =>
     typeof createdAt === "number" && Number.isFinite(createdAt)
       ? createdAt * 1000
@@ -280,10 +286,11 @@ export async function replayActionLog(params: {
       }
       case "HUB_ADD": {
         const iata = sanitizeIata(payload.iata);
+        const fee = clampFixedPoint(payload.fee, fpZero, MAX_PRICE) ?? fpZero;
+        if (!canAfford(fee)) break;
         if (iata && airline.hubs.length < MAX_HUBS && !airline.hubs.includes(iata)) {
           airline = { ...airline, hubs: [...airline.hubs, iata] };
         }
-        const fee = clampFixedPoint(payload.fee, fpZero, MAX_PRICE) ?? fpZero;
         applyBalanceDelta(fpSub(fpZero, fee));
         updateLastTick(actionTick);
         if (iata) {
@@ -317,13 +324,14 @@ export async function replayActionLog(params: {
       }
       case "HUB_SWITCH": {
         const iata = sanitizeIata(payload.iata);
+        const fee = clampFixedPoint(payload.fee, fpZero, MAX_PRICE) ?? fpZero;
+        if (!canAfford(fee)) break;
         if (iata && airline.hubs.includes(iata)) {
           airline = {
             ...airline,
             hubs: [iata, ...airline.hubs.filter((hub) => hub !== iata)],
           };
         }
-        const fee = clampFixedPoint(payload.fee, fpZero, MAX_PRICE) ?? fpZero;
         applyBalanceDelta(fpSub(fpZero, fee));
         updateLastTick(actionTick);
         if (iata) {
@@ -358,6 +366,9 @@ export async function replayActionLog(params: {
           suggested.first;
         const frequencyPerWeek = clampInt(payload.frequencyPerWeek, 0, 1000) ?? 7;
 
+        const routeCost = clampFixedPoint(payload.cost ?? ROUTE_SLOT_FEE, fpZero, MAX_PRICE);
+        if (!canAfford(routeCost ?? ROUTE_SLOT_FEE)) break;
+
         routesById.set(routeId, {
           id: routeId,
           originIata,
@@ -372,7 +383,6 @@ export async function replayActionLog(params: {
           status: "active",
         });
 
-        const routeCost = clampFixedPoint(payload.cost ?? ROUTE_SLOT_FEE, fpZero, MAX_PRICE);
         applyBalanceDelta(fpSub(fpZero, routeCost ?? ROUTE_SLOT_FEE));
         updateLastTick(actionTick);
         pushTimelineEvent({
@@ -558,6 +568,7 @@ export async function replayActionLog(params: {
         };
         const price = clampFixedPoint(payload.price, fpZero, MAX_PRICE);
         if (!price) break;
+        if (!canAfford(price)) break;
         const purchaseType = payload.purchaseType === "lease" ? "lease" : "buy";
         const name =
           clampString(payload.name, MAX_NAME_LENGTH) ??
@@ -626,8 +637,9 @@ export async function replayActionLog(params: {
         if (!instanceId) break;
         const aircraft = fleetById.get(instanceId);
         if (!aircraft) break;
-        aircraft.purchaseType = "buy";
         const buyoutPrice = clampFixedPoint(payload.price, fpZero, MAX_PRICE) ?? fpZero;
+        if (!canAfford(buyoutPrice)) break;
+        aircraft.purchaseType = "buy";
         applyBalanceDelta(fpSub(fpZero, buyoutPrice));
         updateLastTick(actionTick);
         pushTimelineEvent({
@@ -649,8 +661,9 @@ export async function replayActionLog(params: {
         if (!aircraft) break;
         const price = clampFixedPoint(payload.price, fpZero, MAX_PRICE);
         if (!price) break;
-        aircraft.listingPrice = price;
         const fee = fpScale(price, 0.005);
+        if (!canAfford(fee)) break;
+        aircraft.listingPrice = price;
         applyBalanceDelta(fpSub(fpZero, fee));
         updateLastTick(actionTick);
         pushTimelineEvent({
@@ -689,6 +702,7 @@ export async function replayActionLog(params: {
         if (!instanceId || !modelId) break;
         const price = clampFixedPoint(payload.price, fpZero, MAX_PRICE);
         if (!price) break;
+        if (!canAfford(price)) break;
         const name =
           clampString(payload.name, MAX_NAME_LENGTH) ??
           buildAircraftName(undefined, fleetById.size + 1);
@@ -764,11 +778,12 @@ export async function replayActionLog(params: {
         if (!instanceId) break;
         const aircraft = fleetById.get(instanceId);
         if (!aircraft) break;
+        const cost = clampFixedPoint(payload.cost, fpZero, MAX_PRICE) ?? fpZero;
+        if (!canAfford(cost)) break;
         aircraft.condition = 1.0;
         aircraft.flightHoursSinceCheck = 0;
         aircraft.status = "maintenance";
         aircraft.maintenanceStartTick = actionTick;
-        const cost = clampFixedPoint(payload.cost, fpZero, MAX_PRICE) ?? fpZero;
         applyBalanceDelta(fpSub(fpZero, cost));
         updateLastTick(actionTick);
         pushTimelineEvent({
