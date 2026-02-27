@@ -37,15 +37,15 @@ initial_setup() {
     ssh "$VPS_HOST" "mkdir -p ${VPS_RELAY_DIR}/data"
 
     # Obtain SSL certificate (requires DNS already pointing to VPS)
-    log "Obtaining SSL certificate for nostr.pixel.xx.kg..."
+    log "Obtaining SSL certificate for nostr.acars.pub..."
     ssh "$VPS_HOST" "docker run --rm \
         -v /home/pixel/pixel/certbot/conf:/etc/letsencrypt \
         -v /home/pixel/pixel/certbot/www:/var/www/certbot \
         certbot/certbot certonly \
         --webroot -w /var/www/certbot \
-        -d nostr.pixel.xx.kg \
+        -d nostr.acars.pub \
         --non-interactive --agree-tos \
-        -m noreply@pixel.xx.kg" || {
+        -m noreply@acars.pub" || {
             warn "Certbot failed — cert may already exist. Continuing..."
         }
 
@@ -118,12 +118,12 @@ start_relay() {
 verify() {
     log "Verifying relay..."
     local response
-    response=$(curl -sf -H "Accept: application/nostr+json" https://nostr.pixel.xx.kg/ 2>/dev/null) || {
-        err "Relay is not responding at wss://nostr.pixel.xx.kg"
+    response=$(curl -sf -H "Accept: application/nostr+json" https://nostr.acars.pub/ 2>/dev/null) || {
+        err "Relay is not responding at wss://nostr.acars.pub"
         return 1
     }
     log "NIP-11 response: ${response}"
-    log "Relay is live at wss://nostr.pixel.xx.kg"
+    log "Relay is live at wss://nostr.acars.pub"
 }
 
 # ---------------------------------------------------------------------------

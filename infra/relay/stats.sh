@@ -69,7 +69,7 @@ if [ "$json_output" = "true" ]; then
 EOF
 else
     echo ""
-    echo "  ACARS Relay Stats — nostr.pixel.xx.kg"
+    echo "  ACARS Relay Stats — nostr.acars.pub"
     echo "  ======================================="
     echo ""
     echo "  Status:       $container_status ($health)"

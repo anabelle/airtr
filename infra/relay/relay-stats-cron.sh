@@ -30,7 +30,7 @@ ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 cat > "$OUT" <<EOF
 {
-  "relay": "wss://nostr.pixel.xx.kg",
+  "relay": "wss://nostr.acars.pub",
   "status": "$status",
   "health": "$health",
   "started_at": "$started",

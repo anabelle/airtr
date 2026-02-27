@@ -2,7 +2,7 @@ import { createLogger } from "@acars/core";
 import NDK from "@nostr-dev-kit/ndk";
 
 const DEFAULT_RELAYS = [
-  "wss://nostr.pixel.xx.kg", // Dedicated ACARS relay
+  "wss://nostr.acars.pub", // Dedicated ACARS relay
   "wss://relay.damus.io",
   "wss://relay.primal.net",
   "wss://nos.lol",
