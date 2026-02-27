@@ -86,6 +86,12 @@ function FinancialPulse({
                 )}
                 {fpFormat(pulse.netIncomeRate, 0)}/hr
               </div>
+              <p
+                className={`text-[10px] font-mono font-bold ${pulse.isPositive ? "text-emerald-400/60" : "text-rose-400/60"}`}
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {fpFormat(fp(netIncomeNum * 24 * 30), 0)}/mo
+              </p>
               <p className="text-[10px] text-muted-foreground">
                 Last {pulse.flightCount} flight{pulse.flightCount !== 1 ? "s" : ""}
               </p>
@@ -138,9 +144,15 @@ function FinancialPulse({
               )}
               True Burn Rate
             </span>
-            <span>
-              {trueBurnPositive ? "+" : ""}
-              {fpFormat(fp(trueBurnPerHour), 0)}/hr
+            <span className="text-right">
+              <span>
+                {trueBurnPositive ? "+" : ""}
+                {fpFormat(fp(trueBurnPerHour), 0)}/hr
+              </span>
+              <span className="ml-2 opacity-60">
+                {trueBurnPositive ? "+" : ""}
+                {fpFormat(fp(trueBurnPerHour * 24 * 30), 0)}/mo
+              </span>
             </span>
           </div>
         )}
