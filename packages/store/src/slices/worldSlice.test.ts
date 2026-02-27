@@ -2,7 +2,7 @@ import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
-import { _resetWorldFlags, createWorldSlice } from "./worldSlice";
+import { _getGlobalTickMutex, _resetWorldFlags, createWorldSlice } from "./worldSlice";
 
 const mockProcessFlightEngine = vi.fn();
 
@@ -270,7 +270,12 @@ describe("processGlobalTick", () => {
         action: {
           schemaVersion: 2,
           action: "AIRLINE_CREATE",
-          payload: { name: "Old Air", hubs: ["JFK"], corporateBalance: 1000000000000, tick: 80 },
+          payload: {
+            name: "Old Air",
+            hubs: ["JFK"],
+            corporateBalance: 1000000000000,
+            tick: 80,
+          },
         },
       },
     ]);
@@ -366,7 +371,9 @@ describe("processGlobalTick", () => {
     await Promise.all([first, second]);
 
     // Wait for the queued follow-up sync to complete
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await vi.waitFor(() => {
+      expect(loadActionLog).toHaveBeenCalledTimes(2);
+    });
 
     // First call runs immediately, second is queued and runs after first completes
     expect(loadActionLog).toHaveBeenCalledTimes(2);
@@ -376,49 +383,19 @@ describe("processGlobalTick", () => {
     const { loadActionLog } = await import("@acars/nostr");
     (loadActionLog as unknown as ReturnType<typeof vi.fn>).mockClear();
 
-    // Set up a competitor that needs 1000 ticks of catchup.
-    // GLOBAL_CATCHUP_CHUNK = 200, so the loop yields every 200 ticks via setTimeout(0).
-    // That means 4 yield points (at ticks 200, 400, 600, 800).
-    // We call syncWorld right after the first yield while isProcessingGlobal is still true.
-    const tick = 1100;
-    const pubkey = "comp-blocking";
-    const competitors = new Map<string, AirlineEntity>([
-      [pubkey, makeAirline(pubkey, tick - 1000)],
-    ]);
-    const globalFleet = [makeAircraft("ac-blocking", pubkey)];
+    const { state } = createSliceState({});
 
-    const { state } = createSliceState({
-      competitors,
-      globalFleet,
-      globalFleetByOwner: buildFleetIndex(globalFleet),
-      globalRoutes: [],
-      globalRoutesByOwner: buildRoutesIndex([]),
-    });
+    // Simulate processGlobalTick holding the mutex by acquiring it directly.
+    const mutex = _getGlobalTickMutex();
+    mutex.tryLock();
 
-    // processGlobalTick will set isProcessingGlobal=true and yield at the
-    // 200-tick boundary.  We inject syncWorld into the macrotask queue
-    // right after the first yield so it runs while processing is still active.
-    let syncResult: Promise<void> | null = null;
-    const origSetTimeout = globalThis.setTimeout;
-    let yieldCount = 0;
-    vi.spyOn(globalThis, "setTimeout").mockImplementation((fn: TimerHandler, ms?: number) => {
-      yieldCount++;
-      if (yieldCount === 1) {
-        // After the first yield from processGlobalTick, insert syncWorld
-        return origSetTimeout(() => {
-          syncResult = state.syncWorld();
-          (fn as () => void)();
-        }, ms) as unknown as ReturnType<typeof setTimeout>;
-      }
-      return origSetTimeout(fn as TimerHandler, ms) as unknown as ReturnType<typeof setTimeout>;
-    });
-
-    await state.processGlobalTick(tick);
-    if (syncResult) await syncResult;
-
-    vi.restoreAllMocks();
-
-    // syncWorld should have been skipped because isProcessingGlobal was true
+    // syncWorld without force should be skipped while the mutex is held.
+    await state.syncWorld();
     expect(loadActionLog).toHaveBeenCalledTimes(0);
+
+    // Release and verify syncWorld works again.
+    mutex.unlock();
+    await state.syncWorld();
+    expect(loadActionLog).toHaveBeenCalledTimes(1);
   });
 });

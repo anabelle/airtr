@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPublicKeyMock = vi.fn();
 const signerMock = vi.fn();
@@ -28,6 +28,10 @@ describe("identity", () => {
     delete (globalThis as any).window;
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("detects missing NIP-07 extension", () => {
     expect(hasNip07()).toBe(false);
   });
@@ -55,7 +59,6 @@ describe("identity", () => {
     vi.advanceTimersByTime(4000);
     const result = await promise;
     expect(result).toBeNull();
-    vi.useRealTimers();
   });
 
   it("attaches a new signer when available", () => {

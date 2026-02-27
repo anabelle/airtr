@@ -81,8 +81,7 @@ useEngineStore.subscribe((state) => {
   lastSubscribedTick = state.tick;
 
   const store = useAirlineStore.getState();
-  void store.processTick(state.tick);
-  void store.processGlobalTick(state.tick);
+  void store.processTick(state.tick).then(() => store.processGlobalTick(state.tick));
 
   // Sync world state every 20 ticks (~1 min) as a safety net.
   // The primary sync path is the live subscription handler above.

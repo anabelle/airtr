@@ -13,8 +13,8 @@ vi.mock("@acars/nostr", () => {
 });
 
 import { computeActionChainHash } from "@acars/core";
-import { publishActionWithChain } from "./actionChain.js";
 import { publishAction } from "@acars/nostr";
+import { publishActionWithChain } from "./actionChain.js";
 
 describe("publishActionWithChain", () => {
   it("serializes action chain hash updates", async () => {
@@ -49,17 +49,18 @@ describe("publishActionWithChain", () => {
     const first = publishActionWithChain({ action: firstAction, get, set });
     const second = publishActionWithChain({ action: secondAction, get, set });
 
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(computeMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(computeMock).toHaveBeenCalledTimes(1);
+    });
     expect(computeMock.mock.calls[0]?.[0]).toBe("");
 
     deferred[0]?.("hash-1");
     await first;
     expect(state.actionChainHash).toBe("hash-1");
 
-    await Promise.resolve();
-    expect(computeMock).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => {
+      expect(computeMock).toHaveBeenCalledTimes(2);
+    });
     expect(computeMock.mock.calls[1]?.[0]).toBe("hash-1");
 
     deferred[1]?.("hash-2");

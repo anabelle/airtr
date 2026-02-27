@@ -23,6 +23,7 @@ import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { processFlightEngine, reconcileFleetToTick } from "../FlightEngine";
 import type { AirlineState } from "../types";
+import { AsyncMutex } from "../utils/asyncMutex";
 
 export interface WorldSlice {
   competitors: Map<string, AirlineEntity>;
@@ -37,8 +38,7 @@ export interface WorldSlice {
   processGlobalTick: (tick: number) => Promise<void>;
 }
 
-let isProcessingGlobal = false;
-let isProcessingGlobalSince = 0;
+const globalTickMutex = new AsyncMutex();
 let isSyncingWorld = false;
 let pendingSyncWorldOptions: { force?: boolean } | null = null;
 const GLOBAL_CATCHUP_CHUNK = 200;
@@ -46,15 +46,17 @@ const MAX_COMPETITOR_CATCHUP = 1000;
 const MAX_TOTAL_COMPETITOR_TICKS = 5000;
 const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
 const MONTH_TICKS = 30 * TICKS_PER_DAY;
-/** If processGlobalTick takes longer than this, auto-reset the flag. */
-const PROCESSING_GLOBAL_TIMEOUT_MS = 30_000;
 
 /** @internal — test-only helper to reset module-level concurrency flags */
 export function _resetWorldFlags() {
-  isProcessingGlobal = false;
-  isProcessingGlobalSince = 0;
+  globalTickMutex.reset();
   isSyncingWorld = false;
   pendingSyncWorldOptions = null;
+}
+
+/** @internal — test-only accessor for the global tick mutex */
+export function _getGlobalTickMutex() {
+  return globalTickMutex;
 }
 
 const buildFleetIndex = (fleet: AircraftInstance[]) => {
@@ -127,19 +129,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
   viewAs: (pubkey) => set({ viewedPubkey: pubkey }),
 
   processGlobalTick: async (tick: number) => {
-    // Auto-reset if the flag has been stuck for too long (e.g. unhandled throw).
-    if (isProcessingGlobal && isProcessingGlobalSince > 0) {
-      const elapsed = Date.now() - isProcessingGlobalSince;
-      if (elapsed > PROCESSING_GLOBAL_TIMEOUT_MS) {
-        console.warn(
-          `[WorldSlice] isProcessingGlobal stuck for ${Math.round(elapsed / 1000)}s — auto-resetting.`,
-        );
-        isProcessingGlobal = false;
-        isProcessingGlobalSince = 0;
-      }
-    }
-
-    if (isProcessingGlobal) return;
+    if (!globalTickMutex.tryLock()) return;
 
     const {
       competitors,
@@ -153,8 +143,6 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
     } = get();
     if (competitors.size === 0) return;
 
-    isProcessingGlobal = true;
-    isProcessingGlobalSince = Date.now();
     try {
       const updatedGlobalFleet: AircraftInstance[] = [];
       const updatedCompetitors = new Map(competitors);
@@ -333,8 +321,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       });
       useEngineStore.setState({ catchupProgress: null });
     } finally {
-      isProcessingGlobal = false;
-      isProcessingGlobalSince = 0;
+      globalTickMutex.unlock();
     }
   },
 
@@ -349,7 +336,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       }
       return;
     }
-    if (isProcessingGlobal && !options?.force) return;
+    if (globalTickMutex.isLocked && !options?.force) return;
     isSyncingWorld = true;
     try {
       try {
@@ -792,7 +779,9 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           }
 
           if (newTimelineEvents.length > 0) {
-            set({ timeline: [...newTimelineEvents, ...existingState.timeline].slice(0, 1000) });
+            set({
+              timeline: [...newTimelineEvents, ...existingState.timeline].slice(0, 1000),
+            });
           }
         }
 
