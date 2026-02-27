@@ -643,6 +643,29 @@ function applyFlightHours(updated: AircraftInstance, hoursToAdd: number): void {
 }
 
 const DEFAULT_RECONCILE_LOAD_FACTOR = 0.65;
+
+/**
+ * Compute the total profit delta for a batch of landings and accumulate it.
+ * Extracted to deduplicate the identical pattern in reconcileFleetToTick.
+ */
+function accumulateLandingProfit(
+  ac: AircraftInstance,
+  route: Route,
+  model: ReturnType<typeof getAircraftById>,
+  hoursPerLeg: number,
+  landings: number,
+): FixedPoint {
+  if (landings <= 0) return fp(0);
+  const perLeg = estimateLandingFinancials(
+    ac,
+    route,
+    model,
+    hoursPerLeg,
+    ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+  );
+  return fpScale(perLeg.profit, landings);
+}
+
 const MIN_GROUNDED_CONDITION = 0.2;
 const MAX_HOURS_SINCE_CHECK = 600;
 
@@ -928,16 +951,10 @@ export function reconcileFleetToTick(
       const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
       landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
       applyFlightHours(updated, landings * hoursPerLeg);
-      if (landings > 0) {
-        const perLeg = estimateLandingFinancials(
-          updated,
-          route,
-          model,
-          hoursPerLeg,
-          updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
-        );
-        balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
-      }
+      balanceDelta = fpAdd(
+        balanceDelta,
+        accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+      );
       return updated;
     } else if (ac.status === "delivery") {
       // Delivery aircraft whose deliveryAtTick is in the past should be
@@ -977,16 +994,10 @@ export function reconcileFleetToTick(
         const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
         landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
-        if (landings > 0) {
-          const perLeg = estimateLandingFinancials(
-            updated,
-            route,
-            model,
-            hoursPerLeg,
-            updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
-          );
-          balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
-        }
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+        );
         return updated;
       }
       // Still in delivery period — skip
@@ -1025,16 +1036,10 @@ export function reconcileFleetToTick(
     const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
     landings = capLandingsForGrounding(updated, landings, hoursPerLeg, ac.status === "enroute");
     applyFlightHours(updated, landings * hoursPerLeg);
-    if (landings > 0) {
-      const perLeg = estimateLandingFinancials(
-        updated,
-        route,
-        model,
-        hoursPerLeg,
-        updated.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
-      );
-      balanceDelta = fpAdd(balanceDelta, fpScale(perLeg.profit, landings));
-    }
+    balanceDelta = fpAdd(
+      balanceDelta,
+      accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+    );
 
     return updated;
   });

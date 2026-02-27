@@ -19,6 +19,11 @@ export function getCyclePhase(
   turnaroundTicks: number,
   route: Route,
 ): CyclePhase {
+  if (durationTicks <= 0 || turnaroundTicks < 0) {
+    throw new Error(
+      `getCyclePhase: invalid inputs — durationTicks=${durationTicks}, turnaroundTicks=${turnaroundTicks}`,
+    );
+  }
   const roundTripTicks = durationTicks * 2 + turnaroundTicks * 2;
   const elapsed = targetTick - cycleStartTick;
   const positionInCycle = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
@@ -88,6 +93,7 @@ export function countLandingsBetween(
   turnaroundTicks: number,
 ): number {
   if (toTick <= fromTick) return 0;
+  if (durationTicks <= 0 || turnaroundTicks < 0) return 0;
   const roundTripTicks = durationTicks * 2 + turnaroundTicks * 2;
   const landingOffsets = [durationTicks, durationTicks * 2 + turnaroundTicks];
   let count = 0;
