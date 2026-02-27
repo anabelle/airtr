@@ -1,9 +1,11 @@
 # ACARS — Design Bible
+
 ## Open-Source, Decentralized, Persistent Airline Management Game on Nostr
 
 ---
 
 ## Table of Contents
+
 1. [Design Philosophy](#1-design-philosophy)
 2. [Engagement Architecture](#2-engagement-architecture)
 3. [Sensory Design](#3-sensory-design)
@@ -21,13 +23,13 @@
 
 ### The Inspiration Cocktail
 
-| Game | What We Steal | Why It Works |
-|------|--------------|--------------|
-| **Mini Metro** | Minimalist visual language, emergent complexity from simple rules, procedural audio that makes the system *musical* | Strips away noise. Every element on screen matters. Failure is gentle — you restart, not rage-quit. The system *sings* when it works well. |
-| **Factorio** | "The factory must grow" compulsion loop, incremental progression, flow state induction, visible system interconnection | The dopamine of watching a complex system you built work autonomously. The "one more thing" trap. Every optimization reveals the next bottleneck. |
-| **Transport Fever** | Historical progression, infrastructure-meets-economy, visual feedback of towns growing because of YOUR routes | Your actions have visible, lasting impact on the world. Towns grow where you build. The world responds to you. |
-| **Cities: Skylines** | Creative sandbox freedom, traffic-as-gameplay, modding ecosystem, visual city growth | Players become *attached* to what they build. The creative freedom means no two games are alike. |
-| **Cities in Motion** | Pure transport simulation, timetable management, passenger flow visualization, financial pressure | The tension between creating beautiful networks and profitable ones. Passengers have preferences and will choose alternatives. |
+| Game                 | What We Steal                                                                                                          | Why It Works                                                                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mini Metro**       | Minimalist visual language, emergent complexity from simple rules, procedural audio that makes the system _musical_    | Strips away noise. Every element on screen matters. Failure is gentle — you restart, not rage-quit. The system _sings_ when it works well.        |
+| **Factorio**         | "The factory must grow" compulsion loop, incremental progression, flow state induction, visible system interconnection | The dopamine of watching a complex system you built work autonomously. The "one more thing" trap. Every optimization reveals the next bottleneck. |
+| **Transport Fever**  | Historical progression, infrastructure-meets-economy, visual feedback of towns growing because of YOUR routes          | Your actions have visible, lasting impact on the world. Towns grow where you build. The world responds to you.                                    |
+| **Cities: Skylines** | Creative sandbox freedom, traffic-as-gameplay, modding ecosystem, visual city growth                                   | Players become _attached_ to what they build. The creative freedom means no two games are alike.                                                  |
+| **Cities in Motion** | Pure transport simulation, timetable management, passenger flow visualization, financial pressure                      | The tension between creating beautiful networks and profitable ones. Passengers have preferences and will choose alternatives.                    |
 
 ### Core Design Tenets
 
@@ -38,11 +40,13 @@
 5. **The one-more-turn trap** — Like Factorio/Civilization, each tick should reveal something that demands "just one more..."
 
 ### The Ambition: Planetary Scale
+
 This game is designed to be a **trendsetter in Nostr game development** and the premier real-world persistent simulation on the protocol. It must be built to eventually support **millions of players trading tens of thousands of active flights** concurrently.
 Every single technical and game design decision MUST respect this reality.
-*   **No $O(N^2)$ Loops**: If your math or logic requires iterating over every passenger or every route every tick, it will fail at scale. We use macro-economic formulas (like the Gravity Model and QSI) that resolve in $O(1)$ time regardless of passenger volume.
-*   **No Central Database**: We do not use PostgreSQL or Redis. All state is a deterministic reduction of a decentralized Nostr event log. The client does the heavy lifting.
-*   **Virtualize Everything in UI**: We cannot render 10,000 DOM nodes. All lists, maps, and tables must use WebGL instancing or React virtualization.
+
+- **No $O(N^2)$ Loops**: If your math or logic requires iterating over every passenger or every route every tick, it will fail at scale. We use macro-economic formulas (like the Gravity Model and QSI) that resolve in $O(1)$ time regardless of passenger volume.
+- **No Central Database**: We do not use PostgreSQL or Redis. All state is a deterministic reduction of a decentralized Nostr event log. The client does the heavy lifting.
+- **Virtualize Everything in UI**: We cannot render 10,000 DOM nodes. All lists, maps, and tables must use WebGL instancing or React virtualization.
 
 ---
 
@@ -87,7 +91,7 @@ Games that retain players for years use **nested engagement loops** operating at
 
 ### 2.2 The "Idle" Dimension — Persistent World Advantage
 
-Because the world is **persistent and tick-based**, the game works EVEN WHEN YOU'RE NOT PLAYING. 
+Because the world is **persistent and tick-based**, the game works EVEN WHEN YOU'RE NOT PLAYING.
 Critically, **Time in ACARS is exactly 1:1 with Real-World UTC Time**. Like Flightradar24, if a plane takes 7 hours to fly from JFK to LHR in reality, it takes exactly 7 hours in the game. You do not fast-forward time.
 
 - Your flights continue to fly and earn revenue in real-time
@@ -95,9 +99,10 @@ Critically, **Time in ACARS is exactly 1:1 with Real-World UTC Time**. Like Flig
 - Seasons change, demand shifts
 - Your brand reputation evolves
 
-**This turns "checking in" into a reward loop.** Like checking your stocks or a farm game, the act of opening the app reveals *what happened while you were away*. This is the most potent retention mechanic in mobile gaming, and we get it for free from the persistent world design.
+**This turns "checking in" into a reward loop.** Like checking your stocks or a farm game, the act of opening the app reveals _what happened while you were away_. This is the most potent retention mechanic in mobile gaming, and we get it for free from the persistent world design.
 
 **Notification hooks (via Nostr events):**
+
 - 🔔 "Your LAX→CDG route hit 90% load factor!"
 - ⚠️ "Competitor 'SkyNova' just opened a route competing with your JFK→LHR"
 - 💰 "Weekly revenue report: +$2.3M this week (+12% vs last week)"
@@ -107,6 +112,7 @@ Critically, **Time in ACARS is exactly 1:1 with Real-World UTC Time**. Like Flig
 ### 2.3 Progression Systems
 
 #### Tech Tree / Unlock Path
+
 Like Factorio's research tree, but for airline capabilities:
 
 ```
@@ -145,24 +151,28 @@ Progression is gated by **cumulative revenue, passenger count, and route count**
 Grouped by **discovery** (exploring), **mastery** (optimization), **social** (community), and **legacy** (long-term):
 
 **Discovery:**
+
 - 🌍 "Globe Trotter" — Operate routes on all 6 continents
 - 🏝️ "Island Hopper" — Serve 10 island airports
 - 🧊 "Polar Route" — Fly a route above 60° latitude
 - 🌙 "Red-Eye Pioneer" — Operate your first overnight flight
 
 **Mastery:**
+
 - 📊 "Perfect Load" — Achieve 95%+ load factor on any route
 - 💎 "Profit Margin King" — Maintain 20%+ profit margin for 30 days
 - ⚡ "Efficiency Expert" — Reduce average cost-per-pax by 15%
 - 🎯 "Price Sniper" — Find the perfect price point (max revenue × load)
 
 **Social:**
+
 - 🤝 "Alliance Builder" — Form an alliance with 3+ airlines
 - 💬 "Industry Voice" — Receive 100 zaps on a game update note
 - 🎓 "Mentor" — Help 5 new players reach Tier 2
 - ⚔️ "Rival" — Compete head-to-head on 5+ routes with same player
 
 **Legacy:**
+
 - 👑 "Market Dominance" — #1 airline by revenue for 90 consecutive days
 - 🏗️ "Institution" — Operate continuously for 1 year
 - 🌟 "Legend" — Earn all other badges
@@ -170,10 +180,12 @@ Grouped by **discovery** (exploring), **mastery** (optimization), **social** (co
 ### 2.4 Feedback Loops (Positive & Negative)
 
 **Positive feedback (snowball):**
+
 - More flights → more brand recognition → more passengers → more revenue → more aircraft → more flights
 - Higher load factors → better financial performance → ability to lower prices → even more passengers
 
 **Negative feedback (rubber band / catch-up):**
+
 - Market saturation → lower load factors for everyone → least efficient airline exits → market corrects
 - Overcapitalization → high fixed costs → vulnerability during economic downturns
 - Reputation damage from cancellations or poor service → passenger loss → harder to recover
@@ -232,7 +244,7 @@ interface AudioLayer {
   id: string;
   source: AudioBufferSourceNode;
   gainNode: GainNode;
-  pannerNode?: PannerNode;  // For 3D spatial audio
+  pannerNode?: PannerNode; // For 3D spatial audio
   loop: boolean;
   volume: number;
 }
@@ -241,29 +253,30 @@ class ACARSAudioEngine {
   private ctx: AudioContext;
   private layers: Map<string, AudioLayer>;
   private masterGain: GainNode;
-  
+
   // Ambient layers that play continuously
-  startAmbience(timeOfDay: 'day' | 'night' | 'dawn' | 'dusk') { }
-  
+  startAmbience(timeOfDay: "day" | "night" | "dawn" | "dusk") {}
+
   // Event-driven one-shots with Pavlovian timing
-  playCabinChime() { }      // On route opened
-  playRevenueClick() { }    // On each revenue tick
-  playBoardingTone() { }    // On flight departing
-  playMilestone() { }       // On badge earned
-  
-  // Procedural audio: each metro line in Mini Metro 
-  // has a unique note — each of YOUR routes has a unique 
+  playCabinChime() {} // On route opened
+  playRevenueClick() {} // On each revenue tick
+  playBoardingTone() {} // On flight departing
+  playMilestone() {} // On badge earned
+
+  // Procedural audio: each metro line in Mini Metro
+  // has a unique note — each of YOUR routes has a unique
   // timbre that blends into the ambient soundscape
-  assignRouteTimbre(routeId: string, distance: number) { }
-  
+  assignRouteTimbre(routeId: string, distance: number) {}
+
   // The "Music of Your Network" — inspired by Mini Metro
   // As flights depart and arrive, they trigger musical notes
   // A busy network sounds GOOD. A failing one sounds dissonant.
-  updateNetworkSymphony(activeFlights: Flight[]) { }
+  updateNetworkSymphony(activeFlights: Flight[]) {}
 }
 ```
 
 **The "Music of Your Network" concept** (inspired directly by Mini Metro):
+
 - Each route is assigned a musical note based on its distance/direction
 - Short domestic routes → high, quick notes (staccato)
 - Long international routes → deep, sustained notes (legato)
@@ -277,19 +290,20 @@ class ACARSAudioEngine {
 
 Every action has a visual signature:
 
-| Event | Visual Feedback |
-|-------|----------------|
-| Route opened | Animated arc draws between airports with a soft glow |
-| Flight departing | Aircraft icon pulses briefly, trail begins |
-| Revenue earned | Small floating "+$XXX" number near the route |
-| Load factor rising | Route arc color shifts from red (empty) → yellow → green (full) |
-| Competition entering | Competitor's arc appears alongside yours (different color) |
-| Season changing | Map color temperature shifts (warm summer → cool winter) |
-| Day/night cycle | Real-time lighting on the globe, airport lights twinkle at night |
-| Badge earned | Full-screen momentary celebration with confetti particles |
-| Financial milestone | Dashboard briefly glows gold |
+| Event                | Visual Feedback                                                  |
+| -------------------- | ---------------------------------------------------------------- |
+| Route opened         | Animated arc draws between airports with a soft glow             |
+| Flight departing     | Aircraft icon pulses briefly, trail begins                       |
+| Revenue earned       | Small floating "+$XXX" number near the route                     |
+| Load factor rising   | Route arc color shifts from red (empty) → yellow → green (full)  |
+| Competition entering | Competitor's arc appears alongside yours (different color)       |
+| Season changing      | Map color temperature shifts (warm summer → cool winter)         |
+| Day/night cycle      | Real-time lighting on the globe, airport lights twinkle at night |
+| Badge earned         | Full-screen momentary celebration with confetti particles        |
+| Financial milestone  | Dashboard briefly glows gold                                     |
 
 ### 3.3 Haptic Feedback (Mobile Future)
+
 - Light vibration on route creation
 - Double-tap pulse on achievement
 - Sustained subtle vibration during 3D cockpit turbulence
@@ -305,11 +319,12 @@ Every action has a visual signature:
 ```typescript
 // Fetch weather for any airport in real-time
 const weather = await fetch(
-  `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+  `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`,
 );
 ```
 
 **How weather affects gameplay:**
+
 - **Visual**: Rain, clouds, snow rendered on the map/globe near airports
 - **Gameplay**: Severe weather can delay flights → cascading schedule disruptions
 - **Seasonal**: Weather patterns drive seasonal demand (snow → ski resort demand up)
@@ -333,14 +348,15 @@ Computed from real UTC date (no API needed):
 function getSeason(latitude: number, date: Date): Season {
   const month = date.getMonth();
   const isNorthern = latitude > 0;
-  if (month >= 2 && month <= 4) return isNorthern ? 'spring' : 'autumn';
-  if (month >= 5 && month <= 7) return isNorthern ? 'summer' : 'winter';
-  if (month >= 8 && month <= 10) return isNorthern ? 'autumn' : 'spring';
-  return isNorthern ? 'winter' : 'summer';
+  if (month >= 2 && month <= 4) return isNorthern ? "spring" : "autumn";
+  if (month >= 5 && month <= 7) return isNorthern ? "summer" : "winter";
+  if (month >= 8 && month <= 10) return isNorthern ? "autumn" : "spring";
+  return isNorthern ? "winter" : "summer";
 }
 ```
 
 **Seasonal effects on gameplay:**
+
 - Summer: +30% demand to beach/resort destinations, -10% business travel
 - Winter: +40% demand to ski destinations, +20% holiday travel
 - Spring/Autumn: Baseline demand, shoulder-season pricing opportunities
@@ -349,12 +365,13 @@ function getSeason(latitude: number, date: Date): Season {
 ### 4.4 Real Airport Data Enrichment
 
 Beyond OpenFlights static data, each airport gets:
+
 - **Timezone** (from tz database — already in OpenFlights)
 - **Current local time** (computed, displayed on airport info panel)
 - **Sunrise/sunset** (computed from position + date)
 - **Current weather** (Open-Meteo, cached per airport, refreshed hourly)
 
-For the aviation geek: clicking an airport shows real local time, weather, and what the sky looks like there *right now*. This is the kind of "nitpicker" detail that turns casual users into devoted fans.
+For the aviation geek: clicking an airport shows real local time, weather, and what the sky looks like there _right now_. This is the kind of "nitpicker" detail that turns casual users into devoted fans.
 
 ---
 
@@ -388,6 +405,7 @@ Your airline is YOUR identity. It's published as a Nostr addressable event and v
 ```
 
 **Livery customization features:**
+
 - Color picker for primary/secondary/accent colors
 - Pattern templates: stripe, gradient, two-tone, retro, modern
 - Logo upload (stored as Nostr event, referenced by nevent)
@@ -395,6 +413,7 @@ Your airline is YOUR identity. It's published as a Nostr addressable event and v
 - Your livery appears on YOUR aircraft on other players' maps
 
 **Why this matters psychologically:**
+
 - Avatar customization is proven to increase player identification and emotional investment
 - Seeing YOUR branded aircraft flying on the global map creates pride of ownership
 - Other players seeing your livery creates social visibility and reputation
@@ -403,6 +422,7 @@ Your airline is YOUR identity. It's published as a Nostr addressable event and v
 ### 5.2 Fleet Naming
 
 Each aircraft can be individually named (like real airlines name their planes):
+
 - "Spirit of Adventure" (Boeing 787-9)
 - "City of London" (Airbus A380)
 - Custom registration numbers
@@ -412,6 +432,7 @@ These names appear in the flight info panel when anyone clicks on your flight.
 ### 5.3 CEO Title & Avatar
 
 Your Nostr profile (NIP-01, kind 0) serves as your CEO identity:
+
 - Profile picture = CEO photo
 - Display name = CEO name
 - Banner = Your airline's livery/branding
@@ -420,6 +441,7 @@ Your Nostr profile (NIP-01, kind 0) serves as your CEO identity:
 ### 5.4 Alliance Identity
 
 Alliances (groups of airlines) get their own branding:
+
 - Alliance name, colors, logo
 - Shared codeshare flights
 - Alliance leaderboard
@@ -472,7 +494,8 @@ packages/
 
 ### 6.3 Aviation-Specific i18n
 
-Some things are *intentionally* not translated:
+Some things are _intentionally_ not translated:
+
 - **IATA/ICAO codes** (JFK, KJFK are universal)
 - **Aircraft type designators** (B737, A320 are universal)
 - **Callsigns** (spoken in English globally in real aviation)
@@ -484,14 +507,14 @@ Some things are *intentionally* not translated:
 
 ### 7.1 Player Archetypes
 
-| Archetype | What They Want | How We Serve Them | Retention Hook |
-|-----------|---------------|-------------------|----------------|
-| **The Aviation Geek** 🛩️ | Realism, real aircraft, real airports, real data, cabin chimes | Detailed aircraft specs, real routes, livery editor, aviation sounds | "This game has the EXACT cabin chime from a 787" |
-| **The Optimizer** 📊 | Spreadsheets, efficiency, min-maxing, perfect systems | Detailed financial analytics, route optimizer, QSI visibility | "I found a route with 23% margins that no one else is serving" |
-| **The Empire Builder** 👑 | Growth, scale, domination, seeing their airline everywhere | Globe view showing global network, leaderboards, alliance system | "My airline is now the 3rd largest in the game" |
-| **The Creative** 🎨 | Beautiful liveries, elegant route networks, aesthetics | Livery editor, beautiful route map visualization, airline branding | "Look at my airline's aesthetic — it's gorgeous" |
-| **The Socializer** 💬 | Competition, alliances, community, reputation | Nostr social feed, alliance chat, zap tipping, leaderboards | "Our alliance just beat the #1 alliance in weekly revenue" |
-| **The Casual** 🧘 | Relaxing, ambient, check-in-and-go, no stress | Idle progression, weekly summaries, peaceful ambient soundscape | "I check my airline twice a day and it's like meditation" |
+| Archetype                 | What They Want                                                 | How We Serve Them                                                    | Retention Hook                                                 |
+| ------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **The Aviation Geek** 🛩️  | Realism, real aircraft, real airports, real data, cabin chimes | Detailed aircraft specs, real routes, livery editor, aviation sounds | "This game has the EXACT cabin chime from a 787"               |
+| **The Optimizer** 📊      | Spreadsheets, efficiency, min-maxing, perfect systems          | Detailed financial analytics, route optimizer, QSI visibility        | "I found a route with 23% margins that no one else is serving" |
+| **The Empire Builder** 👑 | Growth, scale, domination, seeing their airline everywhere     | Globe view showing global network, leaderboards, alliance system     | "My airline is now the 3rd largest in the game"                |
+| **The Creative** 🎨       | Beautiful liveries, elegant route networks, aesthetics         | Livery editor, beautiful route map visualization, airline branding   | "Look at my airline's aesthetic — it's gorgeous"               |
+| **The Socializer** 💬     | Competition, alliances, community, reputation                  | Nostr social feed, alliance chat, zap tipping, leaderboards          | "Our alliance just beat the #1 alliance in weekly revenue"     |
+| **The Casual** 🧘         | Relaxing, ambient, check-in-and-go, no stress                  | Idle progression, weekly summaries, peaceful ambient soundscape      | "I check my airline twice a day and it's like meditation"      |
 
 ### 7.2 Onboarding Flow
 
@@ -503,13 +526,13 @@ Step 1: "Create Your Airline" (30 seconds)
   → Pick primary colors
   → Choose a hub airport (world map with highlighted major airports)
   → Generate or import Nostr keys
-  
+
 Step 2: "Your First Route" (60 seconds)
   → Guided to click your hub, then click a nearby airport
   → See the demand, projected revenue, suggested price
   → "Open Route" button → satisfying arc animation + cabin chime
 
-Step 3: "Your First Aircraft" (60 seconds)  
+Step 3: "Your First Aircraft" (60 seconds)
   → Offered 3 starter aircraft with clear tradeoffs
   → Small turboprop (cheap, short range)
   → Regional jet (medium, versatile)
@@ -582,6 +605,7 @@ The game engine uses **Hexagonal Architecture** (Ports & Adapters) to ensure the
 ```
 
 **Why this matters for "forever":**
+
 - Core game logic **never needs to change** when you swap UI framework, map library, or even leave Nostr
 - The core can run in browser, Node.js, Deno, Bun, a game relay, a test harness — anywhere
 - 10 years from now, if CesiumJS is obsolete, you swap the adapter, not the game
@@ -597,18 +621,18 @@ interface ACARSPlugin {
   id: string;
   name: string;
   version: string;
-  
+
   // Lifecycle hooks
   onInit(context: PluginContext): void;
   onTick?(tick: GameTick): void;
   onEvent?(event: NostrEvent): void;
   onDestroy(): void;
-  
+
   // UI extension points
-  panels?: PanelDefinition[];           // Add new panels
-  mapLayers?: MapLayerDefinition[];     // Add map layers
-  menuItems?: MenuItemDefinition[];     // Add menu items
-  
+  panels?: PanelDefinition[]; // Add new panels
+  mapLayers?: MapLayerDefinition[]; // Add map layers
+  menuItems?: MenuItemDefinition[]; // Add menu items
+
   // Store extensions
   stores?: Record<string, StoreDefinition>;
 }
@@ -640,6 +664,7 @@ Current State = reduce(validate(allEvents), initialState)
 ```
 
 **Why this is perfect for our game:**
+
 1. **Nostr IS an event log** — events are naturally append-only
 2. **Any client can reconstruct any state** by replaying events from relays
 3. **Time travel** — you can see the state at any point in history
@@ -734,18 +759,18 @@ Simulation Tests (deterministic replay):
 
 ## Summary: What Makes This Game Addictive
 
-| Principle | How We Implement It |
-|-----------|-------------------|
-| **Instant gratification** | First flight in 5 minutes. Revenue in seconds. |
-| **Visible progress** | Aircraft on the map. Routes glowing. Revenue ticking. |
-| **Meaningful choices** | Every price change, route, and aircraft purchase matters to the economy. |
-| **Social stakes** | Other real humans are competing on the same routes. Your reputation is your Nostr identity. |
-| **Sensory richness** | Aviation sounds trigger emotional responses. The network "sings" when healthy. |
-| **Idle progression** | The world runs even when you sleep. Opening the app reveals what happened. |
-| **Personalization** | Your airline looks, sounds, and feels like YOURS. |
-| **Emergent stories** | "Remember when SkyNova tried to undercut us on LAX→NRT and we both nearly went bankrupt?" |
-| **Infinite mastery** | The economy is complex enough that there's always a better strategy to find. |
-| **Real-world grounding** | Real airports, real weather, real day/night. The world feels ALIVE. |
+| Principle                 | How We Implement It                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------- |
+| **Instant gratification** | First flight in 5 minutes. Revenue in seconds.                                              |
+| **Visible progress**      | Aircraft on the map. Routes glowing. Revenue ticking.                                       |
+| **Meaningful choices**    | Every price change, route, and aircraft purchase matters to the economy.                    |
+| **Social stakes**         | Other real humans are competing on the same routes. Your reputation is your Nostr identity. |
+| **Sensory richness**      | Aviation sounds trigger emotional responses. The network "sings" when healthy.              |
+| **Idle progression**      | The world runs even when you sleep. Opening the app reveals what happened.                  |
+| **Personalization**       | Your airline looks, sounds, and feels like YOURS.                                           |
+| **Emergent stories**      | "Remember when SkyNova tried to undercut us on LAX→NRT and we both nearly went bankrupt?"   |
+| **Infinite mastery**      | The economy is complex enough that there's always a better strategy to find.                |
+| **Real-world grounding**  | Real airports, real weather, real day/night. The world feels ALIVE.                         |
 
 ---
 
@@ -754,28 +779,33 @@ Simulation Tests (deterministic replay):
 To achieve our goal of supporting **millions of concurrent players** operating **tens of thousands of planes**, ACARS uses a **Macro-Economic Deterministic Architecture**.
 
 ### 9.1 Math vs Micro-Agents
+
 We do NOT simulate individual passengers pathfinding through networks (which burns CPU). We use top-down formulas:
+
 - **Gravity Model**: `Demand = K * (Pop_A * Pop_B) / Distance^1.2`. Calculates total route demand in $O(1)$ time.
 - **QSI (Quality Service Index)**: Acts as a market-share multiplier. If an airline's QSI yields 30% share, they instantly get 30% of the route demand.
 
 ### 9.2 Event Sourcing via Nostr
+
 We avoid centralized database meltdowns by pushing the write-load to the decentralized Nostr protocol:
+
 - Purchasing planes or opening routes simply broadcasts signed NIP-33 events.
 - The game client pulls the events and reduces them deterministically.
 - **Scale property**: The read/write load is horizontally distributed natively by the protocol.
 
 ### 9.3 Overcoming UI and Floating-Point Bottlenecks
+
 - **React/DOM Thrashing**: Prevented by relying on MapLibre GL for the globe array (WebGL handles 100k+ instances easily) and `@tanstack/react-virtual` for any UI lists.
 - **Floating-Point Desync**: Because state is processed client-side, $10.01 + $5.00 cannot yield $15.0100000001 on some machines. ALL financial math is strictly enforced as **Fixed-Point Arithmetic** using integers (e.g., $10.50 is stored as `105000`).
 - **Tick Loop O(N²)**: The engine's tick processor must rely on highly indexed structures (`Map<Route, Airline[]>`) instead of deeply nested array scanning.
 
-*When an agent works on this codebase, they must evaluate every new feature through the lens: "Does this break if 10,000 airlines fire it at once?"*
+_When an agent works on this codebase, they must evaluate every new feature through the lens: "Does this break if 10,000 airlines fire it at once?"_
 
 ---
 
 ## 10. Security & Trustless Validation
 
-Because ACARS is a completely serverless, decentralized game running on the Nostr protocol, the client has ultimate authority over what it broadcasts. **We operate in a Zero-Trust Environment.** Players can and will attempt to spoof payloads, double-spend funds, or modify other players' airlines by broadcasting manually crafted events to relays. 
+Because ACARS is a completely serverless, decentralized game running on the Nostr protocol, the client has ultimate authority over what it broadcasts. **We operate in a Zero-Trust Environment.** Players can and will attempt to spoof payloads, double-spend funds, or modify other players' airlines by broadcasting manually crafted events to relays.
 
 The deterministic simulation engine must treat every incoming event as hostile until proven otherwise.
 
@@ -783,7 +813,7 @@ The deterministic simulation engine must treat every incoming event as hostile u
 
 Nostr events represent **Intents to Act**, not **State Updates**.
 
-- **Never Trust Payload Variables:** If a user broadcasts an event `PurchaseAircraft` with a payload of `{"cost": 1000, "type": "B737"}`, the simulation engine must completely ignore the `"cost": 1000`. The engine must look up the correct, canonical fixed-point cost from the immutable `@acars/data` catalog. 
+- **Never Trust Payload Variables:** If a user broadcasts an event `PurchaseAircraft` with a payload of `{"cost": 1000, "type": "B737"}`, the simulation engine must completely ignore the `"cost": 1000`. The engine must look up the correct, canonical fixed-point cost from the immutable `@acars/data` catalog.
 - **State is Derived, Never Accepted:** A client cannot broadcast an event that asserts state, such as `{"action": "UpdateBalance", "newBalance": 5000000}`. They can only broadcast `{"action": "OpenRoute", "from": "JFK", "to": "LHR"}`. The local deterministic engine computes the deduction.
 
 ### 10.2 Sequential Processing & Double-Spend Prevention

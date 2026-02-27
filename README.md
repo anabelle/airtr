@@ -7,6 +7,7 @@ ACARS is a real-world aviation simulation where players build and operate virtua
 ## Features
 
 ### Implemented
+
 - **Deterministic Game Engine** — O(1) macro-economic formulas (Gravity Model, QSI) for route demand and market share
 - **Fixed-Point Arithmetic** — No floating-point drift; all financial calculations are cross-platform deterministic
 - **Nostr Integration** — Decentralized identity via NIP-07, airline state stored as signed events
@@ -20,6 +21,7 @@ ACARS is a real-world aviation simulation where players build and operate virtua
 - **Route Scheduling** — Real-time aircraft assignment and automated flight operations
 
 ### Planned
+
 - Corporate mechanics (IPO, M&A, stock trading, dividends)
 - Alliance system with codeshares
 - 3D CesiumJS cockpit view
@@ -61,6 +63,7 @@ ACARS is a real-world aviation simulation where players build and operate virtua
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 20+
 - pnpm 9+
 - A NIP-07 browser extension (nos2x, Alby, or Nostr Connect)
@@ -135,16 +138,16 @@ acars/
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite, TypeScript |
-| State | Zustand |
-| Map | MapLibre GL |
-| Virtualization | @tanstack/react-virtual |
-| Networking | Nostr (NDK) |
-| Identity | NIP-07 (nos2x, Alby) |
-| Testing | Vitest |
-| Package Manager | pnpm workspaces |
+| Layer           | Technology                 |
+| --------------- | -------------------------- |
+| Frontend        | React 19, Vite, TypeScript |
+| State           | Zustand                    |
+| Map             | MapLibre GL                |
+| Virtualization  | @tanstack/react-virtual    |
+| Networking      | Nostr (NDK)                |
+| Identity        | NIP-07 (nos2x, Alby)       |
+| Testing         | Vitest                     |
+| Package Manager | pnpm workspaces            |
 
 ## Economic Model
 
@@ -155,6 +158,7 @@ Demand = K × (Pop_A^α × Pop_B^β × GDP_A^γ × GDP_B^δ) / Distance^θ
 ```
 
 Where:
+
 - K = 6.4e-7 (calibrated against real BTS data)
 - α, β = 0.8 (population exponents)
 - γ = 0.6, δ = 0.3 (GDP exponents)
@@ -174,23 +178,24 @@ See `docs/ECONOMIC_MODEL.md` for full specification.
 ## Contributing
 
 We welcome contributions! Please read:
+
 - `AGENTS.md` — Engineering rules and constraints
 - `docs/AGENT_DEVELOPMENT_PARADIGM.md` — Branching, linting, testing guidelines
 
 ### Development Constraints
 
-Every feature must answer: *"If 10,000 players fire this event simultaneously, will it break the math, melt the DOM, or desync the Nostr state?"*
+Every feature must answer: _"If 10,000 players fire this event simultaneously, will it break the math, melt the DOM, or desync the Nostr state?"_
 
 ## Documentation
 
-| Document | Purpose |
-|----------|---------|
-| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md) | Gameplay vision, engagement loops, sensory design |
-| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md) | Gravity model, QSI, fixed-point costs |
-| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md) | IPOs, M&A, bankruptcy, stock mechanics |
-| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md) | Aircraft depreciation, maintenance, commonality |
-| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md) | Bitcoin/Lightning revenue streams |
-| [ROADMAP.md](docs/ROADMAP.md) | Development phases and milestones |
+| Document                                            | Purpose                                           |
+| --------------------------------------------------- | ------------------------------------------------- |
+| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)   | Gameplay vision, engagement loops, sensory design |
+| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md)         | Gravity model, QSI, fixed-point costs             |
+| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)       | IPOs, M&A, bankruptcy, stock mechanics            |
+| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md) | Aircraft depreciation, maintenance, commonality   |
+| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md) | Bitcoin/Lightning revenue streams                 |
+| [ROADMAP.md](docs/ROADMAP.md)                       | Development phases and milestones                 |
 
 ## Community & Support
 

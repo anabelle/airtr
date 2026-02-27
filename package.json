@@ -33,11 +33,15 @@
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
     "vitest": "^3.2.4"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx,cjs,mjs,json,md,mdx,yml,yaml,css,scss,html}": [
+    "**/*.{ts,tsx,js,jsx,cjs,mjs,json,css,scss,html}": [
       "biome format --write"
+    ],
+    "**/*.{md,mdx,yml,yaml}": [
+      "prettier --write"
     ],
     "**/*.{ts,tsx,js,jsx,cjs,mjs}": [
       "eslint"
