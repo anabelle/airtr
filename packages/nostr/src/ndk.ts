@@ -2,6 +2,7 @@ import { createLogger } from "@airtr/core";
 import NDK from "@nostr-dev-kit/ndk";
 
 const DEFAULT_RELAYS = [
+  "wss://nostr.pixel.xx.kg", // Dedicated AirTR relay
   "wss://relay.damus.io",
   "wss://relay.primal.net",
   "wss://nos.lol",
@@ -40,6 +41,40 @@ export function connectedRelayCount(): number {
   } catch {
     return 0;
   }
+}
+
+/**
+ * Attempts to reconnect to relays if none are currently connected.
+ * Returns true if at least one relay is connected after the attempt.
+ */
+export async function reconnectIfNeeded(): Promise<boolean> {
+  const count = connectedRelayCount();
+  if (count > 0) return true;
+
+  logger.warn("No relays connected — attempting reconnection...");
+  const ndk = getNDK();
+  try {
+    await ndk.connect(3000);
+  } catch {
+    logger.warn("Reconnection attempt timed out, NDK will keep trying in background.");
+  }
+
+  // Poll briefly for at least one relay to come up
+  const start = Date.now();
+  const MAX_WAIT = 5000;
+  const POLL_INTERVAL = 250;
+  while (connectedRelayCount() === 0 && Date.now() - start < MAX_WAIT) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+  }
+
+  const newCount = connectedRelayCount();
+  if (newCount > 0) {
+    logger.info(`Reconnected to ${newCount} relay(s) after ${Date.now() - start}ms.`);
+    return true;
+  }
+
+  logger.warn("Reconnection failed — still no relays connected.");
+  return false;
 }
 
 /**

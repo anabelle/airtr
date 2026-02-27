@@ -38,6 +38,7 @@ export interface WorldSlice {
 }
 
 let isProcessingGlobal = false;
+let isProcessingGlobalSince = 0;
 let isSyncingWorld = false;
 let pendingSyncWorldOptions: { force?: boolean } | null = null;
 const GLOBAL_CATCHUP_CHUNK = 200;
@@ -45,10 +46,13 @@ const MAX_COMPETITOR_CATCHUP = 1000;
 const MAX_TOTAL_COMPETITOR_TICKS = 5000;
 const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
 const MONTH_TICKS = 30 * TICKS_PER_DAY;
+/** If processGlobalTick takes longer than this, auto-reset the flag. */
+const PROCESSING_GLOBAL_TIMEOUT_MS = 30_000;
 
 /** @internal — test-only helper to reset module-level concurrency flags */
 export function _resetWorldFlags() {
   isProcessingGlobal = false;
+  isProcessingGlobalSince = 0;
   isSyncingWorld = false;
   pendingSyncWorldOptions = null;
 }
@@ -123,6 +127,18 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
   viewAs: (pubkey) => set({ viewedPubkey: pubkey }),
 
   processGlobalTick: async (tick: number) => {
+    // Auto-reset if the flag has been stuck for too long (e.g. unhandled throw).
+    if (isProcessingGlobal && isProcessingGlobalSince > 0) {
+      const elapsed = Date.now() - isProcessingGlobalSince;
+      if (elapsed > PROCESSING_GLOBAL_TIMEOUT_MS) {
+        console.warn(
+          `[WorldSlice] isProcessingGlobal stuck for ${Math.round(elapsed / 1000)}s — auto-resetting.`,
+        );
+        isProcessingGlobal = false;
+        isProcessingGlobalSince = 0;
+      }
+    }
+
     if (isProcessingGlobal) return;
 
     const {
@@ -138,6 +154,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
     if (competitors.size === 0) return;
 
     isProcessingGlobal = true;
+    isProcessingGlobalSince = Date.now();
     try {
       const updatedGlobalFleet: AircraftInstance[] = [];
       const updatedCompetitors = new Map(competitors);
@@ -315,6 +332,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       useEngineStore.setState({ catchupProgress: null });
     } finally {
       isProcessingGlobal = false;
+      isProcessingGlobalSince = 0;
     }
   },
 

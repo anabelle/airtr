@@ -298,10 +298,12 @@ export async function subscribeActions(options: {
   authors?: string[];
   since?: number;
   onEose?: () => void;
+  /** Called when the subscription is closed unexpectedly (relay disconnect, error, etc.) */
+  onClose?: () => void;
 }): Promise<() => void> {
   await ensureConnected();
   const ndk = getNDK();
-  const { onEvent, authors, since, onEose } = options;
+  const { onEvent, authors, since, onEose, onClose } = options;
 
   const filter: NDKFilter = {
     kinds: [ACTION_KIND],
@@ -310,6 +312,7 @@ export async function subscribeActions(options: {
   };
 
   const sub = ndk.subscribe(filter, { closeOnEose: false });
+  let intentionallyStopped = false;
 
   sub.on("event", (event: NDKEvent) => {
     if (!hasWorldTag(event, WORLD_ID)) return;
@@ -332,7 +335,16 @@ export async function subscribeActions(options: {
     onEose?.();
   });
 
+  // Detect unexpected subscription death (relay disconnect, WebSocket close, etc.)
+  sub.on("close", () => {
+    if (!intentionallyStopped) {
+      logger.warn("Live subscription closed unexpectedly — notifying caller for re-subscribe.");
+      onClose?.();
+    }
+  });
+
   return () => {
+    intentionallyStopped = true;
     sub.stop();
   };
 }
