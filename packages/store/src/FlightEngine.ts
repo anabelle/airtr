@@ -349,14 +349,11 @@ export function processFlightEngine(
 
           const addressableDemand = scaleToAddressableMarket(weeklyDemandResult);
           const allocations = allocatePassengers(allOffers, addressableDemand);
-          const ourWeeklyAllocation = allocations.get(playerPubkey) ||
-            (route
-              ? { economy: 0, business: 0, first: 0 }
-              : allocations.get(ourOffer.airlinePubkey)) || {
-              economy: 0,
-              business: 0,
-              first: 0,
-            };
+          const ourWeeklyAllocation = allocations.get(playerPubkey) ?? {
+            economy: 0,
+            business: 0,
+            first: 0,
+          };
 
           const totalWeeklySeats =
             ourFrequency * (seatConfig.economy + seatConfig.business + seatConfig.first);
@@ -791,9 +788,9 @@ export function estimateLandingFinancials(
     seatsOffered,
   });
 
-  // Hub-aware airport fees
-  const originIata = ac.flight?.originIata;
-  const destinationIata = ac.flight?.destinationIata;
+  // Hub-aware airport fees (fall back to route IATA when ac.flight is null during recovery/backfill)
+  const originIata = ac.flight?.originIata ?? route.originIata;
+  const destinationIata = ac.flight?.destinationIata ?? route.destinationIata;
   const originHub = originIata ? HUB_CLASSIFICATIONS[originIata] : undefined;
   const destHub = destinationIata ? HUB_CLASSIFICATIONS[destinationIata] : undefined;
   const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(250);

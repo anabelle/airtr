@@ -85,6 +85,13 @@ export function getCyclePhase(
   }
 }
 
+/**
+ * Count the number of landings that occur in the half-open interval (fromTick, toTick].
+ *
+ * - Exclusive start, inclusive end: a landing exactly at `fromTick` is NOT counted,
+ *   but a landing exactly at `toTick` IS counted.
+ * - Returns 0 when `toTick <= fromTick`, `durationTicks <= 0`, or `turnaroundTicks < 0`.
+ */
 export function countLandingsBetween(
   cycleStartTick: number,
   fromTick: number,
