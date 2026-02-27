@@ -5,7 +5,9 @@ import {
   fp,
   fpFormat,
   fpScale,
+  fpSub,
   fpToNumber,
+  TICKS_PER_HOUR,
 } from "@airtr/core";
 import { getAircraftById } from "@airtr/data";
 import { FAMILY_ICONS } from "@airtr/map";
@@ -409,6 +411,16 @@ export function FleetManager() {
                           {fpFormat(marketVal, 0)}
                         </p>
                       </div>
+                      {ac.purchaseType === "lease" && (
+                        <div>
+                          <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">
+                            Monthly Lease
+                          </p>
+                          <p className="font-mono text-xs text-rose-400">
+                            {fpFormat(model.monthlyLease, 0)}/mo
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Performance Section */}
@@ -419,7 +431,21 @@ export function FleetManager() {
 
                       if (!lastLanding) return null;
 
-                      const isProfitable = (lastLanding.profit || FP_ZERO) > 0;
+                      const flightProfit = lastLanding.profit || FP_ZERO;
+
+                      // For leased aircraft, amortize lease cost into per-flight profit
+                      const flightDurationTicks = lastLanding.details?.flightDurationTicks ?? 0;
+                      const flightHours = flightDurationTicks / TICKS_PER_HOUR;
+                      const isLeased = ac.purchaseType === "lease";
+                      const leasePerHour = isLeased
+                        ? fpToNumber(model.monthlyLease) / (30 * 24)
+                        : 0;
+                      const leaseForFlight = fp(leasePerHour * flightHours);
+                      const trueProfit = isLeased
+                        ? fpSub(flightProfit, leaseForFlight)
+                        : flightProfit;
+
+                      const isProfitable = trueProfit > 0;
                       const pax = lastLanding.details?.passengers;
                       const lf = lastLanding.details?.loadFactor;
 
@@ -448,13 +474,18 @@ export function FleetManager() {
                             </div>
                             <div className="flex flex-col text-right">
                               <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                Net Profit
+                                {isLeased ? "True Profit" : "Net Profit"}
                               </span>
                               <span
                                 className={`text-sm font-mono font-bold ${isProfitable ? "text-emerald-400" : "text-red-400"}`}
                               >
-                                {fpFormat(lastLanding.profit || FP_ZERO, 0)}
+                                {fpFormat(trueProfit, 0)}
                               </span>
+                              {isLeased && (
+                                <span className="text-[9px] font-mono text-muted-foreground/60">
+                                  incl. {fpFormat(leaseForFlight, 0)} lease
+                                </span>
+                              )}
                             </div>
                           </div>
 

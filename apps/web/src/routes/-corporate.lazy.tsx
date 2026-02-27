@@ -1,6 +1,6 @@
 import type { Airport, FixedPoint, TimelineEvent } from "@airtr/core";
-import { fp, fpFormat, fpSub, fpToNumber, TICK_DURATION } from "@airtr/core";
-import { getHubPricingForIata } from "@airtr/data";
+import { FP_ZERO, fp, fpAdd, fpFormat, fpSub, fpSum, fpToNumber, TICK_DURATION } from "@airtr/core";
+import { getAircraftById, getHubPricingForIata } from "@airtr/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@airtr/store";
 import {
   Building2,
@@ -33,12 +33,23 @@ function FinancialPulse({
   corporateBalance,
   pulse,
   hubOpex,
+  fleetLease,
+  leasedCount,
 }: {
   corporateBalance: FixedPoint;
   pulse: FinancialPulseData;
   hubOpex: number;
+  fleetLease: FixedPoint;
+  leasedCount: number;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
+
+  const totalFixedCosts = fpAdd(fp(hubOpex), fleetLease);
+  // Hourly lease burn = monthly lease / (30 days * 24 hours)
+  const leasePerHour = fpToNumber(fleetLease) / (30 * 24);
+  const netIncomeNum = pulse.flightCount > 0 ? fpToNumber(pulse.netIncomeRate) : 0;
+  const trueBurnPerHour = netIncomeNum - leasePerHour;
+  const trueBurnPositive = trueBurnPerHour >= 0;
 
   return (
     <section className="space-y-3">
@@ -82,13 +93,57 @@ function FinancialPulse({
           )}
         </div>
 
-        {/* Hub OPEX subtitle */}
-        <p
-          className="mt-2 text-xs text-muted-foreground"
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          Hub OPEX: {fpFormat(fp(hubOpex), 0)}/mo
-        </p>
+        {/* Monthly fixed costs breakdown */}
+        <div className="mt-3 space-y-1">
+          <div
+            className="flex items-center justify-between text-xs text-muted-foreground"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            <span>Hub OPEX</span>
+            <span>{fpFormat(fp(hubOpex), 0)}/mo</span>
+          </div>
+          {leasedCount > 0 && (
+            <div
+              className="flex items-center justify-between text-xs text-rose-400/80"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              <span>Fleet Leases ({leasedCount} aircraft)</span>
+              <span>{fpFormat(fleetLease, 0)}/mo</span>
+            </div>
+          )}
+          <div
+            className="flex items-center justify-between text-xs font-bold border-t border-border/30 pt-1"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            <span className="text-muted-foreground">Total Fixed Costs</span>
+            <span className="text-rose-400">{fpFormat(totalFixedCosts, 0)}/mo</span>
+          </div>
+        </div>
+
+        {/* True Burn Rate — flight income minus lease amortization */}
+        {pulse.flightCount > 0 && leasedCount > 0 && (
+          <div
+            className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 text-xs font-bold ${
+              trueBurnPositive
+                ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+                : "border-rose-500/20 bg-rose-500/5 text-rose-400"
+            }`}
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            <span className="flex items-center gap-1">
+              {trueBurnPositive ? (
+                <TrendingUp className="h-3 w-3" aria-hidden="true" />
+              ) : (
+                <TrendingDown className="h-3 w-3" aria-hidden="true" />
+              )}
+              True Burn Rate
+            </span>
+            <span>
+              {trueBurnPositive ? "+" : ""}
+              {fpFormat(fp(trueBurnPerHour), 0)}/hr
+            </span>
+          </div>
+        )}
 
         {/* Progressive disclosure toggle */}
         {pulse.flightCount > 0 && (
@@ -656,7 +711,7 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 
 export default function CorporateDashboard() {
   const { airline, modifyHubs, initializeIdentity, isLoading } = useAirlineStore();
-  const { timeline, routes, isViewingOther } = useActiveAirline();
+  const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
 
   const [pendingAction, setPendingAction] = useState<{
@@ -674,6 +729,18 @@ export default function CorporateDashboard() {
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,
     [airline?.hubs],
   );
+
+  const { totalMonthlyLease, leasedCount } = useMemo(() => {
+    const leasedAircraft = fleet.filter((ac) => ac.purchaseType === "lease");
+    const leaseAmounts = leasedAircraft.map((ac) => {
+      const model = getAircraftById(ac.modelId);
+      return model?.monthlyLease ?? FP_ZERO;
+    });
+    return {
+      totalMonthlyLease: leaseAmounts.length > 0 ? fpSum(leaseAmounts) : FP_ZERO,
+      leasedCount: leasedAircraft.length,
+    };
+  }, [fleet]);
 
   if (!airline && !isViewingOther) {
     return (
@@ -760,6 +827,8 @@ export default function CorporateDashboard() {
           corporateBalance={airline.corporateBalance}
           pulse={pulse}
           hubOpex={currentMonthlyOpex}
+          fleetLease={totalMonthlyLease}
+          leasedCount={leasedCount}
         />
 
         {routePerformance.length > 0 && (
