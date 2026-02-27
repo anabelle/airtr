@@ -1001,9 +1001,9 @@ export function Globe({
       competitorHubColor?: string;
       playerHubColor?: string | null;
     } => {
-      const hubs = latestPlayerHubs.current;
-      const routeDestinations = latestPlayerRouteDestinations.current;
-      const competitorColors = latestCompetitorHubColors.current;
+      const hubs = playerHubs;
+      const routeDestinations = playerRouteDestinations;
+      const competitorColors = competitorHubColors;
       const playerColor = latestPlayerLivery.current?.primary ?? null;
 
       if (hubs[0] === airport.iata) {
