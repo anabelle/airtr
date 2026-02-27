@@ -65,6 +65,15 @@ const LIVE_SYNC_BATCH_MS = 1000;
 let pendingCompetitorSyncs = new Set<string>();
 let batchFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Buffer for live events that arrive before the initial sync completes.
+// Flushed (with deduplication) once initialSyncComplete is set to true.
+const eventBuffer: string[] = [];
+
+/** @internal — test-only accessor for the pre-sync event buffer */
+export function _getEventBuffer(): string[] {
+  return [...eventBuffer];
+}
+
 function flushPendingCompetitorSyncs() {
   batchFlushTimer = null;
   const pubkeys = pendingCompetitorSyncs;
@@ -136,9 +145,24 @@ const MAX_SYNC_RETRIES = 3;
 const RESUBSCRIBE_DELAY_MS = 2000;
 
 /**
- * Creates (or re-creates) the live Nostr action subscription.
- * Handles competitor event batching and automatic re-subscription on close.
+ * Replay events buffered during the initial sync window.
+ * Deduplicates by pubkey and skips competitors already captured by syncWorld.
+ * Mirrors the flushPendingCompetitorSyncs pattern.
  */
+function flushEventBuffer() {
+  if (eventBuffer.length === 0) return;
+  const { competitors } = useAirlineStore.getState();
+  const seen = new Set<string>();
+  for (const pk of eventBuffer) {
+    if (seen.has(pk)) continue;
+    seen.add(pk);
+    if (!competitors.has(pk)) {
+      queueCompetitorSync(pk);
+    }
+  }
+  eventBuffer.length = 0;
+}
+
 async function startActionSubscription(since: number): Promise<void> {
   // Tear down any existing subscription before creating a new one.
   if (unsubscribeActionStream) {
@@ -154,9 +178,15 @@ async function startActionSubscription(since: number): Promise<void> {
       const { pubkey } = useAirlineStore.getState();
       // Skip our own events — we already applied them locally.
       if (pubkey && entry.event.author.pubkey === pubkey) return;
-      if (!initialSyncComplete) return;
 
       const competitorPubkey = entry.event.author.pubkey;
+
+      // Buffer events that arrive before the initial sync finishes so they
+      // are not silently dropped.  They will be replayed once sync completes.
+      if (!initialSyncComplete) {
+        eventBuffer.push(competitorPubkey);
+        return;
+      }
 
       if (enableRealtimeSyncLogs) {
         logger.info(`Live event from ${competitorPubkey.slice(0, 8)}...: ${entry.action.action}`);
@@ -173,13 +203,15 @@ async function startActionSubscription(since: number): Promise<void> {
       logger.warn("Live subscription closed unexpectedly — scheduling re-subscribe...");
       unsubscribeActionStream = null;
       setTimeout(async () => {
-        if (!initialSyncComplete) return;
         try {
           await ensureConnected();
           const freshSince = Math.floor(Date.now() / 1000);
           await startActionSubscription(freshSince);
-          // Full resync to pick up anything missed during the gap.
-          void useAirlineStore.getState().syncWorld({ force: true });
+          // Only trigger a full resync if we've completed the initial sync;
+          // otherwise the IIFE retry loop will handle it.
+          if (initialSyncComplete) {
+            void useAirlineStore.getState().syncWorld({ force: true });
+          }
           logger.info("Re-subscribed successfully after unexpected close.");
         } catch {
           logger.warn("Re-subscribe attempt failed, will retry on next periodic sync.");
@@ -198,6 +230,14 @@ async function startActionSubscription(since: number): Promise<void> {
   // published by competitors during the multi-second syncWorld() fetch.
   const since = Math.floor(Date.now() / 1000);
 
+  // Start the subscription NOW (before syncWorld) so events that arrive
+  // during the sync window are buffered rather than missed.
+  try {
+    await startActionSubscription(since);
+  } catch (err) {
+    logger.warn("Failed to start action subscription, will rely on periodic sync", err);
+  }
+
   for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
     // force: true bypasses the isProcessingGlobal guard so the initial
     // sync cannot be silently skipped by a concurrent processGlobalTick.
@@ -211,9 +251,8 @@ async function startActionSubscription(since: number): Promise<void> {
 
   initialSyncComplete = true;
 
-  if (!unsubscribeActionStream) {
-    await startActionSubscription(since);
-  }
+  // Replay buffered events that arrived during the initial sync window.
+  flushEventBuffer();
 })();
 
 // --- Visibility change handling ---
