@@ -92,6 +92,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       let currentTimeline = [...get().timeline];
       const timelineEventIds = new Set(currentTimeline.map((event) => event.id));
       let anyChanges = false;
+      let consumedDeletedFleetIds = new Set<string>();
 
       const ticksPerDay = 24 * TICKS_PER_HOUR;
       const ticksPerMonth = ticksPerDay * 30;
@@ -152,6 +153,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           fleet: currentFleet,
           airline: updatedAirline,
           timeline: currentTimeline,
+          // Clear stale deletion tracking on fast-path too, so IDs don't
+          // accumulate indefinitely when the slow-path is never reached.
+          fleetDeletedDuringCatchup: [],
         });
         const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
         const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
@@ -288,12 +292,18 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       }
 
       const latestFleet = get().fleet;
+      const deletedFleetIds = new Set(get().fleetDeletedDuringCatchup);
+      consumedDeletedFleetIds = deletedFleetIds;
       if (latestFleet.length > 0) {
         const mergedFleet = new Map(currentFleet.map((ac) => [ac.id, ac]));
         for (const ac of latestFleet) {
           if (!mergedFleet.has(ac.id)) mergedFleet.set(ac.id, ac);
         }
-        currentFleet = Array.from(mergedFleet.values());
+        // currentFleet may still include pre-catchup aircraft that were
+        // optimistically sold while catchup was running. Remove those IDs.
+        currentFleet = Array.from(mergedFleet.values()).filter((ac) => !deletedFleetIds.has(ac.id));
+      } else if (deletedFleetIds.size > 0) {
+        currentFleet = currentFleet.filter((ac) => !deletedFleetIds.has(ac.id));
       }
 
       const simulatedTimestamp = GENESIS_TIME + targetTick * TICK_DURATION;
@@ -510,6 +520,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         fleet: currentFleet,
         airline: updatedAirline,
         timeline: currentTimeline,
+        fleetDeletedDuringCatchup: get().fleetDeletedDuringCatchup.filter(
+          (id) => !consumedDeletedFleetIds.has(id),
+        ),
       });
       const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
       const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);

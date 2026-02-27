@@ -29,10 +29,16 @@ import type { AirlineState } from "../types";
 
 export interface FleetSlice {
   fleet: AircraftInstance[];
+  fleetDeletedDuringCatchup: string[];
   purchaseAircraft: (
     model: AircraftModel,
     deliveryHubIata?: string,
-    configuration?: { economy: number; business: number; first: number; cargoKg: number },
+    configuration?: {
+      economy: number;
+      business: number;
+      first: number;
+      cargoKg: number;
+    },
     customName?: string,
     purchaseType?: "buy" | "lease",
   ) => Promise<void>;
@@ -49,16 +55,22 @@ const logger = createLogger("Fleet");
 
 export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = (set, get) => ({
   fleet: [],
+  fleetDeletedDuringCatchup: [],
   timeline: [],
 
   purchaseAircraft: async (
     model: AircraftModel,
     deliveryHubIata?: string,
-    configuration?: { economy: number; business: number; first: number; cargoKg: number },
+    configuration?: {
+      economy: number;
+      business: number;
+      first: number;
+      cargoKg: number;
+    },
     customName?: string,
     purchaseType: "buy" | "lease" = "buy",
   ) => {
-    const { airline, pubkey, fleet, routes } = get();
+    const { airline, pubkey, fleet } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
     const upfrontCost = purchaseType === "buy" ? model.price : fpScale(model.price, 0.1);
@@ -124,8 +136,6 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
 
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
-
     set({
       airline: updatedAirline,
       fleet: updatedFleet,
@@ -152,13 +162,27 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: remove only the newly-created aircraft and
+        // refund the cost, preserving concurrent changes to other fleet
+        // entries and timeline events.
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, upfrontCost),
+            fleetIds: state.airline.fleetIds.filter((id) => id !== newInstanceId),
+          },
+          fleet: state.fleet.filter((ac) => ac.id !== newInstanceId),
+        };
+      });
       console.error("Failed to sync aircraft purchase to Nostr:", e);
     }
   },
 
   ferryAircraft: async (aircraftId: string, destinationIata: string) => {
-    const { airline, fleet, routes } = get();
+    const { airline, fleet } = get();
     if (!airline) throw new Error("No active airline loaded.");
 
     const instance = fleet.find((ac) => ac.id === aircraftId);
@@ -231,7 +255,6 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
     const currentTimeline = [...get().timeline];
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
     const updatedAirline = { ...airline, timeline: finalTimeline };
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
 
     set({
       airline: updatedAirline,
@@ -256,7 +279,22 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        // Merge-safe rollback: restore only the ferried aircraft
+        const restoredFleet = state.fleet.map((ac) => {
+          if (ac.id === aircraftId) return instance;
+          return ac;
+        });
+
+        // Remove only the optimistic ferry event
+        const restoredTimeline = state.timeline.filter((evt) => evt.id !== newEvent.id);
+
+        return {
+          airline: state.airline ? { ...state.airline, timeline: restoredTimeline } : state.airline,
+          fleet: restoredFleet,
+          timeline: restoredTimeline,
+        };
+      });
       console.error("Failed to sync ferry flight to Nostr:", e);
       throw new Error("Failed to sync ferry flight.");
     }
@@ -322,7 +360,6 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       description: `Sold ${instance.name} for scrap. Recovered ${fpFormat(resaleValue, 0)}.`,
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
     const nextTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
     set({
@@ -330,6 +367,10 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       fleet: updatedFleet,
       routes: updatedRoutes,
       timeline: nextTimeline,
+      fleetDeletedDuringCatchup: (() => {
+        const deleted = get().fleetDeletedDuringCatchup;
+        return deleted.includes(aircraftId) ? deleted : [...deleted, aircraftId];
+      })(),
     });
 
     try {
@@ -364,14 +405,56 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         await deletionEvent.publish();
       }
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        // Merge-safe rollback: re-add the sold aircraft and restore only
+        // the route assignments we changed, preserving concurrent updates.
+        const restoredAirline = state.airline
+          ? {
+              ...state.airline,
+              corporateBalance: fpSub(state.airline.corporateBalance, resaleValue),
+              fleetIds: [...state.airline.fleetIds, aircraftId],
+            }
+          : state.airline;
+
+        // Re-add the removed aircraft, preserving other fleet entries
+        const restoredFleet = [...state.fleet, instance];
+
+        // Restore only the route assignments we changed: re-add aircraftId
+        // to any route that originally had it assigned
+        const restoredRoutes = state.routes.map((rt) => {
+          // Only restore if we removed this aircraftId during the optimistic update
+          const originalRoute = routes.find((pr) => pr.id === rt.id);
+          if (originalRoute && originalRoute.assignedAircraftIds.includes(aircraftId)) {
+            return {
+              ...rt,
+              assignedAircraftIds: rt.assignedAircraftIds.includes(aircraftId)
+                ? rt.assignedAircraftIds
+                : [...rt.assignedAircraftIds, aircraftId],
+            };
+          }
+          return rt;
+        });
+
+        // Remove only the optimistic sale event
+        const restoredTimeline = state.timeline.filter((evt) => evt.id !== newEvent.id);
+
+        return {
+          airline: restoredAirline,
+          fleet: restoredFleet,
+          routes: restoredRoutes,
+          timeline: restoredTimeline,
+          fleetDeletedDuringCatchup: state.fleetDeletedDuringCatchup.filter(
+            (id) => id !== aircraftId,
+          ),
+        };
+      });
       console.error("Failed to sync aircraft selling or marketplace listing to Nostr:", e);
       throw new Error("Failed to sync fleet change to Nostr.");
     }
   },
 
   buyoutAircraft: async (aircraftId: string) => {
-    const { airline, fleet, routes } = get();
+    const { airline, fleet } = get();
     if (!airline) throw new Error("No airline found.");
 
     const instance = fleet.find((f) => f.id === aircraftId);
@@ -420,8 +503,6 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
 
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
-
     set({
       airline: updatedAirline,
       fleet: updatedFleet,
@@ -443,13 +524,28 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: revert only the buyout changes, preserving
+        // concurrent fleet/balance mutations from tick processing.
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, cost),
+          },
+          fleet: state.fleet.map((ac) =>
+            ac.id === aircraftId ? { ...ac, purchaseType: "lease" as const } : ac,
+          ),
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
+        };
+      });
       console.error("Failed to sync buyout to Nostr:", e);
     }
   },
 
   purchaseUsedAircraft: async (listing: MarketplaceListing) => {
-    const { airline, pubkey, fleet, routes } = get();
+    const { airline, pubkey, fleet } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
     // Price is already validated as FixedPoint by parseMarketplaceListing
@@ -550,7 +646,9 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
 
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture whether this is a self-purchase (existing) or new purchase for rollback
+    const wasExistingInstance = !!existingInstance;
+    const previousFleetIds = airline.fleetIds;
 
     set({
       airline: updatedAirline,
@@ -591,13 +689,46 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       // The seller's client will detect the sale via syncWorld() and clean up
       // their own listing (seller-side settlement).
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: undo only what we changed, preserving concurrent
+        // fleet/balance mutations from tick processing.
+        let rolledBackFleet: AircraftInstance[];
+        if (wasExistingInstance) {
+          // Self-purchase: restore the original fields on the existing instance
+          rolledBackFleet = state.fleet.map((ac) =>
+            ac.id === listing.instanceId && existingInstance
+              ? {
+                  ...ac,
+                  listingPrice: existingInstance.listingPrice,
+                  purchasePrice: existingInstance.purchasePrice,
+                  purchasedAtTick: existingInstance.purchasedAtTick,
+                  status: existingInstance.status,
+                }
+              : ac,
+          );
+        } else {
+          // New purchase: remove only the added aircraft
+          rolledBackFleet = state.fleet.filter((ac) => ac.id !== listing.instanceId);
+        }
+
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, price),
+            fleetIds: previousFleetIds,
+          },
+          fleet: rolledBackFleet,
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
+        };
+      });
       console.error("Failed to sync purchase to Nostr:", e);
     }
   },
 
   listAircraft: async (aircraftId: string, price: FixedPoint) => {
-    const { fleet, airline, routes } = get();
+    const { fleet, airline } = get();
     if (!airline) throw new Error("No airline loaded.");
 
     const instance = fleet.find((f) => f.id === aircraftId);
@@ -634,7 +765,8 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       ac.id === aircraftId ? { ...ac, listingPrice: price } : ac,
     );
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture original listing price for rollback
+    const previousListingPrice = instance.listingPrice ?? null;
     const updatedAirline = { ...airline, corporateBalance: updatedBalance };
 
     set({
@@ -662,14 +794,28 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: refund the fee and revert only the listing price
+        // on the specific aircraft, preserving concurrent fleet/balance changes.
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, fee),
+          },
+          fleet: state.fleet.map((ac) =>
+            ac.id === aircraftId ? { ...ac, listingPrice: previousListingPrice } : ac,
+          ),
+        };
+      });
       console.error("Listing failed:", e);
       throw new Error("Failed to publish listing to Nostr.");
     }
   },
 
   cancelListing: async (aircraftId: string) => {
-    const { fleet, airline, routes } = get();
+    const { fleet, airline } = get();
     if (!airline) throw new Error("No airline loaded.");
 
     const instance = fleet.find((f) => f.id === aircraftId);
@@ -679,7 +825,8 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       ac.id === aircraftId ? { ...ac, listingPrice: null } : ac,
     );
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture original listing price for merge-safe rollback
+    const previousListingPrice = instance.listingPrice ?? null;
 
     set({ fleet: updatedFleet });
 
@@ -708,14 +855,20 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      // Merge-safe rollback: restore only the listing price on the specific
+      // aircraft, preserving concurrent fleet mutations.
+      set((state) => ({
+        fleet: state.fleet.map((ac) =>
+          ac.id === aircraftId ? { ...ac, listingPrice: previousListingPrice } : ac,
+        ),
+      }));
       console.error("Cancellation failed:", e);
       throw new Error("Failed to remove listing from Nostr.");
     }
   },
 
   performMaintenance: async (aircraftId: string) => {
-    const { fleet, airline, routes } = get();
+    const { fleet, airline } = get();
     if (!airline) throw new Error("No airline loaded.");
 
     const instanceIndex = fleet.findIndex((f) => f.id === aircraftId);
@@ -770,7 +923,12 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
 
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture pre-maintenance aircraft fields for merge-safe rollback
+    const previousCondition = instance.condition;
+    const previousFlightHoursSinceCheck = instance.flightHoursSinceCheck;
+    const previousStatus = instance.status;
+    const previousMaintenanceStartTick = instance.maintenanceStartTick;
+    const previousTurnaroundEndTick = instance.turnaroundEndTick;
 
     set({
       airline: { ...updatedAirline, timeline: finalTimeline },
@@ -793,7 +951,31 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
-      set(previousState);
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: restore only the maintained aircraft's fields
+        // and refund the cost, preserving concurrent fleet/balance changes.
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, totalCost),
+          },
+          fleet: state.fleet.map((ac) =>
+            ac.id === aircraftId
+              ? {
+                  ...ac,
+                  condition: previousCondition,
+                  flightHoursSinceCheck: previousFlightHoursSinceCheck,
+                  status: previousStatus,
+                  maintenanceStartTick: previousMaintenanceStartTick,
+                  turnaroundEndTick: previousTurnaroundEndTick,
+                }
+              : ac,
+          ),
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
+        };
+      });
       console.error("Maintenance sync failed:", e);
     }
   },

@@ -23,6 +23,7 @@ export interface AirlineState {
   timeline: TimelineEvent[];
   actionChainHash: string;
   actionSeq: number;
+  fleetDeletedDuringCatchup: string[];
   latestCheckpoint: Checkpoint | null;
   pubkey: string | null;
   viewedPubkey: string | null;

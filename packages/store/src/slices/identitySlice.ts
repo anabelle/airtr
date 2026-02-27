@@ -60,6 +60,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   timeline: [],
   actionChainHash: "",
   actionSeq: 0,
+  fleetDeletedDuringCatchup: [],
   latestCheckpoint: null,
 
   initializeIdentity: async () => {
@@ -136,6 +137,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           timeline: [],
           actionChainHash: "",
           actionSeq: 0,
+          fleetDeletedDuringCatchup: [],
           latestCheckpoint: checkpoint,
           identityStatus: "ready",
           isLoading: false,
@@ -257,6 +259,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         timeline: loadedAirline?.timeline || [],
         actionChainHash: replayed.actionChainHash,
         actionSeq: actions.length,
+        fleetDeletedDuringCatchup: [],
         latestCheckpoint: checkpoint,
         identityStatus: "ready",
         isLoading: false,
@@ -332,7 +335,14 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         lastTick: useEngineStore.getState().tick,
       };
 
-      set({ airline, isLoading: false, fleet: [], routes: [], timeline: [] });
+      set({
+        airline,
+        isLoading: false,
+        fleet: [],
+        routes: [],
+        timeline: [],
+        fleetDeletedDuringCatchup: [],
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create airline.";
       set({ error: message, isLoading: false });
