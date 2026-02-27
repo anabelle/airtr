@@ -99,6 +99,12 @@ export interface EngineState {
 
 let engineProgressInterval: ReturnType<typeof setInterval> | null = null;
 let engineTimeout: ReturnType<typeof setTimeout> | null = null;
+const TICK_BOUNDARY_BUFFER_MS = 50;
+
+function getMsIntoTick(elapsed: number): number {
+  // JS modulo can be negative for negative elapsed values; normalize to [0, TICK_DURATION).
+  return ((elapsed % TICK_DURATION) + TICK_DURATION) % TICK_DURATION;
+}
 
 export const useEngineStore = create<EngineState>((set, get) => ({
   tick: calculateGlobalTick(),
@@ -147,8 +153,8 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     const scheduleNextTick = () => {
       const now = Date.now();
       const elapsed = now - GENESIS_TIME;
-      const msIntoTick = ((elapsed % TICK_DURATION) + TICK_DURATION) % TICK_DURATION;
-      const msUntilNextTick = TICK_DURATION - msIntoTick + 50;
+      const msIntoTick = getMsIntoTick(elapsed);
+      const msUntilNextTick = TICK_DURATION - msIntoTick + TICK_BOUNDARY_BUFFER_MS;
 
       engineTimeout = setTimeout(() => {
         syncTick();
@@ -161,8 +167,7 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     engineProgressInterval = setInterval(() => {
       const now = Date.now();
       const elapsed = now - GENESIS_TIME;
-      const progress =
-        (((elapsed % TICK_DURATION) + TICK_DURATION) % TICK_DURATION) / TICK_DURATION;
+      const progress = getMsIntoTick(elapsed) / TICK_DURATION;
       set({ tickProgress: progress });
     }, 1000);
     set({ isEngineRunning: true });

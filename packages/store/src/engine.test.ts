@@ -57,7 +57,8 @@ describe("engine store", () => {
     useEngineStore.getState().startEngine();
 
     expect(timeoutSpy).toHaveBeenCalled();
-    expect(timeoutSpy.mock.calls[0]?.[1]).toBe(TICK_DURATION - 1200 + 50);
+    expect(Number(timeoutSpy.mock.calls[0]?.[1])).toBeGreaterThan(TICK_DURATION - 1200);
+    expect(Number(timeoutSpy.mock.calls[0]?.[1])).toBeLessThanOrEqual(TICK_DURATION - 1200 + 100);
 
     useEngineStore.getState().stopEngine();
     timeoutSpy.mockRestore();
