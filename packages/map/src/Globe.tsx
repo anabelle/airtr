@@ -10,6 +10,7 @@ import type {
 } from "@acars/core";
 import { computeNightOverlay } from "@acars/core";
 import { aircraftModels, HUB_CLASSIFICATIONS } from "@acars/data";
+import { getBearing, getGreatCircleInterpolation, makeArcFeature } from "./geo.js";
 import { FAMILY_ICONS } from "./icons.js";
 
 const aircraftModelMap = new Map(aircraftModels.map((m) => [m.id, m]));
@@ -39,55 +40,6 @@ const NIGHT_OVERLAY_SOURCE = "night-overlay";
 const NIGHT_CORE_LAYER = "night-core-layer";
 const NIGHT_ASTRO_LAYER = "night-astro-layer";
 const NIGHT_CIVIL_LAYER = "night-civil-layer";
-
-// =============================================================================
-// --- Navigation Helpers (Great Circle Math) ---
-// =============================================================================
-
-function getGreatCircleInterpolation(
-  p1: [number, number],
-  p2: [number, number],
-  f: number,
-): [number, number] {
-  const lon1 = (p1[0] * Math.PI) / 180;
-  const lat1 = (p1[1] * Math.PI) / 180;
-  const lon2 = (p2[0] * Math.PI) / 180;
-  const lat2 = (p2[1] * Math.PI) / 180;
-
-  const d =
-    2 *
-    Math.asin(
-      Math.sqrt(
-        Math.sin((lat1 - lat2) / 2) ** 2 +
-          Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon1 - lon2) / 2) ** 2,
-      ),
-    );
-
-  if (d === 0) return p1;
-
-  const A = Math.sin((1 - f) * d) / Math.sin(d);
-  const B = Math.sin(f * d) / Math.sin(d);
-  const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
-  const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
-  const z = A * Math.sin(lat1) + B * Math.sin(lat2);
-  const lat = Math.atan2(z, Math.sqrt(x ** 2 + y ** 2));
-  const lon = Math.atan2(y, x);
-
-  return [(lon * 180) / Math.PI, (lat * 180) / Math.PI];
-}
-
-function getBearing(p1: [number, number], p2: [number, number]): number {
-  const lon1 = (p1[0] * Math.PI) / 180;
-  const lat1 = (p1[1] * Math.PI) / 180;
-  const lon2 = (p2[0] * Math.PI) / 180;
-  const lat2 = (p2[1] * Math.PI) / 180;
-
-  const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-  const brng = Math.atan2(y, x);
-  return ((brng * 180) / Math.PI + 360) % 360;
-}
 
 // =============================================================================
 // --- LOD: Adaptive segment count based on zoom level ---
@@ -127,6 +79,13 @@ function routeIntersectsViewport(
 ): boolean {
   const sw = bounds.getSouthWest();
   const ne = bounds.getNorthEast();
+
+  // If the route crosses the antimeridian (longitude difference > 180°),
+  // the simple AABB test produces an inverted bounding box that covers
+  // everything *except* the actual route. These are rare long-haul routes;
+  // always render them rather than attempting wrapped AABB math.
+  const lngDiff = Math.abs(originLng - destLng);
+  if (lngDiff > 180) return true;
 
   // Calculate route bounding box
   let minLng = Math.min(originLng, destLng);
@@ -468,13 +427,19 @@ export function Globe({
       });
       map.addSource(NIGHT_OVERLAY_SOURCE, {
         type: "geojson",
-        data: { type: "FeatureCollection", features: [] } as NightOverlayFeatureCollection,
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        } as NightOverlayFeatureCollection,
       });
       map.addSource("flights", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      map.addSource("arcs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource("arcs", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
       map.addSource("global-flights", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -1116,11 +1081,7 @@ export function Globe({
         continue;
 
       const points = getOrComputeArc(origin, dest, segments);
-      arcFeatures.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: points },
-        properties: {},
-      });
+      arcFeatures.push(makeArcFeature(points));
     }
 
     // --- Global route arcs (with culling + LOD + caching) ---
@@ -1143,11 +1104,7 @@ export function Globe({
         continue;
 
       const points = getOrComputeArc(origin, dest, segments);
-      globalArcFeatures.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: points },
-        properties: {},
-      });
+      globalArcFeatures.push(makeArcFeature(points));
     }
 
     (map.getSource("airports") as maplibregl.GeoJSONSource)?.setData(airportGeojson);
@@ -1213,11 +1170,7 @@ export function Globe({
           )
             continue;
           const points = getOrComputeArc(origin, dest, segments);
-          arcFeatures.push({
-            type: "Feature",
-            geometry: { type: "LineString", coordinates: points },
-            properties: {},
-          });
+          arcFeatures.push(makeArcFeature(points));
         }
 
         const globalArcFeatures: GeoJSON.Feature[] = [];
@@ -1236,11 +1189,7 @@ export function Globe({
           )
             continue;
           const points = getOrComputeArc(origin, dest, segments);
-          globalArcFeatures.push({
-            type: "Feature",
-            geometry: { type: "LineString", coordinates: points },
-            properties: {},
-          });
+          globalArcFeatures.push(makeArcFeature(points));
         }
 
         (map.getSource("arcs") as maplibregl.GeoJSONSource)?.setData({
@@ -1438,7 +1387,13 @@ export function Globe({
     <div
       ref={mapContainer}
       className={`globe-container ${className}`}
-      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, ...style }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "absolute",
+        inset: 0,
+        ...style,
+      }}
     />
   );
 }
