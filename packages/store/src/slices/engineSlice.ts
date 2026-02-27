@@ -423,7 +423,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               revenue: landingResult.revenue.revenueTotal,
               cost: landingResult.cost.costTotal,
               profit: landingResult.profit,
-              description: `${ac.name} landed at ${ac.flight.destinationIata}. Net Profit: ${landingResult.profit > 0 ? "+" : ""}${fpToNumber(landingResult.profit)}`,
+              description: `${ac.name} landed at ${ac.flight.destinationIata}. Net Profit: ${fpToNumber(landingResult.profit) > 0 ? "+" : ""}${fpToNumber(landingResult.profit)}`,
               details: landingResult.details,
             });
           } else {

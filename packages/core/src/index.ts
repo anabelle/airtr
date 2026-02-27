@@ -9,6 +9,9 @@ export {
   computeCheckpointStateHash,
   verifyCheckpoint,
 } from "./checkpoint.js";
+export type { CyclePhase } from "./cycle.js";
+// Cycle
+export { countLandingsBetween, getCyclePhase } from "./cycle.js";
 // Demand
 export {
   calculateDemand,
@@ -99,8 +102,4 @@ export type {
   TimelineEventType,
 } from "./types.js";
 // Types
-export {
-  GENESIS_TIME,
-  TICK_DURATION,
-  TICKS_PER_HOUR,
-} from "./types.js";
+export { GENESIS_TIME, TICK_DURATION, TICKS_PER_HOUR } from "./types.js";

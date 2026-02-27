@@ -7,6 +7,7 @@ import {
   calculateHubLandingFee,
   calculatePriceElasticity,
   calculateSupplyPressure,
+  countLandingsBetween,
   detectPriceWar,
   fp,
   fpAdd,
@@ -14,6 +15,7 @@ import {
   fpSub,
   fpToNumber,
   GENESIS_TIME,
+  getCyclePhase,
   getHubCongestionModifier,
   getHubDemandModifier,
   getProsperityIndex,
@@ -606,8 +608,8 @@ export function processFlightEngine(
 
 /**
  * Given a position within a round-trip cycle, apply the correct flight state
- * to the aircraft clone.  This is the shared four-phase placement logic used
- * by all reconciliation paths (idle, delivery, enroute/turnaround fast-forward).
+ * to the aircraft clone. This delegates to getCyclePhase from @acars/core
+ * to ensure a single source of truth for cycle algebra.
  */
 function applyCyclePhase(
   updated: AircraftInstance,
@@ -617,89 +619,20 @@ function applyCyclePhase(
   durationTicks: number,
   turnaroundTicks: number,
 ): void {
-  if (positionInCycle < durationTicks) {
-    // Phase: outbound enroute
-    const departureTick = targetTick - positionInCycle;
-    updated.status = "enroute";
-    updated.flight = {
-      originIata: route.originIata,
-      destinationIata: route.destinationIata,
-      departureTick,
-      arrivalTick: departureTick + durationTicks,
-      direction: "outbound",
-    };
-    updated.turnaroundEndTick = undefined;
-    updated.arrivalTickProcessed = undefined;
-  } else if (positionInCycle < durationTicks + turnaroundTicks) {
-    // Phase: turnaround after outbound
-    const arrivalTick = targetTick - (positionInCycle - durationTicks);
-    updated.status = "turnaround";
-    updated.baseAirportIata = route.destinationIata;
-    updated.flight = {
-      originIata: route.originIata,
-      destinationIata: route.destinationIata,
-      departureTick: arrivalTick - durationTicks,
-      arrivalTick,
-      direction: "outbound",
-    };
-    updated.turnaroundEndTick = arrivalTick + turnaroundTicks;
-    updated.arrivalTickProcessed = arrivalTick;
-  } else if (positionInCycle < durationTicks * 2 + turnaroundTicks) {
-    // Phase: inbound enroute
-    const inboundStart = durationTicks + turnaroundTicks;
-    const departureTick = targetTick - (positionInCycle - inboundStart);
-    updated.status = "enroute";
-    updated.flight = {
-      originIata: route.destinationIata,
-      destinationIata: route.originIata,
-      departureTick,
-      arrivalTick: departureTick + durationTicks,
-      direction: "inbound",
-    };
-    updated.turnaroundEndTick = undefined;
-    updated.arrivalTickProcessed = undefined;
-  } else {
-    // Phase: turnaround after inbound (back at origin)
-    const inboundArrival = durationTicks * 2 + turnaroundTicks;
-    const arrivalTick = targetTick - (positionInCycle - inboundArrival);
-    updated.status = "turnaround";
-    updated.baseAirportIata = route.originIata;
-    updated.flight = {
-      originIata: route.destinationIata,
-      destinationIata: route.originIata,
-      departureTick: arrivalTick - durationTicks,
-      arrivalTick,
-      direction: "inbound",
-    };
-    updated.turnaroundEndTick = arrivalTick + turnaroundTicks;
-    updated.arrivalTickProcessed = arrivalTick;
-  }
-}
+  const cycleStartTick = targetTick - positionInCycle;
+  const phase = getCyclePhase(cycleStartTick, targetTick, durationTicks, turnaroundTicks, route);
 
-function countLandingsBetween(
-  cycleStartTick: number,
-  fromTick: number,
-  toTick: number,
-  durationTicks: number,
-  turnaroundTicks: number,
-): number {
-  if (toTick <= fromTick) return 0;
-  const roundTripTicks = durationTicks * 2 + turnaroundTicks * 2;
-  const landingOffsets = [durationTicks, durationTicks * 2 + turnaroundTicks];
-  let count = 0;
-
-  for (const offset of landingOffsets) {
-    const firstLandingTick = cycleStartTick + offset;
-    if (toTick < firstLandingTick) continue;
-    const countTo = Math.floor((toTick - firstLandingTick) / roundTripTicks) + 1;
-    const countFrom =
-      fromTick >= firstLandingTick
-        ? Math.floor((fromTick - firstLandingTick) / roundTripTicks) + 1
-        : 0;
-    count += countTo - countFrom;
-  }
-
-  return Math.max(0, count);
+  updated.status = phase.status;
+  updated.flight = {
+    originIata: phase.originIata,
+    destinationIata: phase.destinationIata,
+    departureTick: phase.departureTick,
+    arrivalTick: phase.arrivalTick,
+    direction: phase.direction,
+  };
+  updated.turnaroundEndTick = phase.turnaroundEndTick ?? undefined;
+  updated.arrivalTickProcessed = phase.status === "turnaround" ? phase.arrivalTick : undefined;
+  updated.baseAirportIata = phase.baseAirportIata;
 }
 
 function applyFlightHours(updated: AircraftInstance, hoursToAdd: number): void {
@@ -762,9 +695,8 @@ export function estimateLandingFinancials(
   hoursPerLeg: number,
   loadFactor: number,
 ): LandingFinancialResult {
-  const empty: LandingFinancialResult = {
-    profit: fp(0),
-    revenue: calculateFlightRevenue({
+  if (!model || hoursPerLeg <= 0) {
+    const zeroRevenue = calculateFlightRevenue({
       passengersEconomy: 0,
       passengersBusiness: 0,
       passengersFirst: 0,
@@ -772,44 +704,51 @@ export function estimateLandingFinancials(
       fareBusiness: fp(0),
       fareFirst: fp(0),
       seatsOffered: 0,
-    }),
-    cost: calculateFlightCost({
-      distanceKm: 0,
-      aircraft: model!,
-      actualPassengers: 0,
-      blockHours: 0,
-    }),
-    details: {
-      passengers: { economy: 0, business: 0, first: 0, total: 0 },
-      seatsOffered: 0,
-      loadFactor: 0,
-      spilledPassengers: 0,
-      routeId: route.id,
-      flightDurationTicks: Math.ceil(hoursPerLeg * TICKS_PER_HOUR),
-      revenue: {
-        tickets: fp(0),
-        economy: fp(0),
-        business: fp(0),
-        first: fp(0),
-        ancillary: fp(0),
+    });
+    return {
+      profit: fp(0),
+      revenue: zeroRevenue,
+      cost: {
+        costTotal: fp(0),
+        costFuel: fp(0),
+        costCrew: fp(0),
+        costMaintenance: fp(0),
+        costAirport: fp(0),
+        costNavigation: fp(0),
+        costLeasing: fp(0),
+        costOverhead: fp(0),
       },
-      costs: {
-        fuel: fp(0),
-        crew: fp(0),
-        maintenance: fp(0),
-        airport: fp(0),
-        navigation: fp(0),
-        leasing: fp(0),
-        overhead: fp(0),
+      details: {
+        passengers: { economy: 0, business: 0, first: 0, total: 0 },
+        seatsOffered: 0,
+        loadFactor: 0,
+        spilledPassengers: 0,
+        routeId: route.id,
+        flightDurationTicks: Math.ceil(hoursPerLeg * TICKS_PER_HOUR),
+        revenue: {
+          tickets: fp(0),
+          economy: fp(0),
+          business: fp(0),
+          first: fp(0),
+          ancillary: fp(0),
+        },
+        costs: {
+          fuel: fp(0),
+          crew: fp(0),
+          maintenance: fp(0),
+          airport: fp(0),
+          navigation: fp(0),
+          leasing: fp(0),
+          overhead: fp(0),
+        },
       },
-    },
-  };
-  if (!model || hoursPerLeg <= 0) return empty;
+    };
+  }
 
   const clampedLoad = Math.min(1, Math.max(0, loadFactor));
-  const seatsEconomy = Math.max(0, ac.configuration.economy);
-  const seatsBusiness = Math.max(0, ac.configuration.business);
-  const seatsFirst = Math.max(0, ac.configuration.first);
+  const seatsEconomy = Math.max(0, ac.configuration?.economy ?? model.capacity.economy);
+  const seatsBusiness = Math.max(0, ac.configuration?.business ?? model.capacity.business);
+  const seatsFirst = Math.max(0, ac.configuration?.first ?? model.capacity.first);
   const seatsOffered = seatsEconomy + seatsBusiness + seatsFirst;
   const passengersEconomy = Math.floor(seatsEconomy * clampedLoad);
   const passengersBusiness = Math.floor(seatsBusiness * clampedLoad);
