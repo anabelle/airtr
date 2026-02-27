@@ -13,6 +13,7 @@
 7. [Audience Strategy](#7-audience-strategy)
 8. [Forever Architecture](#8-forever-architecture)
 9. [Scalability & The "Millions" Constraint](#9-scalability--the-millions-constraint)
+10. [Security & Trustless Validation](#10-security--trustless-validation)
 
 ---
 
@@ -635,7 +636,7 @@ Event Log (Nostr events, ordered by created_at):
   t=3: FlightScheduled { route: "KJFK-KLAX", aircraft: "AUR001" }
   ...
 
-Current State = reduce(allEvents, initialState)
+Current State = reduce(validate(allEvents), initialState)
 ```
 
 **Why this is perfect for our game:**
@@ -769,3 +770,32 @@ We avoid centralized database meltdowns by pushing the write-load to the decentr
 - **Tick Loop O(N²)**: The engine's tick processor must rely on highly indexed structures (`Map<Route, Airline[]>`) instead of deeply nested array scanning.
 
 *When an agent works on this codebase, they must evaluate every new feature through the lens: "Does this break if 10,000 airlines fire it at once?"*
+
+---
+
+## 10. Security & Trustless Validation
+
+Because ACARS is a completely serverless, decentralized game running on the Nostr protocol, the client has ultimate authority over what it broadcasts. **We operate in a Zero-Trust Environment.** Players can and will attempt to spoof payloads, double-spend funds, or modify other players' airlines by broadcasting manually crafted events to relays. 
+
+The deterministic simulation engine must treat every incoming event as hostile until proven otherwise.
+
+### 10.1 Zero-Trust Payload Validation (Anti-Spoofing)
+
+Nostr events represent **Intents to Act**, not **State Updates**.
+
+- **Never Trust Payload Variables:** If a user broadcasts an event `PurchaseAircraft` with a payload of `{"cost": 1000, "type": "B737"}`, the simulation engine must completely ignore the `"cost": 1000`. The engine must look up the correct, canonical fixed-point cost from the immutable `@acars/data` catalog. 
+- **State is Derived, Never Accepted:** A client cannot broadcast an event that asserts state, such as `{"action": "UpdateBalance", "newBalance": 5000000}`. They can only broadcast `{"action": "OpenRoute", "from": "JFK", "to": "LHR"}`. The local deterministic engine computes the deduction.
+
+### 10.2 Sequential Processing & Double-Spend Prevention
+
+In a decentralized network, a malicious actor might broadcast multiple `PurchaseAircraft` events simultaneously, hoping they are all processed before the client's treasury balance drops below zero.
+
+- **Strict Deterministic Ordering:** All events must be ordered strictly by their `created_at` timestamp. In the event of a collision (same timestamp), ties must be broken deterministically by sorting the event IDs lexicographically.
+- **Sequential State Checks:** During the tick reduction process, the engine must process events one at a time. It applies Event A, mutates the state (deducting the balance), and then evaluates Event B against that new state. If Event B no longer has sufficient funds, the validation fails and Event B is permanently ignored or marked as `REJECTED` in the state tree.
+
+### 10.3 Cryptographic Ownership & Authorization
+
+A Nostr relay will accept any validly formatted event from any pubkey. The engine must enforce the authorization bounds.
+
+- **Signature Verification:** Every action that mutates an `AirlineEntity` must be cryptographically signed by the exact Nostr pubkey that founded that airline, or a pubkey explicitly granted delegated authority within the entity's Cap Table.
+- **Pre-Engine Filtering:** Invalid signatures or unauthorized actors attempting to modify another player's airline (e.g., trying to rename an airline they don't own) must be caught by the validation layer before the event ever enters the core state reducer.
