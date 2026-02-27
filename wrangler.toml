@@ -1,6 +1,0 @@
-name = "acars"
-compatibility_date = "2024-02-27"
-pages_build_output_dir = "apps/web/dist"
-
-[build]
-command = "pnpm run build"
