@@ -86,12 +86,23 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       attachSigner();
       ensureConnected();
 
-      const checkpoint = await loadCheckpoint(pubkey);
+      // Allow force-replaying from scratch by adding ?forceReplay to the URL.
+      // This ignores the saved checkpoint and rebuilds state entirely from the
+      // action log — useful to recover from a corrupted checkpoint.
+      const forceReplay =
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).has("forceReplay");
+
+      const checkpoint = forceReplay ? null : await loadCheckpoint(pubkey);
+      if (forceReplay) {
+        console.warn("[IdentitySlice] forceReplay: ignoring checkpoint, replaying all actions");
+      }
       const actions = await loadActionLog({
         authors: [pubkey],
         limit: 500,
-        maxPages: 20,
+        maxPages: forceReplay ? 100 : 20,
       });
+
       let scopedActions = actions;
       if (checkpoint) {
         const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
@@ -250,6 +261,15 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         identityStatus: "ready",
         isLoading: false,
       });
+
+      // Remove the forceReplay param from the URL so subsequent refreshes
+      // don't keep replaying.  A fresh checkpoint will be published on the
+      // next checkpoint interval, replacing the corrupted one.
+      if (forceReplay && typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("forceReplay");
+        window.history.replaceState({}, "", url.toString());
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to initialize identity.";
       set({
