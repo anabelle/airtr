@@ -315,6 +315,7 @@ export type TimelineEventType =
   | "hub_change"
   | "route_change"
   | "ferry"
+  | "competitor_hub"
   | "price_war";
 
 export interface TimelineEvent {

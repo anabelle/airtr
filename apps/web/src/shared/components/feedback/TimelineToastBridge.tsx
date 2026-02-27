@@ -16,6 +16,7 @@ const EVENT_TITLES: Record<TimelineEventType, string> = {
   hub_change: "Hub Updated",
   route_change: "Route Updated",
   ferry: "Ferry Flight",
+  competitor_hub: "Competitor Alert",
   price_war: "Price War Detected",
 };
 
@@ -30,6 +31,7 @@ const EVENT_TOAST_KIND: Record<TimelineEventType, "success" | "info" | "warning"
   hub_change: "info",
   route_change: "info",
   ferry: "info",
+  competitor_hub: "warning",
   price_war: "warning",
 };
 
@@ -39,14 +41,14 @@ const showTimelineToast = (event: TimelineEvent) => {
   const kind = EVENT_TOAST_KIND[event.type] ?? "info";
 
   if (kind === "success") {
-    toast.success(title, { description });
+    toast.success(title, { description, duration: 4000 });
     return;
   }
   if (kind === "warning") {
-    toast.warning(title, { description });
+    toast.warning(title, { description, duration: 6000 });
     return;
   }
-  toast.info(title, { description });
+  toast.info(title, { description, duration: 4000 });
 };
 
 export const TimelineToastBridge = (): null => {

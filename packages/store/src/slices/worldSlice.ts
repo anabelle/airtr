@@ -768,6 +768,34 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         });
         useEngineStore.setState({ catchupProgress: null });
 
+        // --- Competitor Alerts ---
+        const myAirline = existingState.airline;
+        if (myAirline) {
+          const myHubs = new Set(myAirline.hubs || []);
+          const newTimelineEvents: TimelineEvent[] = [];
+          const currentTick = useEngineStore.getState().tick;
+
+          for (const [pubkey, comp] of competitors) {
+            if (pubkey === existingState.pubkey) continue;
+            const prevComp = existingState.competitors.get(pubkey);
+            for (const hub of comp.hubs) {
+              if (myHubs.has(hub) && (!prevComp || !prevComp.hubs.includes(hub))) {
+                newTimelineEvents.push({
+                  id: `evt-comp-hub-${pubkey}-${hub}-${currentTick}`,
+                  tick: currentTick,
+                  timestamp: Date.now(),
+                  type: "competitor_hub",
+                  description: `Competitor ${comp.name} just opened a hub at ${hub}!`,
+                });
+              }
+            }
+          }
+
+          if (newTimelineEvents.length > 0) {
+            set({ timeline: [...newTimelineEvents, ...existingState.timeline].slice(0, 1000) });
+          }
+        }
+
         // --- Seller-side settlement ---
         // Detect aircraft we listed for sale that now appear in a competitor's fleet.
         // This means the buyer purchased it; we must settle: remove from our fleet,
