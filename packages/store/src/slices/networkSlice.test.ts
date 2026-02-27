@@ -5,6 +5,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
+import { fpAdd } from "@acars/core";
 import { describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
@@ -12,7 +13,11 @@ import { createNetworkSlice } from "./networkSlice";
 
 vi.mock("@acars/nostr", () => ({
   publishAction: vi.fn(() =>
-    Promise.resolve({ id: "evt-1", created_at: 1, author: { pubkey: "test-pubkey" } }),
+    Promise.resolve({
+      id: "evt-1",
+      created_at: 1,
+      author: { pubkey: "test-pubkey" },
+    }),
   ),
 }));
 
@@ -154,7 +159,12 @@ describe("modifyHubs remove behavior", () => {
       makeAircraft("ac-3", "rt-3"),
     ];
 
-    const { state } = createSliceState({ airline, routes, fleet, timeline: [] as TimelineEvent[] });
+    const { state } = createSliceState({
+      airline,
+      routes,
+      fleet,
+      timeline: [] as TimelineEvent[],
+    });
 
     await state.modifyHubs({ type: "remove", iata: "AXM" });
 
@@ -242,7 +252,12 @@ describe("rebaseRoute", () => {
     const routes = [makeRoute("rt-1", "AXM", "CLO", "suspended")];
     const fleet = [makeAircraft("ac-1", "rt-1")];
 
-    const { state } = createSliceState({ airline, routes, fleet, timeline: [] as TimelineEvent[] });
+    const { state } = createSliceState({
+      airline,
+      routes,
+      fleet,
+      timeline: [] as TimelineEvent[],
+    });
 
     await state.rebaseRoute("rt-1", "BOG");
 
@@ -265,7 +280,12 @@ describe("closeRoute", () => {
     const routes = [makeRoute("rt-1", "BOG", "CLO", "suspended")];
     const fleet = [makeAircraft("ac-1", "rt-1")];
 
-    const { state } = createSliceState({ airline, routes, fleet, timeline: [] as TimelineEvent[] });
+    const { state } = createSliceState({
+      airline,
+      routes,
+      fleet,
+      timeline: [] as TimelineEvent[],
+    });
 
     await state.closeRoute("rt-1");
 
@@ -459,5 +479,114 @@ describe("assignAircraftToRoute", () => {
     expect(state.airline?.lastTick).toBe(777);
     expect(state.fleet.find((ac) => ac.id === "ac-1")?.assignedRouteId).toBeNull();
     expect(state.routes.find((rt) => rt.id === "rt-1")?.assignedAircraftIds).toEqual([]);
+  });
+
+  it("assignment rollback preserves concurrent fleet condition changes", async () => {
+    const airline = makeAirline(["BOG"]);
+    const routes = [makeRoute("rt-1", "BOG", "CLO", "active")];
+    const aircraft1 = { ...makeAircraft("ac-1", null), baseAirportIata: "BOG" };
+    const aircraft2 = {
+      ...makeAircraft("ac-2", null),
+      baseAirportIata: "BOG",
+      condition: 0.9,
+    };
+
+    const { state } = createSliceState({
+      airline,
+      routes,
+      fleet: [aircraft1, aircraft2],
+      timeline: [] as TimelineEvent[],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pending = state.assignAircraftToRoute("ac-1", "rt-1");
+
+    // Simulate concurrent condition change on another aircraft from tick processing
+    state.fleet = (state.fleet as AircraftInstance[]).map((ac) =>
+      ac.id === "ac-2" ? { ...ac, condition: 0.7 } : ac,
+    );
+
+    await pending;
+
+    // Assignment should be rolled back
+    expect(state.fleet.find((ac) => ac.id === "ac-1")?.assignedRouteId).toBeNull();
+    // Concurrent condition change on ac-2 should be preserved
+    expect(state.fleet.find((ac) => ac.id === "ac-2")?.condition).toBe(0.7);
+  });
+});
+
+describe("openRoute rollback", () => {
+  it("refunds slot fee using arithmetic and preserves concurrent balance changes", async () => {
+    const initialBalance = 1000000000000 as FixedPoint;
+    const airline = makeAirline(["BOG"], initialBalance);
+    const { state } = createSliceState({
+      airline,
+      routes: [],
+      fleet: [],
+      timeline: [] as TimelineEvent[],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pending = state.openRoute("BOG", "MDE", 300);
+
+    // Simulate concurrent revenue from tick processing
+    const concurrentRevenue = 5000000 as FixedPoint;
+    state.airline = {
+      ...(state.airline as AirlineEntity),
+      corporateBalance: fpAdd((state.airline as AirlineEntity).corporateBalance, concurrentRevenue),
+    };
+
+    await pending;
+
+    // Route should be rolled back
+    expect(state.routes).toHaveLength(0);
+    // Balance should include the concurrent revenue (slot fee refunded via arithmetic)
+    expect(state.airline?.corporateBalance).toBe(fpAdd(initialBalance, concurrentRevenue));
+  });
+
+  it("rollback removes only the optimistic timeline event", async () => {
+    const airline = makeAirline(["BOG"]);
+    const existingEvent = {
+      id: "evt-existing",
+      tick: 50,
+      timestamp: 0,
+      type: "purchase" as const,
+      description: "Existing event",
+    };
+    const { state } = createSliceState({
+      airline,
+      routes: [],
+      fleet: [],
+      timeline: [existingEvent] as TimelineEvent[],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    await state.openRoute("BOG", "MDE", 300);
+
+    // Existing timeline event should still be there
+    expect(state.timeline.some((evt) => evt.id === "evt-existing")).toBe(true);
+    // Route open event should be removed
+    expect(state.routes).toHaveLength(0);
   });
 });

@@ -153,6 +153,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           fleet: currentFleet,
           airline: updatedAirline,
           timeline: currentTimeline,
+          // Clear stale deletion tracking on fast-path too, so IDs don't
+          // accumulate indefinitely when the slow-path is never reached.
+          fleetDeletedDuringCatchup: [],
         });
         const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
         const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);

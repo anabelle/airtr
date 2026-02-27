@@ -10,7 +10,11 @@ vi.mock("../FlightEngine", () => ({
 
 vi.mock("@acars/nostr", () => ({
   publishAction: vi.fn(() =>
-    Promise.resolve({ id: "evt-1", created_at: 1, author: { pubkey: "player" } }),
+    Promise.resolve({
+      id: "evt-1",
+      created_at: 1,
+      author: { pubkey: "player" },
+    }),
   ),
   publishCheckpoint: vi.fn(() => Promise.resolve()),
 }));
@@ -182,5 +186,23 @@ describe("engineSlice fast-path", () => {
     await state.processTick(2);
 
     expect(state.fleet.some((ac) => ac.id === "ac-1")).toBe(false);
+  });
+
+  it("clears fleetDeletedDuringCatchup on fast-path set", async () => {
+    const airline = makeAirline(0);
+    const fleet = [makeAircraft("ac-1")];
+    const routes: Route[] = [];
+
+    const { state } = createSliceState({
+      airline,
+      fleet,
+      routes,
+      fleetDeletedDuringCatchup: ["ac-old"],
+    });
+
+    await state.processTick(1000000);
+
+    // Fast-path should clear the stale deletion IDs
+    expect(state.fleetDeletedDuringCatchup).toEqual([]);
   });
 });

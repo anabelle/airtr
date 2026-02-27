@@ -1,4 +1,5 @@
 import type { AircraftInstance, AirlineEntity, FixedPoint } from "@acars/core";
+import { fpAdd } from "@acars/core";
 import { getAircraftById } from "@acars/data";
 import { describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
@@ -7,7 +8,11 @@ import { createFleetSlice } from "./fleetSlice";
 
 vi.mock("@acars/nostr", () => ({
   publishAction: vi.fn(() =>
-    Promise.resolve({ id: "evt-1", created_at: 1, author: { pubkey: "test-pubkey" } }),
+    Promise.resolve({
+      id: "evt-1",
+      created_at: 1,
+      author: { pubkey: "test-pubkey" },
+    }),
   ),
   publishUsedAircraft: vi.fn(() => Promise.resolve()),
   attachSigner: vi.fn(),
@@ -184,5 +189,183 @@ describe("sellAircraft", () => {
 
     expect(state.airline?.lastTick).toBe(777);
     expect(state.fleet).toHaveLength(0);
+  });
+
+  it("purchase rollback preserves concurrent fleet condition changes", async () => {
+    const airline = makeAirline(["BOG"]);
+    const existingAc = { ...makeAircraft("existing-1", "BOG"), condition: 0.8 };
+    const { state } = createSliceState({
+      airline,
+      fleet: [existingAc],
+      timeline: [],
+    });
+    const model = getAircraftById("atr72-600");
+    expect(model).toBeTruthy();
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pendingPurchase = state.purchaseAircraft(model!, "BOG");
+
+    // Simulate concurrent tick processing changing existing aircraft condition
+    const currentFleet = state.fleet as AircraftInstance[];
+    state.fleet = currentFleet.map((ac) =>
+      ac.id === "existing-1" ? { ...ac, condition: 0.6 } : ac,
+    );
+
+    await pendingPurchase;
+
+    // The new aircraft should be rolled back
+    expect(state.fleet.find((ac) => ac.id !== "existing-1")).toBeUndefined();
+    // The concurrent condition change should be preserved
+    expect(state.fleet.find((ac) => ac.id === "existing-1")?.condition).toBe(0.6);
+  });
+
+  it("purchase rollback refunds balance using arithmetic, not snapshot", async () => {
+    const initialBalance = 1000000000000 as FixedPoint;
+    const airline = makeAirline(["BOG"], initialBalance);
+    const { state } = createSliceState({ airline, fleet: [], timeline: [] });
+    const model = getAircraftById("atr72-600");
+    expect(model).toBeTruthy();
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pendingPurchase = state.purchaseAircraft(model!, "BOG");
+
+    // Simulate concurrent balance change from tick revenue
+    const concurrentRevenue = 5000000 as FixedPoint;
+    state.airline = {
+      ...(state.airline as AirlineEntity),
+      corporateBalance: fpAdd((state.airline as AirlineEntity).corporateBalance, concurrentRevenue),
+    };
+
+    await pendingPurchase;
+
+    // Balance should be: initial - cost + concurrent revenue + refund = initial + concurrent revenue
+    expect(state.airline?.corporateBalance).toBe(fpAdd(initialBalance, concurrentRevenue));
+  });
+});
+
+describe("buyoutAircraft", () => {
+  it("rollback reverts only the specific aircraft purchaseType", async () => {
+    const airline = makeAirline(["BOG"]);
+    const leasedAc = {
+      ...makeAircraft("ac-lease", "BOG"),
+      purchaseType: "lease" as const,
+    };
+    const otherAc = { ...makeAircraft("ac-other", "BOG"), condition: 0.9 };
+    const { state } = createSliceState({
+      airline: { ...airline, fleetIds: ["ac-lease", "ac-other"] },
+      fleet: [leasedAc, otherAc],
+      timeline: [],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pendingBuyout = state.buyoutAircraft("ac-lease");
+
+    // Simulate concurrent condition change on the other aircraft
+    state.fleet = (state.fleet as AircraftInstance[]).map((ac) =>
+      ac.id === "ac-other" ? { ...ac, condition: 0.7 } : ac,
+    );
+
+    await pendingBuyout;
+
+    // Buyout should be reverted
+    expect(state.fleet.find((ac) => ac.id === "ac-lease")?.purchaseType).toBe("lease");
+    // Concurrent change preserved
+    expect(state.fleet.find((ac) => ac.id === "ac-other")?.condition).toBe(0.7);
+  });
+});
+
+describe("performMaintenance", () => {
+  it("rollback restores only the maintained aircraft fields", async () => {
+    const airline = makeAirline(["BOG"]);
+    const wornAc = {
+      ...makeAircraft("ac-worn", "BOG"),
+      condition: 0.5,
+      flightHoursSinceCheck: 100,
+    };
+    const otherAc = { ...makeAircraft("ac-other", "BOG"), condition: 0.8 };
+    const { state } = createSliceState({
+      airline,
+      fleet: [wornAc, otherAc],
+      timeline: [],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    const pendingMaint = state.performMaintenance("ac-worn");
+
+    // Simulate concurrent condition degradation on the other aircraft
+    state.fleet = (state.fleet as AircraftInstance[]).map((ac) =>
+      ac.id === "ac-other" ? { ...ac, condition: 0.6 } : ac,
+    );
+
+    await pendingMaint;
+
+    // Maintenance should be reverted: original condition/hours restored
+    const rolledBack = state.fleet.find((ac) => ac.id === "ac-worn");
+    expect(rolledBack?.condition).toBe(0.5);
+    expect(rolledBack?.flightHoursSinceCheck).toBe(100);
+    expect(rolledBack?.status).toBe("idle");
+
+    // Concurrent change on other aircraft preserved
+    expect(state.fleet.find((ac) => ac.id === "ac-other")?.condition).toBe(0.6);
+  });
+
+  it("rollback removes only the optimistic maintenance timeline event", async () => {
+    const airline = makeAirline(["BOG"]);
+    const wornAc = { ...makeAircraft("ac-worn", "BOG"), condition: 0.5 };
+    const existingEvent = {
+      id: "evt-existing",
+      tick: 50,
+      timestamp: 0,
+      type: "purchase" as const,
+      description: "Existing event",
+    };
+    const { state } = createSliceState({
+      airline,
+      fleet: [wornAc],
+      timeline: [existingEvent],
+    });
+
+    const { publishAction } = await import("@acars/nostr");
+    vi.mocked(publishAction).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("publish failed")), 0);
+        }),
+    );
+
+    await state.performMaintenance("ac-worn");
+
+    // Existing timeline event should be preserved
+    expect(state.timeline.some((evt) => evt.id === "evt-existing")).toBe(true);
+    // Maintenance event should be removed
+    expect(state.timeline.some((evt) => evt.id === "evt-maint-ac-worn-100")).toBe(false);
   });
 });

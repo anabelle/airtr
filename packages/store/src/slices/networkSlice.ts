@@ -1,6 +1,7 @@
 import type { FixedPoint, Route, TimelineEvent } from "@acars/core";
 import {
   fp,
+  fpAdd,
   fpFormat,
   fpScale,
   fpSub,
@@ -163,7 +164,12 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
             }
 
             if (aircraft.status === "turnaround") {
-              return { ...aircraft, assignedRouteId: null, status: "idle" as const, flight: null };
+              return {
+                ...aircraft,
+                assignedRouteId: null,
+                status: "idle" as const,
+                flight: null,
+              };
             }
 
             return { ...aircraft, assignedRouteId: null };
@@ -178,7 +184,24 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       routeIds: updatedRoutes.map((route) => route.id),
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture which specific entities were changed for surgical rollback
+    const previousAirline = airline;
+    const changedRouteIds = new Set<string>();
+    const changedAircraftIds = new Set<string>();
+    const addedTimelineIds = new Set<string>();
+
+    for (let i = 0; i < updatedRoutes.length; i++) {
+      if (updatedRoutes[i] !== routes[i]) changedRouteIds.add(updatedRoutes[i].id);
+    }
+    for (let i = 0; i < updatedFleet.length; i++) {
+      if (updatedFleet[i] !== fleet[i]) changedAircraftIds.add(updatedFleet[i].id);
+    }
+    addedTimelineIds.add(newEvent.id);
+    for (const evt of routeEvents) addedTimelineIds.add(evt.id);
+
+    // Build lookup for previous route/aircraft state
+    const previousRouteMap = new Map(routes.map((r) => [r.id, r]));
+    const previousAircraftMap = new Map(fleet.map((ac) => [ac.id, ac]));
 
     set({
       airline: updatedAirline,
@@ -222,23 +245,47 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (error: any) {
-      set((state) => ({
-        airline:
-          state.airline && previousState.airline
+      set((state) => {
+        // Merge-safe rollback: only revert the specific fields changed by
+        // this hub modification, preserving concurrent tick updates.
+        const restoredAirline =
+          state.airline && previousAirline
             ? {
                 ...state.airline,
-                hubs: previousState.airline.hubs,
-                corporateBalance: previousState.airline.corporateBalance,
-                routeIds: previousState.airline.routeIds,
-                timeline: previousState.airline.timeline,
+                hubs: previousAirline.hubs,
+                corporateBalance: previousAirline.corporateBalance,
+                routeIds: previousAirline.routeIds,
               }
-            : previousState.airline,
-        fleet: previousState.fleet,
-        routes: previousState.routes,
-        timeline: previousState.timeline,
-      }));
+            : previousAirline;
+
+        // Restore only the routes we suspended, leaving other routes as-is
+        const restoredRoutes = state.routes.map((rt) => {
+          if (changedRouteIds.has(rt.id)) {
+            return previousRouteMap.get(rt.id) ?? rt;
+          }
+          return rt;
+        });
+
+        // Restore only the aircraft we unassigned, leaving other aircraft as-is
+        const restoredFleet = state.fleet.map((ac) => {
+          if (changedAircraftIds.has(ac.id)) {
+            return previousAircraftMap.get(ac.id) ?? ac;
+          }
+          return ac;
+        });
+
+        // Remove only the timeline events we added
+        const restoredTimeline = state.timeline.filter((evt) => !addedTimelineIds.has(evt.id));
+
+        return {
+          airline: restoredAirline,
+          fleet: restoredFleet,
+          routes: restoredRoutes,
+          timeline: restoredTimeline,
+        };
+      });
       // Roll back engine hub too
-      const rollbackIata = previousState.airline.hubs[0];
+      const rollbackIata = previousAirline.hubs[0];
       const rollbackAirport = airports.find((a) => a.iata === rollbackIata);
       if (rollbackAirport) {
         useEngineStore.getState().setHub(
@@ -313,7 +360,12 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       }
 
       if (aircraft.status === "turnaround") {
-        return { ...aircraft, assignedRouteId: null, status: "idle" as const, flight: null };
+        return {
+          ...aircraft,
+          assignedRouteId: null,
+          status: "idle" as const,
+          flight: null,
+        };
       }
 
       return { ...aircraft, assignedRouteId: null };
@@ -336,7 +388,18 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       timeline: finalTimeline,
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Track which entities were changed for surgical rollback
+    const changedRouteId = routeId;
+    const changedAircraftIds = new Set<string>();
+    const previousRouteState = targetRoute;
+    const previousAircraftMap = new Map<string, (typeof fleet)[0]>();
+
+    for (let i = 0; i < updatedFleet.length; i++) {
+      if (updatedFleet[i] !== fleet[i]) {
+        changedAircraftIds.add(updatedFleet[i].id);
+        previousAircraftMap.set(fleet[i].id, fleet[i]);
+      }
+    }
 
     set({
       airline: updatedAirline,
@@ -361,18 +424,30 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (error: any) {
-      set((state) => ({
-        airline:
-          state.airline && previousState.airline
-            ? {
-                ...state.airline,
-                timeline: previousState.airline.timeline,
-              }
-            : previousState.airline,
-        fleet: previousState.fleet,
-        routes: previousState.routes,
-        timeline: previousState.timeline,
-      }));
+      set((state) => {
+        // Merge-safe rollback: only revert the specific route and aircraft
+        const restoredRoutes = state.routes.map((rt) => {
+          if (rt.id === changedRouteId) return previousRouteState;
+          return rt;
+        });
+
+        const restoredFleet = state.fleet.map((ac) => {
+          if (changedAircraftIds.has(ac.id)) {
+            return previousAircraftMap.get(ac.id) ?? ac;
+          }
+          return ac;
+        });
+
+        // Remove only the optimistic rebase timeline event
+        const restoredTimeline = state.timeline.filter((evt) => evt.id !== newEvent.id);
+
+        return {
+          airline: state.airline ? { ...state.airline, timeline: restoredTimeline } : state.airline,
+          fleet: restoredFleet,
+          routes: restoredRoutes,
+          timeline: restoredTimeline,
+        };
+      });
       console.warn("Failed to publish route rebase to Nostr:", error);
     }
   },
@@ -412,7 +487,12 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       }
 
       if (aircraft.status === "turnaround") {
-        return { ...aircraft, assignedRouteId: null, status: "idle" as const, flight: null };
+        return {
+          ...aircraft,
+          assignedRouteId: null,
+          status: "idle" as const,
+          flight: null,
+        };
       }
 
       return { ...aircraft, assignedRouteId: null };
@@ -436,7 +516,16 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       routeIds: updatedRoutes.map((route) => route.id),
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Track changed aircraft for surgical rollback
+    const changedAircraftIds = new Set<string>();
+    const previousAircraftMap = new Map<string, (typeof fleet)[0]>();
+
+    for (let i = 0; i < updatedFleet.length; i++) {
+      if (updatedFleet[i] !== fleet[i]) {
+        changedAircraftIds.add(updatedFleet[i].id);
+        previousAircraftMap.set(fleet[i].id, fleet[i]);
+      }
+    }
 
     set({
       airline: updatedAirline,
@@ -461,25 +550,45 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (error: any) {
-      set((state) => ({
-        airline:
-          state.airline && previousState.airline
-            ? {
-                ...state.airline,
-                routeIds: previousState.airline.routeIds,
-                timeline: previousState.airline.timeline,
-              }
-            : previousState.airline,
-        fleet: previousState.fleet,
-        routes: previousState.routes,
-        timeline: previousState.timeline,
-      }));
+      set((state) => {
+        // Merge-safe rollback: re-add the closed route, restore affected
+        // aircraft, and remove the optimistic timeline event.
+        const restoredAirline = state.airline
+          ? {
+              ...state.airline,
+              routeIds: [...state.airline.routeIds, routeId],
+            }
+          : state.airline;
+
+        // Restore only the aircraft whose assignments we changed
+        const restoredFleet = state.fleet.map((ac) => {
+          if (changedAircraftIds.has(ac.id)) {
+            return previousAircraftMap.get(ac.id) ?? ac;
+          }
+          return ac;
+        });
+
+        // Re-add the removed route
+        const restoredRoutes = [...state.routes, targetRoute];
+
+        // Remove only the optimistic close event
+        const restoredTimeline = state.timeline.filter((evt) => evt.id !== newEvent.id);
+
+        return {
+          airline: restoredAirline
+            ? { ...restoredAirline, timeline: restoredTimeline }
+            : restoredAirline,
+          fleet: restoredFleet,
+          routes: restoredRoutes,
+          timeline: restoredTimeline,
+        };
+      });
       console.warn("Failed to publish route closure to Nostr:", error);
     }
   },
 
   openRoute: async (originIata: string, destinationIata: string, distanceKm: number) => {
-    const { airline, routes, fleet, pubkey } = get();
+    const { airline, routes, pubkey } = get();
     if (!airline || !pubkey) throw new Error("No airline loaded.");
 
     if (airline.corporateBalance < ROUTE_SLOT_FEE) {
@@ -556,8 +665,6 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       timeline: finalTimeline,
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
-
     set({
       airline: updatedAirline,
       routes: updatedRoutes,
@@ -587,19 +694,20 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (e) {
-      set((state) => ({
-        airline:
-          state.airline && previousState.airline
-            ? {
-                ...state.airline,
-                corporateBalance: previousState.airline.corporateBalance,
-                routeIds: previousState.airline.routeIds,
-                timeline: previousState.airline.timeline,
-              }
-            : previousState.airline,
-        routes: previousState.routes,
-        timeline: previousState.timeline,
-      }));
+      set((state) => {
+        if (!state.airline) return state;
+
+        // Merge-safe rollback: remove only the new route, refund slot fee
+        return {
+          airline: {
+            ...state.airline,
+            corporateBalance: fpAdd(state.airline.corporateBalance, ROUTE_SLOT_FEE),
+            routeIds: state.airline.routeIds.filter((id) => id !== newRoute.id),
+          },
+          routes: state.routes.filter((rt) => rt.id !== newRoute.id),
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
+        };
+      });
       console.error("Failed to sync route to Nostr:", e);
     }
   },
@@ -677,7 +785,11 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       timeline: finalTimeline,
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture the previous assignment state for surgical rollback
+    const previousAircraftAssignment = aircraft ? aircraft.assignedRouteId : null;
+    const previousRouteAssignments = new Map(
+      routes.map((rt) => [rt.id, [...rt.assignedAircraftIds]]),
+    );
 
     set({
       airline: updatedAirline,
@@ -701,18 +813,34 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (e) {
-      set((state) => ({
-        airline:
-          state.airline && previousState.airline
-            ? {
-                ...state.airline,
-                timeline: previousState.airline.timeline,
-              }
-            : previousState.airline,
-        fleet: previousState.fleet,
-        routes: previousState.routes,
-        timeline: previousState.timeline,
-      }));
+      set((state) => {
+        // Merge-safe rollback: only revert the specific aircraft assignment
+        // and route assignedAircraftIds, preserving concurrent updates.
+        const restoredFleet = state.fleet.map((ac) => {
+          if (ac.id === aircraftId) {
+            return { ...ac, assignedRouteId: previousAircraftAssignment };
+          }
+          return ac;
+        });
+
+        const restoredRoutes = state.routes.map((rt) => {
+          const prevAssigned = previousRouteAssignments.get(rt.id);
+          if (prevAssigned) {
+            return { ...rt, assignedAircraftIds: prevAssigned };
+          }
+          return rt;
+        });
+
+        // Remove only the optimistic assignment timeline event
+        const restoredTimeline = state.timeline.filter((evt) => evt.id !== newEvent.id);
+
+        return {
+          airline: state.airline ? { ...state.airline, timeline: restoredTimeline } : state.airline,
+          fleet: restoredFleet,
+          routes: restoredRoutes,
+          timeline: restoredTimeline,
+        };
+      });
       console.error("Failed to sync assignment to Nostr:", e);
     }
   },
@@ -721,7 +849,7 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     routeId: string,
     fares: { economy?: FixedPoint; business?: FixedPoint; first?: FixedPoint },
   ) => {
-    const { routes, airline, fleet } = get();
+    const { routes, airline } = get();
     if (!airline) return;
 
     const updatedRoutes = routes.map((rt) => {
@@ -742,7 +870,15 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       timeline: currentTimeline,
     };
 
-    const previousState = { airline, fleet, routes, timeline: get().timeline };
+    // Capture previous fares for merge-safe rollback
+    const targetRoute = routes.find((rt) => rt.id === routeId);
+    const previousFares = targetRoute
+      ? {
+          fareEconomy: targetRoute.fareEconomy,
+          fareBusiness: targetRoute.fareBusiness,
+          fareFirst: targetRoute.fareFirst,
+        }
+      : null;
 
     set({ routes: updatedRoutes, airline: updatedAirline });
 
@@ -761,9 +897,12 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
         set,
       });
     } catch (e) {
-      set({
-        routes: previousState.routes,
-      });
+      // Merge-safe rollback: restore only the fares on the specific route
+      set((state) => ({
+        routes: state.routes.map((rt) =>
+          rt.id === routeId && previousFares ? { ...rt, ...previousFares } : rt,
+        ),
+      }));
       console.error("Failed to sync fares to Nostr:", e);
     }
   },
