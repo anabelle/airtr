@@ -38,7 +38,12 @@ export interface AirlineState {
   purchaseAircraft: (
     model: AircraftModel,
     deliveryHubIata?: string,
-    configuration?: { economy: number; business: number; first: number; cargoKg: number },
+    configuration?: {
+      economy: number;
+      business: number;
+      first: number;
+      cargoKg: number;
+    },
     customName?: string,
     purchaseType?: "buy" | "lease",
   ) => Promise<void>;
@@ -69,5 +74,5 @@ export interface AirlineState {
   viewAs: (pubkey: string | null) => void;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
   syncCompetitor: (competitorPubkey: string) => Promise<void>;
-  processGlobalTick: (tick: number) => Promise<void>;
+  projectCompetitorFleet: (tick: number) => void;
 }

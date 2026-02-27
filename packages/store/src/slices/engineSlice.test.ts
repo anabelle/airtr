@@ -118,7 +118,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     globalRoutesByOwner: new Map(),
     syncWorld: vi.fn(),
     syncCompetitor: vi.fn(),
-    processGlobalTick: vi.fn(),
+    projectCompetitorFleet: vi.fn(),
   } as AirlineState;
 
   const set = vi.fn((partial: AirlineState | ((prev: AirlineState) => Partial<AirlineState>)) => {

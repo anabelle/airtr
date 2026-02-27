@@ -2,17 +2,7 @@ import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
-import { _getGlobalTickMutex, _resetWorldFlags, createWorldSlice } from "./worldSlice";
-
-const mockProcessFlightEngine = vi.fn();
-
-vi.mock("../FlightEngine", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../FlightEngine")>();
-  return {
-    ...actual,
-    processFlightEngine: (...args: unknown[]) => mockProcessFlightEngine(...args),
-  };
-});
+import { _resetWorldFlags, createWorldSlice } from "./worldSlice";
 
 vi.mock("@acars/nostr", () => ({
   loadActionLog: vi.fn(() => Promise.resolve([])),
@@ -70,7 +60,7 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     globalRoutesByOwner: new Map(),
     syncWorld: vi.fn(),
     syncCompetitor: vi.fn(),
-    processGlobalTick: vi.fn(),
+    projectCompetitorFleet: vi.fn(),
   } as AirlineState;
 
   const set = vi.fn((partial: AirlineState | ((prev: AirlineState) => Partial<AirlineState>)) => {
@@ -152,17 +142,8 @@ const buildRoutesIndex = (routes: Route[]) => {
   return byOwner;
 };
 
-describe("processGlobalTick", () => {
+describe("projectCompetitorFleet", () => {
   beforeEach(async () => {
-    mockProcessFlightEngine.mockReset();
-    mockProcessFlightEngine.mockImplementation(
-      (_tick: number, fleet: AircraftInstance[], _routes: unknown, balance: FixedPoint) => ({
-        updatedFleet: fleet,
-        corporateBalance: balance,
-        hasChanges: false,
-        events: [],
-      }),
-    );
     _resetWorldFlags();
 
     // Reset nostr mocks to avoid cross-test contamination
@@ -173,7 +154,7 @@ describe("processGlobalTick", () => {
     (nostr.loadCheckpoints as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(new Map());
   });
 
-  it("keeps up-to-date competitor fleet while others catch up", async () => {
+  it("projects all competitor fleets to the target tick", () => {
     const tick = 200;
     const behindPubkey = "comp-behind";
     const currentPubkey = "comp-current";
@@ -196,61 +177,68 @@ describe("processGlobalTick", () => {
       globalRoutesByOwner: buildRoutesIndex([]),
     });
 
-    await state.processGlobalTick(tick);
+    state.projectCompetitorFleet(tick);
 
+    // Both aircraft should appear in the projected global fleet
     const ids = state.globalFleet.map((ac) => ac.id);
     expect(ids).toContain("ac-behind");
     expect(ids).toContain("ac-current");
-    expect(mockProcessFlightEngine).toHaveBeenCalled();
+
+    // Competitors map should NOT be modified — projectCompetitorFleet is
+    // display-only.  Authoritative state (lastTick, corporateBalance) is
+    // written exclusively by syncWorld / syncCompetitor.
+    const updatedBehind = state.competitors.get(behindPubkey);
+    expect(updatedBehind?.lastTick).toBe(tick - 2);
+
+    const updatedCurrent = state.competitors.get(currentPubkey);
+    expect(updatedCurrent?.lastTick).toBe(tick);
   });
 
-  it("retains fleets for competitors beyond catchup budget", async () => {
-    // MAX_TOTAL_COMPETITOR_TICKS = 5000, MAX_COMPETITOR_CATCHUP = 1000
-    // 6 competitors at lastTick=0 with tick=2000: first 5 each use 1000 ticks (= 5000 total),
-    // the 6th competitor (comp-f) gets skipped by the budget cap. Its fleet must still appear.
-    const tick = 2000;
-    const compKeys = ["comp-a", "comp-b", "comp-c", "comp-d", "comp-e", "comp-f"];
-    const upToDate = "comp-current";
+  it("does nothing when no competitors exist", () => {
+    const { state, set } = createSliceState({
+      competitors: new Map(),
+      globalFleet: [],
+      globalFleetByOwner: new Map(),
+    });
 
-    const competitors = new Map<string, AirlineEntity>(
-      compKeys.map((key) => [key, makeAirline(key, 0)] as const),
-    );
-    competitors.set(upToDate, makeAirline(upToDate, tick));
+    state.projectCompetitorFleet(100);
 
-    const globalFleet = [
-      ...compKeys.map((key) => makeAircraft(`ac-${key}`, key)),
-      makeAircraft("ac-current", upToDate),
-    ];
+    // set should not have been called (no changes)
+    expect(set).not.toHaveBeenCalled();
+  });
 
-    // Mock always returns valid results — just echoes fleet through
-    mockProcessFlightEngine.mockImplementation(
-      (_tick: number, fleet: AircraftInstance[], _routes: unknown, balance: FixedPoint) => ({
-        updatedFleet: fleet,
-        corporateBalance: balance,
-        hasChanges: false,
-        events: [],
-      }),
-    );
+  it("skips competitors whose lastTick is already at or ahead of target", () => {
+    const tick = 100;
+    const pubkey = "comp-ahead";
 
-    const { state } = createSliceState({
+    const competitors = new Map<string, AirlineEntity>([[pubkey, makeAirline(pubkey, tick + 10)]]);
+
+    const fleet = [makeAircraft("ac-ahead", pubkey)];
+
+    const { state, set } = createSliceState({
       competitors,
-      globalFleet,
-      globalFleetByOwner: buildFleetIndex(globalFleet),
+      globalFleet: fleet,
+      globalFleetByOwner: buildFleetIndex(fleet),
       globalRoutes: [],
       globalRoutesByOwner: buildRoutesIndex([]),
     });
 
-    await state.processGlobalTick(tick);
+    state.projectCompetitorFleet(tick);
 
-    const ids = state.globalFleet.map((ac) => ac.id);
-    // The first 5 competitors were processed (budget allows 5 * 1000 = 5000)
-    for (const key of compKeys.slice(0, 5)) {
-      expect(ids).toContain(`ac-${key}`);
-    }
-    // The 6th competitor was NOT processed but its fleet must still be retained
-    expect(ids).toContain("ac-comp-f");
-    // The up-to-date competitor's fleet should be retained too
-    expect(ids).toContain("ac-current");
+    // No changes should have been made since the only competitor is ahead
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncWorld", () => {
+  beforeEach(async () => {
+    _resetWorldFlags();
+
+    const nostr = await import("@acars/nostr");
+    (nostr.loadActionLog as unknown as ReturnType<typeof vi.fn>).mockClear();
+    (nostr.loadActionLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (nostr.loadCheckpoints as unknown as ReturnType<typeof vi.fn>).mockClear();
+    (nostr.loadCheckpoints as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(new Map());
   });
 
   it("preserves newer competitor state over older sync snapshot", async () => {
@@ -294,7 +282,7 @@ describe("processGlobalTick", () => {
     expect(ids).toContain("ac-new");
   });
 
-  it("fast-forwards competitor fleet during initial sync", async () => {
+  it("projects competitor fleet to current tick during sync", async () => {
     const { loadActionLog } = await import("@acars/nostr");
     const pubkey = "comp-catchup";
 
@@ -336,15 +324,6 @@ describe("processGlobalTick", () => {
       },
     ]);
 
-    mockProcessFlightEngine.mockImplementation(
-      (_tick: number, _fleet: AircraftInstance[], _routes: unknown, balance: FixedPoint) => ({
-        updatedFleet: [makeAircraft("ac-fast", pubkey)],
-        corporateBalance: balance,
-        hasChanges: false,
-        events: [],
-      }),
-    );
-
     const { state } = createSliceState({
       competitors: new Map(),
       globalFleet: [],
@@ -377,25 +356,5 @@ describe("processGlobalTick", () => {
 
     // First call runs immediately, second is queued and runs after first completes
     expect(loadActionLog).toHaveBeenCalledTimes(2);
-  });
-
-  it("skips syncWorld while global tick processing", async () => {
-    const { loadActionLog } = await import("@acars/nostr");
-    (loadActionLog as unknown as ReturnType<typeof vi.fn>).mockClear();
-
-    const { state } = createSliceState({});
-
-    // Simulate processGlobalTick holding the mutex by acquiring it directly.
-    const mutex = _getGlobalTickMutex();
-    expect(mutex.tryLock()).toBe(true);
-
-    // syncWorld without force should be skipped while the mutex is held.
-    await state.syncWorld();
-    expect(loadActionLog).toHaveBeenCalledTimes(0);
-
-    // Release and verify syncWorld works again.
-    mutex.unlock();
-    await state.syncWorld();
-    expect(loadActionLog).toHaveBeenCalledTimes(1);
   });
 });

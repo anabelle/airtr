@@ -36,9 +36,9 @@ export const useAirlineStore = create<AirlineState>()((...a) => ({
 // Automatically process fleet ticks when engine ticks advance.
 // IMPORTANT: Only fire when the tick INTEGER changes, not on tickProgress
 // sub-tick updates. The engine fires syncTick() every 1000ms but ticks only
-// change every 3000ms, so without this guard we'd re-enter processTick and
-// processGlobalTick ~3x per tick, causing duplicate event generation and
-// competitor aircraft position flicker on the map.
+// change every 3000ms, so without this guard we'd re-enter processTick
+// ~3x per tick, causing duplicate event generation and aircraft position
+// flicker on the map.
 let lastSubscribedTick = -1;
 let initialSyncComplete = false;
 let unsubscribeActionStream: (() => void) | null = null;
@@ -47,9 +47,8 @@ const logger = createLogger("WorldSync");
 /**
  * Persistent promise chain that serializes tick processing across boundaries.
  *
- * Without this, a fast-returning `processTick` (mutex already held) would
- * cause `processGlobalTick` to run immediately and potentially overlap with
- * a still-in-flight `processTick` from the previous tick.
+ * Player ticks (`processTick`) and competitor fleet re-projection
+ * (`projectCompetitorFleet`) are chained sequentially to prevent overlap.
  */
 let tickPipeline: Promise<void> = Promise.resolve();
 const runtimeEnv = (
@@ -102,17 +101,19 @@ useEngineStore.subscribe((state) => {
   tickPipeline = tickPipeline
     .then(async () => {
       await store.processTick(state.tick);
-      await store.processGlobalTick(state.tick);
+      // Re-project competitor fleet to current tick (replaces processGlobalTick).
+      // This is synchronous — reconcileFleetToTick is a pure O(N) function.
+      store.projectCompetitorFleet(state.tick);
     })
     .catch((error) => {
       logger.warn("Tick pipeline failed", error);
     });
 
-  // Sync world state every 20 ticks (~1 min) as a safety net.
-  // The primary sync path is the live subscription handler above.
+  // Sync world state every 20 ticks (~1 min) to refresh competitor data
+  // from Nostr relays.  This is the primary mechanism for keeping competitor
+  // state fresh; projectCompetitorFleet keeps positions current between syncs.
   // Skip until the initial eager sync completes to avoid racing with it.
-  // Use force: true so the sync is not silently dropped when
-  // processGlobalTick happens to be running at the same moment.
+  // Use force: true so the sync is not silently dropped.
   if (state.tick % 20 === 0 && initialSyncComplete) {
     store.syncWorld({ force: true });
   }
@@ -136,7 +137,7 @@ useEngineStore.subscribe((state) => {
 });
 
 // Initial world sync — wait for relay connectivity, then fetch with force
-// to bypass the isProcessingGlobal guard that can silently skip the call.
+// to bypass the isSyncingWorld guard that can silently skip the call.
 const RETRY_SYNC_DELAY = 3000;
 const MAX_SYNC_RETRIES = 3;
 
@@ -239,8 +240,8 @@ async function startActionSubscription(since: number): Promise<void> {
   }
 
   for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
-    // force: true bypasses the isProcessingGlobal guard so the initial
-    // sync cannot be silently skipped by a concurrent processGlobalTick.
+    // force: true bypasses the isSyncingWorld guard so the initial
+    // sync cannot be silently skipped by a concurrent sync.
     await useAirlineStore.getState().syncWorld({ force: true });
     const { competitors } = useAirlineStore.getState();
     if (competitors.size > 0) break;

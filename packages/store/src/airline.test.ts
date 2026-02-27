@@ -18,7 +18,6 @@ describe("airline store", () => {
     expect(state).toBeDefined();
     expect(typeof state.initializeIdentity).toBe("function");
     expect(typeof state.processTick).toBe("function");
-    expect(typeof state.processGlobalTick).toBe("function");
   });
 });
 
@@ -82,7 +81,6 @@ describe("airline store – event buffering during initial sync", () => {
     // a clean window to push events into the buffer before sync finishes.
     vi.doMock("./slices/worldSlice.js", () => ({
       _resetWorldFlags: vi.fn(),
-      _getGlobalTickMutex: vi.fn(() => ({ reset: vi.fn() })),
       createWorldSlice: (set: (partial: Record<string, unknown>) => void) => ({
         competitors: new Map<string, unknown>(),
         globalRouteRegistry: new Map<string, unknown[]>(),
@@ -96,7 +94,7 @@ describe("airline store – event buffering during initial sync", () => {
           set({ competitors: syncWorldCompetitors });
         }),
         syncCompetitor: syncCompetitorSpy,
-        processGlobalTick: vi.fn().mockResolvedValue(undefined),
+        projectCompetitorFleet: vi.fn(),
       }),
     }));
 

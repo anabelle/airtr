@@ -872,7 +872,11 @@ export function reconcileFleetToTick(
     // route guard below, which would otherwise return them unchanged.
     if (ac.status === "delivery" && !ac.assignedRouteId) {
       if (ac.deliveryAtTick != null && ac.deliveryAtTick <= targetTick) {
-        return { ...ac, status: "idle" as const };
+        return {
+          ...ac,
+          status: "idle" as const,
+          lastTickProcessed: targetTick,
+        };
       }
       return ac;
     }
@@ -936,6 +940,7 @@ export function reconcileFleetToTick(
 
       const updated = { ...ac };
       applyCyclePhase(updated, route, targetTick, positionInCycle, durationTicks, turnaroundTicks);
+      updated.lastTickProcessed = targetTick;
       const referenceTick =
         typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
       let landings = countLandingsBetween(
@@ -965,7 +970,7 @@ export function reconcileFleetToTick(
         // Compute cycle position from routeAssignedAtTick (or deliveryAtTick as fallback)
         const cycleStartTick = ac.routeAssignedAtTick ?? ac.deliveryAtTick;
         if (targetTick <= cycleStartTick) {
-          return { ...ac, status: "idle" };
+          return { ...ac, status: "idle", lastTickProcessed: targetTick };
         }
 
         const elapsed = targetTick - cycleStartTick;
@@ -979,6 +984,7 @@ export function reconcileFleetToTick(
           durationTicks,
           turnaroundTicks,
         );
+        updated.lastTickProcessed = targetTick;
         const referenceTick =
           typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
         let landings = countLandingsBetween(
@@ -1021,6 +1027,7 @@ export function reconcileFleetToTick(
 
     const updated = { ...ac };
     applyCyclePhase(updated, route, targetTick, positionInCycle, durationTicks, turnaroundTicks);
+    updated.lastTickProcessed = targetTick;
     const referenceTick =
       typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
     let landings = countLandingsBetween(
