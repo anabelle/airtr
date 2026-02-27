@@ -90,6 +90,72 @@ function getBearing(p1: [number, number], p2: [number, number]): number {
 }
 
 // =============================================================================
+// --- Antimeridian (Dateline) Splitting ---
+// =============================================================================
+
+/**
+ * Splits a polyline at the antimeridian (±180° longitude) so MapLibre
+ * doesn't draw a line the wrong way around the world.
+ *
+ * When consecutive points jump more than 180° in longitude, we know the
+ * great-circle path crossed the dateline. We end the current segment at
+ * the ±180 boundary and start a new one on the opposite side.
+ *
+ * Returns an array of coordinate arrays. If no crossing occurs, the
+ * result is `[points]` (single segment, zero overhead).
+ */
+function splitAntimeridian(points: [number, number][]): [number, number][][] {
+  if (points.length < 2) return [points];
+
+  const segments: [number, number][][] = [];
+  let current: [number, number][] = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    const [prevLng, prevLat] = points[i - 1];
+    const [nextLng, nextLat] = points[i];
+    const delta = nextLng - prevLng;
+
+    if (Math.abs(delta) > 180) {
+      // Crossed the antimeridian — interpolate the crossing latitude
+      const crossLng = prevLng > 0 ? 180 : -180;
+      const t = (crossLng - prevLng) / delta;
+      const crossLat = prevLat + t * (nextLat - prevLat);
+
+      current.push([crossLng, crossLat]);
+      segments.push(current);
+
+      const oppositeLng = crossLng === 180 ? -180 : 180;
+      current = [[oppositeLng, crossLat] as [number, number], points[i]];
+    } else {
+      current.push(points[i]);
+    }
+  }
+
+  segments.push(current);
+  return segments;
+}
+
+/**
+ * Converts arc points into a GeoJSON Feature, automatically splitting at
+ * the antimeridian if the route crosses it.
+ */
+function makeArcFeature(points: [number, number][]): GeoJSON.Feature {
+  const lines = splitAntimeridian(points);
+  if (lines.length === 1) {
+    return {
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: lines[0] },
+      properties: {},
+    };
+  }
+  return {
+    type: "Feature",
+    geometry: { type: "MultiLineString", coordinates: lines },
+    properties: {},
+  };
+}
+
+// =============================================================================
 // --- LOD: Adaptive segment count based on zoom level ---
 // =============================================================================
 
@@ -127,6 +193,13 @@ function routeIntersectsViewport(
 ): boolean {
   const sw = bounds.getSouthWest();
   const ne = bounds.getNorthEast();
+
+  // If the route crosses the antimeridian (longitude difference > 180°),
+  // the simple AABB test produces an inverted bounding box that covers
+  // everything *except* the actual route. These are rare long-haul routes;
+  // always render them rather than attempting wrapped AABB math.
+  const lngDiff = Math.abs(originLng - destLng);
+  if (lngDiff > 180) return true;
 
   // Calculate route bounding box
   let minLng = Math.min(originLng, destLng);
@@ -468,13 +541,19 @@ export function Globe({
       });
       map.addSource(NIGHT_OVERLAY_SOURCE, {
         type: "geojson",
-        data: { type: "FeatureCollection", features: [] } as NightOverlayFeatureCollection,
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        } as NightOverlayFeatureCollection,
       });
       map.addSource("flights", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      map.addSource("arcs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource("arcs", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
       map.addSource("global-flights", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -1116,11 +1195,7 @@ export function Globe({
         continue;
 
       const points = getOrComputeArc(origin, dest, segments);
-      arcFeatures.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: points },
-        properties: {},
-      });
+      arcFeatures.push(makeArcFeature(points));
     }
 
     // --- Global route arcs (with culling + LOD + caching) ---
@@ -1143,11 +1218,7 @@ export function Globe({
         continue;
 
       const points = getOrComputeArc(origin, dest, segments);
-      globalArcFeatures.push({
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: points },
-        properties: {},
-      });
+      globalArcFeatures.push(makeArcFeature(points));
     }
 
     (map.getSource("airports") as maplibregl.GeoJSONSource)?.setData(airportGeojson);
@@ -1213,11 +1284,7 @@ export function Globe({
           )
             continue;
           const points = getOrComputeArc(origin, dest, segments);
-          arcFeatures.push({
-            type: "Feature",
-            geometry: { type: "LineString", coordinates: points },
-            properties: {},
-          });
+          arcFeatures.push(makeArcFeature(points));
         }
 
         const globalArcFeatures: GeoJSON.Feature[] = [];
@@ -1236,11 +1303,7 @@ export function Globe({
           )
             continue;
           const points = getOrComputeArc(origin, dest, segments);
-          globalArcFeatures.push({
-            type: "Feature",
-            geometry: { type: "LineString", coordinates: points },
-            properties: {},
-          });
+          globalArcFeatures.push(makeArcFeature(points));
         }
 
         (map.getSource("arcs") as maplibregl.GeoJSONSource)?.setData({
@@ -1438,7 +1501,13 @@ export function Globe({
     <div
       ref={mapContainer}
       className={`globe-container ${className}`}
-      style={{ width: "100%", height: "100%", position: "absolute", inset: 0, ...style }}
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "absolute",
+        inset: 0,
+        ...style,
+      }}
     />
   );
 }
