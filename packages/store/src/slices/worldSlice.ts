@@ -131,21 +131,26 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
    * deterministic, this produces the correct aircraft positions for any tick
    * without requiring incremental simulation.
    *
-   * IMPORTANT: This function only updates globalFleet / globalFleetByOwner
-   * (aircraft positions for rendering).  It does NOT mutate the competitors
-   * map (airline.lastTick, corporateBalance).  Authoritative competitor state
-   * is written exclusively by syncWorld / syncCompetitor, which also apply
-   * monthly recurring costs (hub opex, lease payments) via applyMonthlyCosts.
+   * IMPORTANT: This function only updates the combined globalFleet for
+   * display purposes. It does NOT mutate globalFleetByOwner (authoritative
+   * fleet by owner) or the competitors map (lastTick, corporateBalance).
+   * Authoritative state is written exclusively by syncWorld/syncCompetitor,
+   * which also apply monthly recurring costs via applyMonthlyCosts.
    *
    * reconcileFleetToTick updates lastTickProcessed on individual aircraft,
    * preventing double-counted landings on subsequent projection calls.
    */
   projectCompetitorFleet: (tick: number) => {
-    const { competitors, globalFleetByOwner, globalRoutesByOwner } = get();
-    if (competitors.size === 0) return;
+    const { competitors, globalFleetByOwner, globalRoutesByOwner, fleet: playerFleet } = get();
+    if (competitors.size === 0 && (!playerFleet || playerFleet.length === 0)) return;
 
     const updatedGlobalFleet: AircraftInstance[] = [];
     let anyChanges = false;
+
+    // Include player's own fleet in the display fleet (they're always at current tick)
+    if (playerFleet && playerFleet.length > 0) {
+      updatedGlobalFleet.push(...playerFleet);
+    }
 
     for (const [pubkey, airline] of competitors) {
       const compFleet = globalFleetByOwner.get(pubkey) || [];
@@ -161,17 +166,22 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         continue;
       }
 
-      // Project fleet positions for display only.
+      // Project fleet positions for display only. This does NOT update
+      // globalFleetByOwner (authoritative) — only the combined display fleet.
       const { fleet: projectedFleet } = reconcileFleetToTick(compFleet, compRoutes, tick);
       updatedGlobalFleet.push(...projectedFleet);
       anyChanges = true;
     }
 
-    if (!anyChanges) return;
+    // Skip update if no changes and no player fleet to display
+    if (!anyChanges && (!playerFleet || playerFleet.length === 0)) {
+      return;
+    }
 
+    // Write to globalFleet (display) only — NOT globalFleetByOwner (authoritative).
+    // This keeps the per-owner index clean for syncWorld reconciliation.
     set({
       globalFleet: updatedGlobalFleet,
-      globalFleetByOwner: buildFleetIndex(updatedGlobalFleet),
     });
   },
 
@@ -416,17 +426,37 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         // catch-up loop.  This is O(N) per aircraft instead of O(N*T).
         const currentTick = useEngineStore.getState().tick;
 
+        // Include player's fleet in the display globalFleet
+        const playerFleet = existingState.fleet || [];
+
         if (currentTick > 0 && competitors.size > 0) {
           const allFleetByOwner = buildFleetIndex(allGlobalFleet);
           const allRoutesByOwner = buildRoutesIndex(allGlobalRoutes);
-          const updatedGlobalFleet: AircraftInstance[] = [];
+          const updatedGlobalFleet: AircraftInstance[] = [...playerFleet];
           const updatedCompetitors = new Map(competitors);
 
           for (const [competitorPubkey, airline] of competitors) {
             const compFleet = allFleetByOwner.get(competitorPubkey) || [];
             const compRoutes = allRoutesByOwner.get(competitorPubkey) || [];
 
-            if (compFleet.length === 0) continue;
+            // Apply monthly costs even for competitors with zero aircraft.
+            // They may have hub opex that needs to be charged.
+            if (compFleet.length === 0) {
+              if (airline.lastTick == null || airline.lastTick < currentTick) {
+                updatedCompetitors.set(competitorPubkey, {
+                  ...airline,
+                  corporateBalance: applyMonthlyCosts(
+                    airline.corporateBalance,
+                    airline.hubs,
+                    [],
+                    airline.lastTick ?? 0,
+                    currentTick,
+                  ),
+                  lastTick: currentTick,
+                });
+              }
+              continue;
+            }
 
             if (airline.lastTick != null && airline.lastTick >= currentTick) {
               updatedGlobalFleet.push(...compFleet);
@@ -459,10 +489,16 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           // defensive).
           const finalFleet = updatedGlobalFleet;
 
+          // Build globalFleetByOwner from competitor fleet only (authoritative index).
+          // Do NOT include player fleet here - it's in a separate slice.
+          const competitorFleet = finalFleet.filter(
+            (ac) => ac.ownerPubkey !== existingState.pubkey,
+          );
+
           set({
             competitors: updatedCompetitors,
             globalFleet: finalFleet,
-            globalFleetByOwner: buildFleetIndex(finalFleet),
+            globalFleetByOwner: buildFleetIndex(competitorFleet),
             globalRoutes: allGlobalRoutes,
             globalRoutesByOwner: buildRoutesIndex(allGlobalRoutes),
             globalRouteRegistry: registry,
@@ -475,7 +511,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         set({
           competitors,
           globalRouteRegistry: registry,
-          globalFleet: allGlobalFleet,
+          globalFleet: [...playerFleet, ...allGlobalFleet],
           globalFleetByOwner: buildFleetIndex(allGlobalFleet),
           globalRoutes: allGlobalRoutes,
           globalRoutesByOwner: buildRoutesIndex(allGlobalRoutes),
@@ -619,10 +655,17 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       updatedCompetitors.set(competitorPubkey, airline);
 
       // Rebuild global fleet: remove old entries for this competitor, add new ones
+      // Note: globalFleet includes player + competitor aircraft for display
       const updatedGlobalFleet = [
         ...freshState.globalFleet.filter((ac) => ac.ownerPubkey !== competitorPubkey),
         ...resolvedFleet,
       ];
+
+      // Build globalFleetByOwner from competitor fleet only (authoritative index).
+      // Do NOT include player fleet here - it's in a separate slice.
+      const competitorFleet = updatedGlobalFleet.filter(
+        (ac) => ac.ownerPubkey !== freshState.pubkey,
+      );
 
       // Rebuild global routes: remove old entries for this competitor, add new ones
       const updatedGlobalRoutes = [
@@ -686,7 +729,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       set({
         competitors: updatedCompetitors,
         globalFleet: updatedGlobalFleet,
-        globalFleetByOwner: buildFleetIndex(updatedGlobalFleet),
+        globalFleetByOwner: buildFleetIndex(competitorFleet),
         globalRoutes: updatedGlobalRoutes,
         globalRoutesByOwner: buildRoutesIndex(updatedGlobalRoutes),
         globalRouteRegistry: updatedRegistry,
