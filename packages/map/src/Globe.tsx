@@ -1,108 +1,128 @@
 import maplibregl from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type {
-  AircraftInstance,
-  Airport,
-  HubTier,
-  NightOverlayFeatureCollection,
-  Route,
-} from "@acars/core";
-import { computeNightOverlay, computeTerminatorLine } from "@acars/core";
+import type { AircraftInstance, Airport, HubTier, Route } from "@acars/core";
+import { getSubsolarPoint } from "@acars/core";
 import { aircraftModels, HUB_CLASSIFICATIONS } from "@acars/data";
 import { getBearing, getGreatCircleInterpolation, makeArcFeature } from "./geo.js";
 import { FAMILY_ICONS } from "./icons.js";
 
-// NASA VIIRS Black Marble 2016 via NASA GIBS WMS (CORS-enabled, Web Mercator)
-const NASA_BLACK_MARBLE_URL =
-  "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?" +
-  "SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0" +
-  "&LAYERS=VIIRS_Black_Marble" +
-  "&FORMAT=image%2Fjpeg&WIDTH=2048&HEIGHT=1024" +
-  "&CRS=EPSG%3A3857&BBOX=-20037508.34,-20037508.34,20037508.34,20037508.34";
-
-const NIGHT_CANVAS_W = 2048;
-const NIGHT_CANVAS_H = 1024;
+const NIGHT_CANVAS_W = 1024;
+const NIGHT_CANVAS_H = 512;
 
 /** Web Mercator max latitude (degrees) — matches canvas source coordinates */
 const MERCATOR_MAX_LAT = 85.051129;
+const DEG2RAD = Math.PI / 180;
+
+/** Night tint colour (RGBA components) — very dark blue-black */
+const NIGHT_R = 8;
+const NIGHT_G = 10;
+const NIGHT_B = 28;
 
 /**
- * Convert latitude (degrees) to a normalised Mercator Y in [0, 1],
- * where 0 = +MERCATOR_MAX_LAT (top) and 1 = -MERCATOR_MAX_LAT (bottom).
- * The result can be scaled by canvas height H to get a pixel row.
+ * Max alpha for the deepest night. Keep below 1.0 so the basemap
+ * (CARTO Dark Matter city lights, labels, borders) stays visible.
  */
-function mercatorNormY(lat: number): number {
-  const clamped = Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, lat));
-  const radLat = (clamped * Math.PI) / 180;
-  // Standard Web Mercator formula → [0, 1] across the full world
-  const y01 = (1 - Math.log(Math.tan(Math.PI / 4 + radLat / 2)) / Math.PI) / 2;
-  // Re-normalise so the clamp boundaries map exactly to 0 and 1
+const NIGHT_MAX_ALPHA = 0.38;
+
+/**
+ * Inverse Mercator Y: convert normalised canvas row [0,1] back to latitude.
+ */
+function inverseMercatorY(normY: number): number {
+  // normY 0 = +MERCATOR_MAX_LAT, normY 1 = -MERCATOR_MAX_LAT
   const yTop =
-    (1 - Math.log(Math.tan(Math.PI / 4 + (MERCATOR_MAX_LAT * Math.PI) / 360)) / Math.PI) / 2;
+    (1 - Math.log(Math.tan(Math.PI / 4 + (MERCATOR_MAX_LAT * DEG2RAD) / 2)) / Math.PI) / 2;
   const yBot =
-    (1 - Math.log(Math.tan(Math.PI / 4 - (MERCATOR_MAX_LAT * Math.PI) / 360)) / Math.PI) / 2;
-  return (y01 - yTop) / (yBot - yTop);
+    (1 - Math.log(Math.tan(Math.PI / 4 - (MERCATOR_MAX_LAT * DEG2RAD) / 2)) / Math.PI) / 2;
+  const y01 = yTop + normY * (yBot - yTop);
+  const latRad = 2 * Math.atan(Math.exp((1 - 2 * y01) * Math.PI)) - Math.PI / 2;
+  return latRad / DEG2RAD;
 }
 
-/** Night-side fallback colour when NASA imagery is unavailable */
-const NIGHT_FALLBACK_FILL = "#0a0a2e";
-
 /**
- * Draws night-side imagery onto `canvas`, clipped to the night polygon
- * with three opacity zones (civil 45% → astro 70% → core 92%).
+ * Paints a smooth night-side tint onto the canvas.
  *
- * If `img` is null (NASA load failed), a flat dark-navy fill is used instead.
- * All coordinates are pre-warped to Web Mercator so the canvas texture aligns
- * with MapLibre's Mercator tile grid.
+ * For each pixel, computes the angular distance from the subsolar point
+ * and maps it to an alpha value with a smooth transition through civil
+ * twilight (sun altitude 0° to −6°, angular distance 90°–96°).
+ *
+ * The result is a dark blue-black wash that smoothly darkens the night
+ * side without pixelation at any zoom level (it's a continuous gradient).
  */
 function paintNightCanvas(
   canvas: HTMLCanvasElement,
-  img: HTMLImageElement | null,
-  overlay: NightOverlayFeatureCollection,
+  subsolarLat: number,
+  subsolarLng: number,
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const W = canvas.width;
   const H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
 
-  const toX = (lng: number) => ((lng + 180) / 360) * W;
-  const toY = (lat: number) => mercatorNormY(lat) * H;
+  const imgData = ctx.createImageData(W, H);
+  const data = imgData.data;
 
-  const bands = [
-    { band: "civil", alpha: 0.45 },
-    { band: "astro", alpha: 0.7 },
-    { band: "core", alpha: 0.92 },
-  ] as const;
+  const sunLatRad = subsolarLat * DEG2RAD;
+  const sunLngRad = subsolarLng * DEG2RAD;
 
-  for (const { band, alpha } of bands) {
-    const feat = overlay.features.find((f) => f.properties.band === band);
-    if (!feat) continue;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    for (const ring of feat.geometry.coordinates) {
-      let first = true;
-      for (const [lng, lat] of ring) {
-        const x = toX(lng);
-        const y = toY(lat);
-        if (first) {
-          ctx.moveTo(x, y);
-          first = false;
-        } else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    }
-    ctx.clip("evenodd");
-    if (img) {
-      ctx.drawImage(img, 0, 0, W, H);
-    } else {
-      ctx.fillStyle = NIGHT_FALLBACK_FILL;
-      ctx.fillRect(0, 0, W, H);
-    }
-    ctx.restore();
+  // Angular distance thresholds (radians)
+  // 90° = terminator (sun at horizon)
+  // 96° = civil twilight end (sun 6° below horizon)
+  const TERMINATOR = (90 * Math.PI) / 180;
+  const TWILIGHT_END = (96 * Math.PI) / 180;
+
+  // Pre-compute latitude for each row (Mercator inverse)
+  const rowLat = new Float64Array(H);
+  const rowLatRad = new Float64Array(H);
+  for (let y = 0; y < H; y++) {
+    const lat = inverseMercatorY(y / H);
+    rowLat[y] = lat;
+    rowLatRad[y] = lat * DEG2RAD;
   }
+
+  const maxAlpha255 = Math.round(NIGHT_MAX_ALPHA * 255);
+
+  for (let y = 0; y < H; y++) {
+    const latRad = rowLatRad[y];
+    const sinLat = Math.sin(latRad);
+    const cosLat = Math.cos(latRad);
+    const sinSunLat = Math.sin(sunLatRad);
+    const cosSunLat = Math.cos(sunLatRad);
+    const latTerm = sinLat * sinSunLat;
+    const latCosTerm = cosLat * cosSunLat;
+
+    for (let x = 0; x < W; x++) {
+      const lng = (x / W) * 360 - 180;
+      const lngRad = lng * DEG2RAD;
+      const dLng = lngRad - sunLngRad;
+
+      const cosD = latTerm + latCosTerm * Math.cos(dLng);
+      const dist = Math.acos(Math.max(-1, Math.min(1, cosD)));
+
+      let alpha: number;
+      if (dist <= TERMINATOR) {
+        // Day side — fully transparent
+        alpha = 0;
+      } else if (dist >= TWILIGHT_END) {
+        // Deep night — max darkness
+        alpha = maxAlpha255;
+      } else {
+        // Twilight zone — smooth cubic ease
+        const t = (dist - TERMINATOR) / (TWILIGHT_END - TERMINATOR);
+        // Smoothstep for a gentle transition
+        const s = t * t * (3 - 2 * t);
+        alpha = Math.round(s * maxAlpha255);
+      }
+
+      const idx = (y * W + x) * 4;
+      data[idx] = NIGHT_R;
+      data[idx + 1] = NIGHT_G;
+      data[idx + 2] = NIGHT_B;
+      data[idx + 3] = alpha;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
 }
 
 const aircraftModelMap = new Map(aircraftModels.map((m) => [m.id, m]));
@@ -130,8 +150,6 @@ export interface GlobeProps {
 
 const NIGHT_CANVAS_SOURCE = "night-canvas";
 const NIGHT_CANVAS_LAYER = "night-canvas-layer";
-const NIGHT_TERMINATOR_SOURCE = "night-terminator";
-const NIGHT_TERMINATOR_LAYER = "night-terminator-layer";
 
 // =============================================================================
 // --- LOD: Adaptive segment count based on zoom level ---
@@ -354,8 +372,6 @@ export function Globe({
   const rafId = useRef<number>(0);
   const nightOverlayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const nightCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const nightImgRef = useRef<HTMLImageElement | null>(null);
-  const nightImgReady = useRef(false);
   const latestTick = useRef(tick);
   const latestTickProgress = useRef(tickProgress);
   const latestFleet = useRef(fleet);
@@ -515,11 +531,15 @@ export function Globe({
       addIcon("airplane-icon", FAMILY_ICONS["a320"].body);
       addIcon("airplane-icon-accent", FAMILY_ICONS["a320"].accent);
 
-      // --- Night canvas source (NASA Black Marble clipped to night polygon) ---
+      // --- Night canvas source (smooth solar gradient) ---
       const nightCanvas = document.createElement("canvas");
       nightCanvas.width = NIGHT_CANVAS_W;
       nightCanvas.height = NIGHT_CANVAS_H;
       nightCanvasRef.current = nightCanvas;
+
+      // Paint immediately
+      const sun = getSubsolarPoint(new Date());
+      paintNightCanvas(nightCanvas, sun.lat, sun.lng);
 
       map.addSource(NIGHT_CANVAS_SOURCE, {
         type: "canvas",
@@ -539,60 +559,7 @@ export function Globe({
         paint: {
           "raster-opacity": 1.0,
           "raster-resampling": "linear",
-          "raster-fade-duration": 600,
-        },
-      });
-
-      // Preload NASA Black Marble image
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        nightImgRef.current = img;
-        nightImgReady.current = true;
-        // Paint immediately once loaded
-        const overlay = computeNightOverlay(new Date(), 1);
-        paintNightCanvas(nightCanvas, img, overlay);
-        map.triggerRepaint();
-      };
-      img.onerror = () => {
-        console.warn("[night] NASA Black Marble failed to load, falling back to flat fill.");
-        nightImgReady.current = true; // allow fallback painting
-        nightImgRef.current = null;
-        const overlay = computeNightOverlay(new Date(), 1);
-        paintNightCanvas(nightCanvas, null, overlay);
-        map.triggerRepaint();
-      };
-      img.src = NASA_BLACK_MARBLE_URL;
-
-      // --- Terminator line source + glow layer ---
-      map.addSource(NIGHT_TERMINATOR_SOURCE, {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      // Outer glow pass
-      map.addLayer({
-        id: NIGHT_TERMINATOR_LAYER + "-glow",
-        type: "line",
-        source: NIGHT_TERMINATOR_SOURCE,
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": "#ff8c42",
-          "line-width": 12,
-          "line-opacity": 0.35,
-          "line-blur": 6,
-        },
-      });
-      // Crisp core line
-      map.addLayer({
-        id: NIGHT_TERMINATOR_LAYER,
-        type: "line",
-        source: NIGHT_TERMINATOR_SOURCE,
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": "#ffb347",
-          "line-width": 1.5,
-          "line-opacity": 0.75,
-          "line-dasharray": [4, 3],
+          "raster-fade-duration": 0,
         },
       });
 
@@ -1368,17 +1335,9 @@ export function Globe({
     const map = mapRef.current;
 
     const updateNightOverlay = () => {
-      const now = new Date();
-      // Update terminator line
-      const terminatorData = computeTerminatorLine(now, 1);
-      (map.getSource(NIGHT_TERMINATOR_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(
-        terminatorData as GeoJSON.FeatureCollection,
-      );
-      // Repaint night canvas if ready (uses fallback fill when img is null)
-      if (nightImgReady.current && nightCanvasRef.current) {
-        const overlay = computeNightOverlay(now, 1);
-        paintNightCanvas(nightCanvasRef.current, nightImgRef.current, overlay);
-        map.triggerRepaint();
+      if (nightCanvasRef.current) {
+        const sun = getSubsolarPoint(new Date());
+        paintNightCanvas(nightCanvasRef.current, sun.lat, sun.lng);
       }
     };
 
