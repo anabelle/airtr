@@ -84,10 +84,8 @@ describe("airline store – event buffering during initial sync", () => {
       createWorldSlice: (set: (partial: Record<string, unknown>) => void) => ({
         competitors: new Map<string, unknown>(),
         globalRouteRegistry: new Map<string, unknown[]>(),
-        globalFleet: [],
-        globalFleetByOwner: new Map<string, unknown[]>(),
-        globalRoutes: [],
-        globalRoutesByOwner: new Map<string, unknown[]>(),
+        fleetByOwner: new Map<string, unknown[]>(),
+        routesByOwner: new Map<string, unknown[]>(),
         viewAs: vi.fn(),
         syncWorld: vi.fn(async () => {
           await syncWorldDeferred;

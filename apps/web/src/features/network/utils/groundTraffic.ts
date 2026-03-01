@@ -1,4 +1,4 @@
-import type { AirlineEntity, AircraftInstance } from "@acars/core";
+import type { AircraftInstance, AirlineEntity } from "@acars/core";
 
 export type GroundTrafficEntry = {
   key: string;
@@ -29,7 +29,7 @@ export function isGrounded(aircraft: AircraftInstance): boolean {
 export function buildGroundTraffic(
   airportIata: string,
   fleet: AircraftInstance[],
-  globalFleet: AircraftInstance[],
+  competitorFleet: AircraftInstance[],
   airline: AirlineEntity | null,
   competitors: Map<string, AirlineEntity>,
 ): { totalCount: number; entries: GroundTrafficEntry[] } {
@@ -75,7 +75,7 @@ export function buildGroundTraffic(
     );
   }
 
-  for (const aircraft of globalFleet) {
+  for (const aircraft of competitorFleet) {
     if (aircraft.baseAirportIata !== airportIata || !isGrounded(aircraft)) continue;
     totalCount += 1;
     const competitor = competitors.get(aircraft.ownerPubkey);
@@ -100,10 +100,13 @@ export function buildGroundTraffic(
 
 export function buildGroundPresenceByAirport(
   fleet: AircraftInstance[],
-  globalFleet: AircraftInstance[],
+  competitorFleet: AircraftInstance[],
   airline: AirlineEntity | null,
   competitors: Map<string, AirlineEntity>,
-): { totals: Record<string, number>; presence: Record<string, GroundPresenceSegment[]> } {
+): {
+  totals: Record<string, number>;
+  presence: Record<string, GroundPresenceSegment[]>;
+} {
   const totals: Record<string, number> = {};
   const presenceByAirport = new Map<string, Map<string, GroundPresenceSegment>>();
 
@@ -129,7 +132,7 @@ export function buildGroundPresenceByAirport(
     );
   }
 
-  for (const aircraft of globalFleet) {
+  for (const aircraft of competitorFleet) {
     if (!aircraft.baseAirportIata || !isGrounded(aircraft)) continue;
     const competitor = competitors.get(aircraft.ownerPubkey);
     addPresence(

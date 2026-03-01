@@ -23,9 +23,15 @@ const airportIndex = new Map(AIRPORTS.map((a) => [a.iata, a]));
 
 const statusConfig = {
   enroute: { label: "En Route", className: "bg-sky-500/20 text-sky-200" },
-  turnaround: { label: "Turnaround", className: "bg-amber-400/20 text-amber-200" },
+  turnaround: {
+    label: "Turnaround",
+    className: "bg-amber-400/20 text-amber-200",
+  },
   idle: { label: "Idle", className: "bg-emerald-500/20 text-emerald-200" },
-  maintenance: { label: "Maintenance", className: "bg-rose-500/20 text-rose-200" },
+  maintenance: {
+    label: "Maintenance",
+    className: "bg-rose-500/20 text-rose-200",
+  },
   delivery: { label: "Delivery", className: "bg-blue-500/20 text-blue-200" },
 } as const;
 
@@ -122,7 +128,7 @@ function FlightStrip({
 export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps) {
   const navigate = useNavigate();
   const search = useSearch({ from: "__root__" });
-  const { airline, routes, fleet, globalRoutes, competitors } = useAirlineStore();
+  const { airline, routes, fleet, routesByOwner, competitors } = useAirlineStore();
   const tick = useEngineStore((s) => s.tick);
   const tickProgress = useEngineStore((s) => s.tickProgress);
 
@@ -181,12 +187,16 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   const assignedRoute = useMemo((): Route | null => {
     if (!aircraft.assignedRouteId) return null;
-    return (
-      routes.find((r) => r.id === aircraft.assignedRouteId) ??
-      globalRoutes.find((r) => r.id === aircraft.assignedRouteId) ??
-      null
-    );
-  }, [aircraft.assignedRouteId, routes, globalRoutes]);
+    // Check player routes first
+    const playerMatch = routes.find((r) => r.id === aircraft.assignedRouteId);
+    if (playerMatch) return playerMatch;
+    // Check all competitor routes
+    for (const ownerRoutes of routesByOwner.values()) {
+      const match = ownerRoutes.find((r) => r.id === aircraft.assignedRouteId);
+      if (match) return match;
+    }
+    return null;
+  }, [aircraft.assignedRouteId, routes, routesByOwner]);
 
   const siblingsOnRoute = useMemo(() => {
     if (!assignedRoute || !isPlayerAircraft) return [];
@@ -225,7 +235,9 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 <span className="flex items-center gap-1.5">
                   <span
                     className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: ownerAirline.livery?.primary ?? "#94a3b8" }}
+                    style={{
+                      backgroundColor: ownerAirline.livery?.primary ?? "#94a3b8",
+                    }}
                     aria-hidden="true"
                   />
                   {ownerAirline.name}

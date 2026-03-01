@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
 import { airports as AIRPORTS } from "@acars/data";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { WorldMap } from "./WorldMap";
 
 type Selector<T> = (state: T) => unknown;
@@ -10,10 +10,14 @@ type EngineStoreState = {
   tickProgress: number;
 };
 type AirlineStoreState = {
-  airline: { hubs: string[]; livery: { primary: string; secondary: string } } | null;
+  airline: {
+    hubs: string[];
+    livery: { primary: string; secondary: string };
+  } | null;
   fleet: unknown[];
-  globalFleet: unknown[];
-  globalRoutes: unknown[];
+  fleetByOwner: Map<string, unknown[]>;
+  routesByOwner: Map<string, unknown[]>;
+  pubkey: string | null;
   competitors: Map<string, unknown>;
   routes: unknown[];
 };
@@ -58,12 +62,17 @@ vi.mock("@/features/network/utils/groundTraffic", () => {
 
 describe("WorldMap", () => {
   it("renders nothing when no home airport", () => {
-    mockUseEngineStore.mockReturnValue({ homeAirport: null, tick: 0, tickProgress: 0 });
+    mockUseEngineStore.mockReturnValue({
+      homeAirport: null,
+      tick: 0,
+      tickProgress: 0,
+    });
     mockUseAirlineStore.mockReturnValue({
       airline: null,
       fleet: [],
-      globalFleet: [],
-      globalRoutes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
+      pubkey: null,
       competitors: new Map(),
       routes: [],
     });
@@ -74,12 +83,19 @@ describe("WorldMap", () => {
 
   it("renders focus label after selecting airport", () => {
     const homeAirport = AIRPORTS[0];
-    mockUseEngineStore.mockReturnValue({ homeAirport, tick: 0, tickProgress: 0 });
+    mockUseEngineStore.mockReturnValue({
+      homeAirport,
+      tick: 0,
+      tickProgress: 0,
+    });
     mockUseAirlineStore.mockReturnValue({
-      airline: { hubs: [homeAirport.iata], livery: { primary: "#111", secondary: "#222" } },
+      airline: {
+        hubs: [homeAirport.iata],
+        livery: { primary: "#111", secondary: "#222" },
+      },
       fleet: [],
-      globalFleet: [],
-      globalRoutes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
       competitors: new Map(),
       routes: [],
     });

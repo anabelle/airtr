@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { Ticker } from "./Ticker";
 
 type Selector<T> = (state: T) => unknown;
@@ -12,8 +12,8 @@ type EngineStoreState = {
 };
 type AirlineStoreState = {
   competitors: Map<string, unknown>;
-  globalFleet: unknown[];
-  globalRoutes: unknown[];
+  fleetByOwner: Map<string, unknown[]>;
+  routesByOwner: Map<string, unknown[]>;
   fleet: unknown[];
   routes: unknown[];
 };
@@ -54,8 +54,8 @@ describe("Ticker", () => {
     });
     mockUseAirlineStore.mockReturnValue({
       competitors: new Map(),
-      globalFleet: [],
-      globalRoutes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
       fleet: [],
       routes: [],
     });
@@ -73,8 +73,8 @@ describe("Ticker", () => {
     });
     mockUseAirlineStore.mockReturnValue({
       competitors: new Map(),
-      globalFleet: [],
-      globalRoutes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
       fleet: [],
       routes: [],
     });

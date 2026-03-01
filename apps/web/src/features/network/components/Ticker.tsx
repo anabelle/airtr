@@ -10,7 +10,7 @@ export function Ticker() {
   const progress = useEngineStore((s) => s.tickProgress);
   const catchup = useEngineStore((s) => s.catchupProgress);
 
-  const { competitors, globalFleet, globalRoutes, fleet, routes, timeline } = useAirlineStore();
+  const { competitors, fleetByOwner, routesByOwner, timeline } = useAirlineStore();
 
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
 
@@ -50,14 +50,14 @@ export function Ticker() {
       <div className="hidden sm:flex items-center space-x-2 border-r border-border pr-6">
         <span>Total Planes</span>
         <span className="text-foreground font-bold">
-          {(fleet?.length || 0) + (globalFleet?.length || 0)}
+          {Array.from(fleetByOwner.values()).reduce((sum, f) => sum + f.length, 0)}
         </span>
       </div>
 
       <div className="hidden sm:flex items-center space-x-2 border-r border-border pr-6">
         <span>Active Routes</span>
         <span className="text-foreground font-bold">
-          {(routes?.length || 0) + (globalRoutes?.length || 0)}
+          {Array.from(routesByOwner.values()).reduce((sum, r) => sum + r.length, 0)}
         </span>
       </div>
 
@@ -94,7 +94,8 @@ export function Ticker() {
         {catchup ? (
           <span className="text-amber-400">
             Catching up ({catchup.phase === "player" ? "Your Airline" : "World"}{" "}
-            {Math.min(100, Math.round((catchup.current / Math.max(catchup.target, 1)) * 100))}%)
+            {Math.min(100, Math.round((catchup.current / Math.max(catchup.target, 1)) * 100))}
+            %)
           </span>
         ) : (
           <span className="text-green-500">Normal Operations</span>

@@ -135,8 +135,10 @@ export interface GlobeProps {
   onMapClick?: () => void;
   groundPresence?: Record<string, { color: string; count: number; isPlayer?: boolean }[]>;
   fleet?: AircraftInstance[];
-  globalFleet?: AircraftInstance[];
-  globalRoutes?: Route[];
+  /** Competitor fleet — aircraft NOT owned by the current player */
+  competitorFleet?: AircraftInstance[];
+  /** Competitor routes — routes NOT owned by the current player */
+  competitorRoutes?: Route[];
   playerLivery?: { primary: string; secondary: string } | null;
   competitorLiveries?: Map<string, { primary: string; secondary: string }>;
   playerHubs?: string[];
@@ -305,8 +307,8 @@ export function Globe({
   onAircraftSelect,
   groundPresence,
   fleet = [],
-  globalFleet = [],
-  globalRoutes = [],
+  competitorFleet = [],
+  competitorRoutes = [],
   playerLivery = null,
   competitorLiveries = new Map(),
   playerHubs = [],
@@ -375,7 +377,7 @@ export function Globe({
   const latestTick = useRef(tick);
   const latestTickProgress = useRef(tickProgress);
   const latestFleet = useRef(fleet);
-  const latestGlobalFleet = useRef(globalFleet);
+  const latestGlobalFleet = useRef(competitorFleet);
   const latestPlayerLivery = useRef(playerLivery);
   const latestCompetitorLiveries = useRef(competitorLiveries);
   const latestPlayerHubs = useRef(playerHubs);
@@ -406,8 +408,8 @@ export function Globe({
     latestFleet.current = fleet;
   }, [fleet]);
   useEffect(() => {
-    latestGlobalFleet.current = globalFleet;
-  }, [globalFleet]);
+    latestGlobalFleet.current = competitorFleet;
+  }, [competitorFleet]);
   useEffect(() => {
     latestPlayerLivery.current = playerLivery;
   }, [playerLivery]);
@@ -1190,7 +1192,7 @@ export function Globe({
 
     // --- Global route arcs (with culling + LOD + caching) ---
     const globalArcFeatures: GeoJSON.Feature[] = [];
-    for (const route of globalRoutes) {
+    for (const route of competitorRoutes) {
       const origin = airportIndex.get(route.originIata);
       const dest = airportIndex.get(route.destinationIata);
       if (!origin || !dest) continue;
@@ -1224,7 +1226,7 @@ export function Globe({
     airports,
     mapLoaded,
     fleet,
-    globalRoutes,
+    competitorRoutes,
     airportIndex,
     getOrComputeArc,
     playerHubs,
@@ -1278,7 +1280,7 @@ export function Globe({
         }
 
         const globalArcFeatures: GeoJSON.Feature[] = [];
-        for (const route of globalRoutes) {
+        for (const route of competitorRoutes) {
           const origin = airportIndex.get(route.originIata);
           const dest = airportIndex.get(route.destinationIata);
           if (!origin || !dest) continue;
@@ -1315,7 +1317,7 @@ export function Globe({
       map.off("moveend", onViewChange);
       map.off("zoomend", onViewChange);
     };
-  }, [mapLoaded, airportIndex, getOrComputeArc, globalRoutes]);
+  }, [mapLoaded, airportIndex, getOrComputeArc, competitorRoutes]);
 
   // =========================================================================
   // REAL-TIME MOVEMENT: requestAnimationFrame-based 60fps interpolation

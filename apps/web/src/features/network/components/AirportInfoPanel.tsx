@@ -1,4 +1,5 @@
 import {
+  type AircraftInstance,
   type Airport,
   fp,
   fpFormat,
@@ -53,7 +54,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const confirm = useConfirm();
   const navigate = useNavigate();
   const search = useSearch({ from: "__root__" });
-  const { airline, routes, fleet, globalFleet, competitors, modifyHubs, openRoute } =
+  const { airline, routes, fleet, fleetByOwner, competitors, modifyHubs, openRoute } =
     useAirlineStore();
   const setHub = useEngineStore((s) => s.setHub);
 
@@ -147,19 +148,18 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     [fleet, airport.iata],
   );
 
-  const filteredGlobalFleet = useMemo(() => {
-    if (!airline) return globalFleet;
-    const playerPubkey = airline.ceoPubkey;
-    const playerIds = new Set(fleet.map((ac) => ac.id));
-    return globalFleet.filter(
-      (aircraft) => aircraft.ownerPubkey !== playerPubkey && !playerIds.has(aircraft.id),
-    );
-  }, [airline, fleet, globalFleet]);
+  const competitorFleet = useMemo(() => {
+    const playerPubkey = airline?.ceoPubkey ?? null;
+    const result: AircraftInstance[] = [];
+    fleetByOwner.forEach((ownerFleet, pubkey) => {
+      if (pubkey !== playerPubkey) result.push(...ownerFleet);
+    });
+    return result;
+  }, [airline, fleetByOwner]);
 
   const groundTraffic = useMemo(
-    () =>
-      buildGroundTraffic(airport.iata, fleet, filteredGlobalFleet, airline ?? null, competitors),
-    [airport.iata, fleet, filteredGlobalFleet, airline, competitors],
+    () => buildGroundTraffic(airport.iata, fleet, competitorFleet, airline ?? null, competitors),
+    [airport.iata, fleet, competitorFleet, airline, competitors],
   );
 
   const competitorHubNames = useMemo(
@@ -242,7 +242,11 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const handleSetHome = () => {
     setHub(
       airport,
-      { latitude: airport.latitude, longitude: airport.longitude, source: "manual" },
+      {
+        latitude: airport.latitude,
+        longitude: airport.longitude,
+        source: "manual",
+      },
       "manual selection",
     );
     onClose();
@@ -457,7 +461,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                         <div className="flex items-center gap-2">
                           <span
                             className="h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: entry.livery?.primary ?? "#94a3b8" }}
+                            style={{
+                              backgroundColor: entry.livery?.primary ?? "#94a3b8",
+                            }}
                             aria-hidden="true"
                           />
                           <span

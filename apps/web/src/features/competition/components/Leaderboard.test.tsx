@@ -8,8 +8,8 @@ type AirlineStoreState = {
   airline: { id: string } | null;
   fleet: unknown[];
   routes: unknown[];
-  globalFleet: unknown[];
-  globalRoutes: unknown[];
+  fleetByOwner: Map<string, unknown[]>;
+  routesByOwner: Map<string, unknown[]>;
   viewAs: (pubkey: string | null) => void;
 };
 type EngineStoreState = { tick: number };
@@ -68,8 +68,8 @@ describe("Leaderboard", () => {
       airline: { id: "airline-1" },
       fleet: [],
       routes: [],
-      globalFleet: [],
-      globalRoutes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
       viewAs: vi.fn(),
     });
     mockUseEngineStore.mockReturnValue({ tick: 0 });

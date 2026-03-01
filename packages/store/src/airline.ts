@@ -21,15 +21,73 @@ export * from "./types.js";
  *
  * The main store for the player's airline.
  * Refactored into specialized slices for easier maintenance.
+ *
+ * The `set` function is wrapped with a lightweight middleware that
+ * automatically mirrors `fleet` and `routes` into the unified
+ * `fleetByOwner` / `routesByOwner` maps whenever a slice writes to them.
+ * This keeps the player's entry in the unified maps in perfect sync
+ * without requiring any changes to individual slice implementations.
  */
-export const useAirlineStore = create<AirlineState>()((...a) => ({
-  ...createIdentitySlice(...a),
-  ...createFleetSlice(...a),
-  ...createNetworkSlice(...a),
-  ...createEngineSlice(...a),
-  ...createWorldSlice(...a),
-  viewedPubkey: null,
-}));
+export const useAirlineStore = create<AirlineState>()((rawSet, get, api) => {
+  const set: typeof rawSet = (partial, replace) => {
+    if (replace) {
+      // Full-replace calls bypass the middleware — they are rare and
+      // typically only used for store resets where the caller controls
+      // the entire state shape including the unified maps.
+      rawSet(partial as AirlineState | ((state: AirlineState) => AirlineState), true);
+      return;
+    }
+
+    rawSet((state) => {
+      const nextPartial =
+        typeof partial === "function"
+          ? (partial as (s: AirlineState) => Partial<AirlineState>)(state)
+          : partial;
+
+      if (!nextPartial) return nextPartial as Partial<AirlineState>;
+
+      // Determine the effective pubkey — prefer a pubkey being set in this
+      // very call (e.g. identitySlice setting pubkey + fleet together) over
+      // the existing state value.
+      const pubkey = ("pubkey" in nextPartial ? nextPartial.pubkey : state.pubkey) as string | null;
+
+      // Without a pubkey we can't key into the maps — skip sync.
+      if (!pubkey) return nextPartial as Partial<AirlineState>;
+
+      const hasFleet = "fleet" in nextPartial && nextPartial.fleet != null;
+      const hasRoutes = "routes" in nextPartial && nextPartial.routes != null;
+
+      // Nothing to sync — pass through unchanged.
+      if (!hasFleet && !hasRoutes) return nextPartial as Partial<AirlineState>;
+
+      // If the caller already set fleetByOwner/routesByOwner (worldSlice
+      // does this directly), don't overwrite — the caller knows best.
+      const result = { ...nextPartial } as Partial<AirlineState>;
+
+      if (hasFleet && !("fleetByOwner" in nextPartial)) {
+        const updated = new Map(state.fleetByOwner);
+        updated.set(pubkey, nextPartial.fleet!);
+        result.fleetByOwner = updated;
+      }
+      if (hasRoutes && !("routesByOwner" in nextPartial)) {
+        const updated = new Map(state.routesByOwner);
+        updated.set(pubkey, nextPartial.routes!);
+        result.routesByOwner = updated;
+      }
+
+      return result as Partial<AirlineState>;
+    });
+  };
+
+  return {
+    ...createIdentitySlice(set, get, api),
+    ...createFleetSlice(set, get, api),
+    ...createNetworkSlice(set, get, api),
+    ...createEngineSlice(set, get, api),
+    ...createWorldSlice(set, get, api),
+    viewedPubkey: null,
+  };
+});
 
 // --- Side Effects ---
 

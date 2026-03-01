@@ -54,10 +54,8 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
     processTick: vi.fn(),
     competitors: new Map(),
     globalRouteRegistry: new Map(),
-    globalFleet: [],
-    globalFleetByOwner: new Map(),
-    globalRoutes: [],
-    globalRoutesByOwner: new Map(),
+    fleetByOwner: new Map(),
+    routesByOwner: new Map(),
     syncWorld: vi.fn(),
     syncCompetitor: vi.fn(),
     projectCompetitorFleet: vi.fn(),
@@ -164,23 +162,21 @@ describe("projectCompetitorFleet", () => {
       [currentPubkey, makeAirline(currentPubkey, tick)],
     ]);
 
-    const globalFleet = [
+    const allFleet = [
       makeAircraft("ac-behind", behindPubkey),
       makeAircraft("ac-current", currentPubkey),
     ];
 
     const { state } = createSliceState({
       competitors,
-      globalFleet,
-      globalFleetByOwner: buildFleetIndex(globalFleet),
-      globalRoutes: [],
-      globalRoutesByOwner: buildRoutesIndex([]),
+      fleetByOwner: buildFleetIndex(allFleet),
+      routesByOwner: buildRoutesIndex([]),
     });
 
     state.projectCompetitorFleet(tick);
 
-    // Both aircraft should appear in the projected global fleet
-    const ids = state.globalFleet.map((ac) => ac.id);
+    // Both aircraft should appear in the projected fleet
+    const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
     expect(ids).toContain("ac-behind");
     expect(ids).toContain("ac-current");
 
@@ -197,8 +193,7 @@ describe("projectCompetitorFleet", () => {
   it("does nothing when no competitors exist", () => {
     const { state, set } = createSliceState({
       competitors: new Map(),
-      globalFleet: [],
-      globalFleetByOwner: new Map(),
+      fleetByOwner: new Map(),
     });
 
     state.projectCompetitorFleet(100);
@@ -217,10 +212,8 @@ describe("projectCompetitorFleet", () => {
 
     const { state, set } = createSliceState({
       competitors,
-      globalFleet: fleet,
-      globalFleetByOwner: buildFleetIndex(fleet),
-      globalRoutes: [],
-      globalRoutesByOwner: buildRoutesIndex([]),
+      fleetByOwner: buildFleetIndex(fleet),
+      routesByOwner: buildRoutesIndex([]),
     });
 
     state.projectCompetitorFleet(tick);
@@ -270,15 +263,13 @@ describe("syncWorld", () => {
 
     const { state } = createSliceState({
       competitors: new Map([[pubkey, newerAirline]]),
-      globalFleet: newerFleet,
-      globalFleetByOwner: buildFleetIndex(newerFleet),
-      globalRoutes: [],
-      globalRoutesByOwner: buildRoutesIndex([]),
+      fleetByOwner: buildFleetIndex(newerFleet),
+      routesByOwner: buildRoutesIndex([]),
     });
 
     await state.syncWorld();
 
-    const ids = state.globalFleet.map((ac) => ac.id);
+    const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
     expect(ids).toContain("ac-new");
   });
 
@@ -326,15 +317,13 @@ describe("syncWorld", () => {
 
     const { state } = createSliceState({
       competitors: new Map(),
-      globalFleet: [],
-      globalFleetByOwner: buildFleetIndex([]),
-      globalRoutes: [],
-      globalRoutesByOwner: buildRoutesIndex([]),
+      fleetByOwner: buildFleetIndex([]),
+      routesByOwner: buildRoutesIndex([]),
     });
 
     await state.syncWorld();
 
-    const ids = state.globalFleet.map((ac) => ac.id);
+    const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
     expect(ids).toContain("ac-fast");
   });
 

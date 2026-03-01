@@ -1,11 +1,11 @@
-import { aircraftModels } from "@acars/data";
 import {
+  type AircraftInstance,
+  type AirlineEntity,
   GENESIS_TIME,
   TICK_DURATION,
   TICKS_PER_HOUR,
-  type AirlineEntity,
-  type AircraftInstance,
 } from "@acars/core";
+import { aircraftModels } from "@acars/data";
 import { getFlightNumber } from "@/features/network/utils/flightNumber";
 
 export type FlightBoardMode = "departures" | "arrivals";
@@ -29,7 +29,7 @@ type FlightBoardParams = {
   airportTimezone: string;
   mode: FlightBoardMode;
   fleet: AircraftInstance[];
-  globalFleet: AircraftInstance[];
+  globalFleet: AircraftInstance[]; // competitor fleet (excludes player)
   airline: AirlineEntity | null;
   competitors: Map<string, AirlineEntity>;
   tick: number;

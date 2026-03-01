@@ -67,10 +67,10 @@ export interface AirlineState {
   // World / Multi-player
   competitors: Map<string, AirlineEntity>;
   globalRouteRegistry: Map<string, FlightOffer[]>;
-  globalFleet: AircraftInstance[];
-  globalFleetByOwner: Map<string, AircraftInstance[]>;
-  globalRoutes: Route[];
-  globalRoutesByOwner: Map<string, Route[]>;
+  /** Unified fleet index: ALL players (including self) keyed by pubkey. */
+  fleetByOwner: Map<string, AircraftInstance[]>;
+  /** Unified routes index: ALL players (including self) keyed by pubkey. */
+  routesByOwner: Map<string, Route[]>;
   viewAs: (pubkey: string | null) => void;
   syncWorld: (options?: { force?: boolean }) => Promise<void>;
   syncCompetitor: (competitorPubkey: string) => Promise<void>;

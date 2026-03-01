@@ -7,7 +7,7 @@ type AirlineStoreState = {
   airline: unknown;
   routes: unknown[];
   fleet: unknown[];
-  globalFleet: unknown[];
+  fleetByOwner: Map<string, unknown[]>;
   competitors: Map<string, unknown>;
   modifyHubs: () => void;
   openRoute: () => void;
@@ -63,7 +63,7 @@ describe("AirportInfoPanel", () => {
       airline: null,
       routes: [],
       fleet: [],
-      globalFleet: [],
+      fleetByOwner: new Map(),
       competitors: new Map(),
       modifyHubs: vi.fn(),
       openRoute: vi.fn(),

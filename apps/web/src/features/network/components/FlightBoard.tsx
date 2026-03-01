@@ -1,6 +1,7 @@
-import { useMemo } from "react";
-import { PlaneTakeoff, PlaneLanding } from "lucide-react";
+import type { AircraftInstance } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { PlaneLanding, PlaneTakeoff } from "lucide-react";
+import { useMemo } from "react";
 import { buildFlightBoardRows, type FlightRow } from "@/features/network/utils/flightBoard";
 
 type FlightBoardProps = {
@@ -88,17 +89,17 @@ function FidsSection({
 }
 
 export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) {
-  const { airline, fleet, globalFleet, competitors } = useAirlineStore();
+  const { airline, fleet, fleetByOwner, competitors } = useAirlineStore();
   const tick = useEngineStore((s) => s.tick);
 
-  const filteredGlobalFleet = useMemo(() => {
-    if (!airline) return globalFleet;
-    const playerPubkey = airline.ceoPubkey;
-    const playerIds = new Set(fleet.map((ac) => ac.id));
-    return globalFleet.filter(
-      (aircraft) => aircraft.ownerPubkey !== playerPubkey && !playerIds.has(aircraft.id),
-    );
-  }, [airline, fleet, globalFleet]);
+  const competitorFleet = useMemo(() => {
+    const playerPubkey = airline?.ceoPubkey ?? null;
+    const result: AircraftInstance[] = [];
+    fleetByOwner.forEach((ownerFleet, pubkey) => {
+      if (pubkey !== playerPubkey) result.push(...ownerFleet);
+    });
+    return result;
+  }, [airline, fleetByOwner]);
 
   const departures = useMemo(() => {
     return buildFlightBoardRows({
@@ -106,12 +107,12 @@ export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) 
       airportTimezone,
       mode: "departures",
       fleet,
-      globalFleet: filteredGlobalFleet,
+      globalFleet: competitorFleet,
       airline,
       competitors,
       tick,
     });
-  }, [fleet, filteredGlobalFleet, airline, competitors, airportIata, airportTimezone, tick]);
+  }, [fleet, competitorFleet, airline, competitors, airportIata, airportTimezone, tick]);
 
   const arrivals = useMemo(() => {
     return buildFlightBoardRows({
@@ -119,12 +120,12 @@ export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) 
       airportTimezone,
       mode: "arrivals",
       fleet,
-      globalFleet: filteredGlobalFleet,
+      globalFleet: competitorFleet,
       airline,
       competitors,
       tick,
     });
-  }, [fleet, filteredGlobalFleet, airline, competitors, airportIata, airportTimezone, tick]);
+  }, [fleet, competitorFleet, airline, competitors, airportIata, airportTimezone, tick]);
 
   return (
     <div className="rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
