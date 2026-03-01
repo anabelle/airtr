@@ -21,7 +21,7 @@ import {
   TICKS_PER_HOUR,
 } from "@acars/core";
 import { getAircraftById } from "@acars/data";
-import { processFlightEngine } from "./FlightEngine";
+import { processFlightEngine, reconcileFleetToTick } from "./FlightEngine";
 
 export interface ActionRecord {
   action: import("@acars/core").GameActionEnvelope;
@@ -206,10 +206,19 @@ export async function replayActionLog(params: {
     airline = { ...airline, corporateBalance: clampedBalance };
   };
 
-  /** Returns true if the airline can afford the given cost. */
-  const canAfford = (cost: FixedPoint): boolean => {
+  /**
+   * During replay, canAfford is not enforced.  The check was already
+   * performed at publish time (fleetSlice, networkSlice).  Re-validating
+   * here with incomplete data — only the latest TICK_UPDATE survives on
+   * relays due to NIP-33 replacement, so flight revenue earned between
+   * purchases is invisible during replay — causes legitimate purchases
+   * to be silently dropped.  The balance deduction (applyBalanceDelta)
+   * still executes, so the ledger tracks all debits/credits accurately.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const canAfford = (_cost: FixedPoint): boolean => {
     if (!airline) return false;
-    return airline.corporateBalance >= cost;
+    return true;
   };
 
   const resolveEventTimestamp = (tick: number, createdAt: number | null) =>
@@ -333,6 +342,21 @@ export async function replayActionLog(params: {
         if (status && VALID_STATUSES.includes(status as AirlineEntity["status"])) {
           airline = { ...airline, status: status as AirlineEntity["status"] };
         }
+
+        const previousTick = airline.lastTick ?? 0;
+        if (actionTick > previousTick) {
+          const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
+            Array.from(fleetById.values()),
+            Array.from(routesById.values()),
+            actionTick,
+          );
+          applyBalanceDelta(balanceDelta);
+          fleetById.clear();
+          for (const aircraft of reconciledFleet) {
+            fleetById.set(aircraft.id, aircraft);
+          }
+        }
+
         updateLastTick(actionTick);
         if (actionTick >= backfillStartTick) {
           backfillTickSet.add(actionTick);
@@ -363,7 +387,10 @@ export async function replayActionLog(params: {
       case "HUB_REMOVE": {
         const iata = sanitizeIata(payload.iata);
         if (iata) {
-          airline = { ...airline, hubs: airline.hubs.filter((hub) => hub !== iata) };
+          airline = {
+            ...airline,
+            hubs: airline.hubs.filter((hub) => hub !== iata),
+          };
         }
         updateLastTick(actionTick);
         if (iata) {
@@ -942,17 +969,8 @@ export async function replayActionLog(params: {
     }
   }
 
-  const fleet = Array.from(fleetById.values());
+  let fleet = Array.from(fleetById.values());
   const routes = Array.from(routesById.values());
-
-  if (airline) {
-    airline = {
-      ...airline,
-      fleetIds: fleet.map((aircraft) => aircraft.id),
-      routeIds: routes.map((route) => route.id),
-      timeline,
-    };
-  }
 
   const orderedTimeline = sortedTimeline();
   const backfillTimeline = new Map<string, TimelineEvent>();
@@ -982,6 +1000,11 @@ export async function replayActionLog(params: {
         }
       }
     }
+    airline = { ...airline, corporateBalance: simulatedBalance };
+    fleetById.clear();
+    for (const aircraft of simulatedFleet) {
+      fleetById.set(aircraft.id, aircraft);
+    }
     timeline.length = 0;
     timeline.push(
       ...Array.from(backfillTimeline.values())
@@ -991,6 +1014,16 @@ export async function replayActionLog(params: {
   } else {
     timeline.length = 0;
     timeline.push(...orderedTimeline.slice(0, MAX_TIMELINE_EVENTS));
+  }
+
+  fleet = Array.from(fleetById.values());
+  if (airline) {
+    airline = {
+      ...airline,
+      fleetIds: fleet.map((aircraft) => aircraft.id),
+      routeIds: routes.map((route) => route.id),
+      timeline,
+    };
   }
 
   return { airline, fleet, routes, timeline, actionChainHash };

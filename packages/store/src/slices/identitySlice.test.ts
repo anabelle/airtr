@@ -1,5 +1,5 @@
 import type { AirlineEntity, FixedPoint } from "@acars/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
 import { createIdentitySlice } from "./identitySlice";
@@ -88,6 +88,14 @@ const makeAirline = (lastTick: number): AirlineEntity => ({
   routeIds: [],
   lastTick,
   timeline: [],
+});
+
+beforeEach(() => {
+  replayActionLog.mockReset();
+  loadActionLog.mockReset();
+  loadCheckpoint.mockReset();
+  loadActionLog.mockResolvedValue([]);
+  loadCheckpoint.mockResolvedValue(null);
 });
 
 describe("identitySlice initializeIdentity", () => {

@@ -21,6 +21,7 @@ import { updateActionChainHashFromEvent } from "../actionChain";
 import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { reconcileFleetToTick } from "../FlightEngine";
+import { computeRejectedBuyEventIds } from "../marketplaceReplay";
 import type { AirlineState } from "../types";
 
 export interface IdentitySlice {
@@ -118,11 +119,18 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           checkpoint = null;
         }
       }
-      const actions = await loadActionLog({
-        authors: [pubkey],
-        limit: 500,
-        maxPages: checkpoint ? 20 : 100,
-      });
+      const [actions, globalActions] = await Promise.all([
+        loadActionLog({
+          authors: [pubkey],
+          limit: 500,
+          maxPages: checkpoint ? 20 : 100,
+        }),
+        loadActionLog({
+          limit: 500,
+          maxPages: 20,
+        }),
+      ]);
+      const rejectedEventIds = computeRejectedBuyEventIds(globalActions);
 
       let scopedActions = actions;
       if (checkpoint) {
@@ -144,6 +152,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           createdAt: entry.event.created_at ?? null,
         })),
         checkpoint,
+        rejectedEventIds,
       });
 
       // When the checkpoint was used and no newer actions existed, the replayed

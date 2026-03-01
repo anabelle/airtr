@@ -22,6 +22,7 @@ import type { StateCreator } from "zustand";
 import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { reconcileFleetToTick } from "../FlightEngine";
+import { computeRejectedBuyEventIds } from "../marketplaceReplay";
 import type { AirlineState } from "../types";
 
 export interface WorldSlice {
@@ -213,35 +214,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         const allGlobalFleet: AircraftInstance[] = [];
         const allGlobalRoutes: Route[] = [];
 
-        // Marketplace double-spend protection: find all AIRCRAFT_BUY_USED events, group by instanceId, earliest wins
-        const buyUsedEvents = actions.filter(
-          (entry) => entry.action.action === "AIRCRAFT_BUY_USED",
-        );
-        const buysByInstance = new Map<string, typeof actions>();
-        for (const entry of buyUsedEvents) {
-          const instanceId = entry.action.payload?.instanceId;
-          if (typeof instanceId === "string") {
-            const bucket = buysByInstance.get(instanceId) || [];
-            bucket.push(entry);
-            buysByInstance.set(instanceId, bucket);
-          }
-        }
-        const rejectedBuyEventIds = new Set<string>();
-        for (const [, entries] of buysByInstance.entries()) {
-          if (entries.length > 1) {
-            // Sort by created_at ascending (earliest first), fallback to eventId for deterministic tie-break
-            entries.sort((a, b) => {
-              const aTime = a.event.created_at ?? 0;
-              const bTime = b.event.created_at ?? 0;
-              if (aTime !== bTime) return aTime - bTime;
-              return a.event.id.localeCompare(b.event.id);
-            });
-            // The first one wins, all others are rejected
-            for (let i = 1; i < entries.length; i++) {
-              rejectedBuyEventIds.add(entries[i].event.id);
-            }
-          }
-        }
+        const rejectedBuyEventIds = computeRejectedBuyEventIds(actions);
 
         const actionsByPubkey = new Map<string, typeof actions>();
         for (const entry of actions) {
@@ -574,10 +547,11 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
     if (competitorPubkey === existingState.pubkey) return;
 
     try {
-      // Targeted fetch: only this competitor's actions + checkpoint
-      const [actions, checkpoints] = await Promise.all([
+      // Targeted fetch for this competitor plus global marketplace buys for replay filtering.
+      const [actions, checkpoints, globalActions] = await Promise.all([
         loadActionLog({ authors: [competitorPubkey], limit: 500, maxPages: 5 }),
         loadCheckpoints([competitorPubkey]),
+        loadActionLog({ limit: 500, maxPages: 20 }),
       ]);
 
       if (actions.length === 0 && checkpoints.size === 0) return;
@@ -591,12 +565,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         );
       }
 
-      // We only loaded one competitor's actions here. Wait, this means we can't reliably resolve
-      // double-spend for competitor targeted sync unless we load ALL marketplace buys for that aircraft.
-      // However, for single competitor sync, we can just reject if we already see the aircraft in the global fleet
-      // owned by someone else, or we can just pass down empty rejectedEventIds (or not fetch double-spend again)
-      // actually, let's keep syncCompetitor simple or we can just rely on the full syncWorld to fix it eventually.
-      // Wait, let's check what the prompt says: "Modify packages/store/src/slices/worldSlice.ts to implement the marketplace "double-spend" protection as outlined in the plan. 1. Extract global AIRCRAFT_BUY_USED events in syncWorld 2. Group them by aircraft instanceId 3. Sort them strictly by created_at (earliest wins), using eventId as tie-breaker. 4. Pass the rejected event IDs into replayActionLog."
+      const rejectedBuyEventIds = computeRejectedBuyEventIds(globalActions);
 
       const replayed = await replayActionLog({
         pubkey: competitorPubkey,
@@ -607,6 +576,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           createdAt: entry.event.created_at ?? null,
         })),
         checkpoint,
+        rejectedEventIds: rejectedBuyEventIds,
       });
 
       if (!replayed.airline) return;

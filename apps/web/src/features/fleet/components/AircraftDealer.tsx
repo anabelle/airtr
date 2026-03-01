@@ -492,6 +492,9 @@ function PurchaseModal({
         customName,
         purchaseType,
       );
+      toast.success(`${aircraft.name} ordered`, {
+        description: `Your ${purchaseType === "lease" ? "lease" : "purchase"} is confirmed. Check the fleet list for delivery status.`,
+      });
       setIsPurchasing(false);
       onClose();
       if (onPurchaseSuccess) onPurchaseSuccess();
@@ -722,7 +725,8 @@ function PurchaseModal({
             )}
             <p className="text-xs text-yellow-500 font-medium mt-1 flex items-center gap-1">
               <Timer className="h-3 w-3" /> Ready in ~
-              {Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}:00
+              {Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
+              :00
             </p>
           </div>
 

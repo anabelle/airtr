@@ -160,31 +160,32 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
         const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
         if (nextCheckpointTick > previousCheckpointTick) {
-          const { actionChainHash } = get();
-          computeCheckpointStateHash({
-            airline: updatedAirline,
-            fleet: currentFleet,
-            routes,
-            timeline: currentTimeline,
-          })
-            .then(async (stateHash) => {
-              const { timeline: _omitTimeline, ...airlineWithoutTimeline } = updatedAirline;
-              void _omitTimeline;
-              const checkpoint = {
-                schemaVersion: 1,
-                tick: targetTick,
-                createdAt: Date.now(),
-                actionChainHash,
-                stateHash,
-                airline: airlineWithoutTimeline,
-                fleet: currentFleet,
-                routes,
-                timeline: currentTimeline.slice(0, 200),
-              };
-              await publishCheckpoint(checkpoint);
-              set({ latestCheckpoint: checkpoint });
-            })
-            .catch((e) => console.error("Checkpoint publish failed", e));
+          void (async () => {
+            const checkpointState = get();
+            const checkpointAirline = checkpointState.airline;
+            if (!checkpointAirline) return;
+            const stateHash = await computeCheckpointStateHash({
+              airline: checkpointAirline,
+              fleet: checkpointState.fleet,
+              routes: checkpointState.routes,
+              timeline: checkpointState.timeline,
+            });
+            const { timeline: _omitTimeline, ...airlineWithoutTimeline } = checkpointAirline;
+            void _omitTimeline;
+            const checkpoint = {
+              schemaVersion: 1,
+              tick: checkpointAirline.lastTick ?? targetTick,
+              createdAt: Date.now(),
+              actionChainHash: checkpointState.actionChainHash,
+              stateHash,
+              airline: airlineWithoutTimeline,
+              fleet: checkpointState.fleet,
+              routes: checkpointState.routes,
+              timeline: checkpointState.timeline.slice(0, 200),
+            };
+            await publishCheckpoint(checkpoint);
+            set({ latestCheckpoint: checkpoint });
+          })().catch((e) => console.error("Checkpoint publish failed", e));
         }
         if (anyChanges) {
           publishActionWithChain({
@@ -527,31 +528,32 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
       const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
       if (nextCheckpointTick > previousCheckpointTick) {
-        const { actionChainHash } = get();
-        computeCheckpointStateHash({
-          airline: updatedAirline,
-          fleet: currentFleet,
-          routes,
-          timeline: currentTimeline,
-        })
-          .then(async (stateHash) => {
-            const { timeline: _omitTimeline, ...airlineWithoutTimeline } = updatedAirline;
-            void _omitTimeline;
-            const checkpoint = {
-              schemaVersion: 1,
-              tick: targetTick,
-              createdAt: Date.now(),
-              actionChainHash,
-              stateHash,
-              airline: airlineWithoutTimeline,
-              fleet: currentFleet,
-              routes,
-              timeline: currentTimeline.slice(0, 200),
-            };
-            await publishCheckpoint(checkpoint);
-            set({ latestCheckpoint: checkpoint });
-          })
-          .catch((e) => console.error("Checkpoint publish failed", e));
+        void (async () => {
+          const checkpointState = get();
+          const checkpointAirline = checkpointState.airline;
+          if (!checkpointAirline) return;
+          const stateHash = await computeCheckpointStateHash({
+            airline: checkpointAirline,
+            fleet: checkpointState.fleet,
+            routes: checkpointState.routes,
+            timeline: checkpointState.timeline,
+          });
+          const { timeline: _omitTimeline, ...airlineWithoutTimeline } = checkpointAirline;
+          void _omitTimeline;
+          const checkpoint = {
+            schemaVersion: 1,
+            tick: checkpointAirline.lastTick ?? targetTick,
+            createdAt: Date.now(),
+            actionChainHash: checkpointState.actionChainHash,
+            stateHash,
+            airline: airlineWithoutTimeline,
+            fleet: checkpointState.fleet,
+            routes: checkpointState.routes,
+            timeline: checkpointState.timeline.slice(0, 200),
+          };
+          await publishCheckpoint(checkpoint);
+          set({ latestCheckpoint: checkpoint });
+        })().catch((e) => console.error("Checkpoint publish failed", e));
       }
 
       // 4. Sync to Nostr only if significant events happened

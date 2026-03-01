@@ -53,6 +53,11 @@ export interface FleetSlice {
 
 const logger = createLogger("Fleet");
 
+// Module-level guard: prevents duplicate purchases when the user clicks
+// "Buy" rapidly before the first publish is acknowledged.  Keyed by
+// modelId:purchaseType so the same model can't be bought twice in flight.
+const purchasesInFlight = new Set<string>();
+
 export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = (set, get) => ({
   fleet: [],
   fleetDeletedDuringCatchup: [],
@@ -72,6 +77,11 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
   ) => {
     const { airline, pubkey, fleet } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
+
+    const purchaseKey = `${model.id}:${purchaseType}`;
+    if (purchasesInFlight.has(purchaseKey)) {
+      throw new Error("A purchase for this aircraft model is already in progress.");
+    }
 
     const upfrontCost = purchaseType === "buy" ? model.price : fpScale(model.price, 0.1);
 
@@ -136,6 +146,7 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
 
     const finalTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
 
+    purchasesInFlight.add(purchaseKey);
     set({
       airline: updatedAirline,
       fleet: updatedFleet,
@@ -165,9 +176,9 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       set((state) => {
         if (!state.airline) return state;
 
-        // Merge-safe rollback: remove only the newly-created aircraft and
-        // refund the cost, preserving concurrent changes to other fleet
-        // entries and timeline events.
+        // Merge-safe rollback: remove only the newly-created aircraft,
+        // refund the cost, and clean up the optimistic timeline event,
+        // preserving concurrent changes to other fleet entries.
         return {
           airline: {
             ...state.airline,
@@ -175,9 +186,13 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
             fleetIds: state.airline.fleetIds.filter((id) => id !== newInstanceId),
           },
           fleet: state.fleet.filter((ac) => ac.id !== newInstanceId),
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
         };
       });
       console.error("Failed to sync aircraft purchase to Nostr:", e);
+      throw e;
+    } finally {
+      purchasesInFlight.delete(purchaseKey);
     }
   },
 
