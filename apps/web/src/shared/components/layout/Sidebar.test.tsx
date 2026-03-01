@@ -1,13 +1,22 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { Sidebar } from "./Sidebar";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MobileNav, Sidebar } from "./Sidebar";
+
+afterEach(cleanup);
+
+const defaultState = {
+  airline: null,
+  viewedPubkey: null,
+  fleet: [],
+  routes: [],
+  competitors: new Map(),
+};
 
 vi.mock("@acars/store", () => {
   return {
     useAirlineStore: (selector?: (state: Record<string, unknown>) => unknown) => {
-      const state = { airline: null, viewedPubkey: null };
-      return selector ? selector(state) : state;
+      return selector ? selector(defaultState) : defaultState;
     },
   };
 });
@@ -26,5 +35,18 @@ describe("Sidebar", () => {
     expect(screen.getByText("Network")).toBeInTheDocument();
     expect(screen.getByText("Leaderboard")).toBeInTheDocument();
     expect(screen.getByText("Corporate")).toBeInTheDocument();
+  });
+
+  it("renders no badges when no airline is loaded", () => {
+    render(<Sidebar />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+describe("MobileNav", () => {
+  it("renders navigation items", () => {
+    render(<MobileNav />);
+    expect(screen.getByText("Map")).toBeInTheDocument();
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
   });
 });
