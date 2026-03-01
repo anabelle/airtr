@@ -258,11 +258,6 @@ export async function replayActionLog(params: {
   // Maps duplicate route IDs (from retried ROUTE_OPEN events) to the
   // canonical route ID so later actions still resolve to a single route.
   const routeIdAliases = new Map<string, string>();
-  // Tracks purchases by modelId:tick:purchaseType so retried buy-clicks
-  // (each generating a unique instanceId) are deduplicated during replay.
-  const purchaseKeys = new Set<string>(
-    [...fleetById.values()].map((ac) => `${ac.modelId}:${ac.purchasedAtTick}:${ac.purchaseType}`),
-  );
   const resolveRouteId = (routeId: string | null) =>
     routeId ? (routeIdAliases.get(routeId) ?? routeId) : null;
 
@@ -676,11 +671,6 @@ export async function replayActionLog(params: {
           cargoKg: clampInt(configurationPayload?.cargoKg, 0, 1000000) ?? model.capacity.cargoKg,
         };
         const purchaseType = payload.purchaseType === "lease" ? "lease" : "buy";
-        // Deduplicate retried purchases: same model, same tick, same type
-        // means the user clicked "Buy" multiple times before the first
-        // publish was acknowledged.  Keep the first, skip the rest.
-        const purchaseKey = `${modelId}:${actionTick}:${purchaseType}`;
-        if (purchaseKeys.has(purchaseKey)) break;
         const price = purchaseType === "buy" ? model.price : fpScale(model.price, 0.1);
         if (!canAfford(price)) break;
         const name =
@@ -708,7 +698,6 @@ export async function replayActionLog(params: {
           condition: 1.0,
         };
         fleetById.set(instanceId, newAircraft);
-        purchaseKeys.add(purchaseKey);
         applyBalanceDelta(fpSub(fpZero, price));
         updateLastTick(actionTick);
         pushTimelineEvent({

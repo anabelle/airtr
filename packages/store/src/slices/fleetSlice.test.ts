@@ -185,7 +185,7 @@ describe("sellAircraft", () => {
 
     const pendingPurchase = state.purchaseAircraft(model!, "BOG");
     state.airline = { ...(state.airline as AirlineEntity), lastTick: 777 };
-    await pendingPurchase;
+    await expect(pendingPurchase).rejects.toThrow("publish failed");
 
     expect(state.airline?.lastTick).toBe(777);
     expect(state.fleet).toHaveLength(0);
@@ -218,7 +218,7 @@ describe("sellAircraft", () => {
       ac.id === "existing-1" ? { ...ac, condition: 0.6 } : ac,
     );
 
-    await pendingPurchase;
+    await expect(pendingPurchase).rejects.toThrow("publish failed");
 
     // The new aircraft should be rolled back
     expect(state.fleet.find((ac) => ac.id !== "existing-1")).toBeUndefined();
@@ -250,7 +250,7 @@ describe("sellAircraft", () => {
       corporateBalance: fpAdd((state.airline as AirlineEntity).corporateBalance, concurrentRevenue),
     };
 
-    await pendingPurchase;
+    await expect(pendingPurchase).rejects.toThrow("publish failed");
 
     // Balance should be: initial - cost + concurrent revenue + refund = initial + concurrent revenue
     expect(state.airline?.corporateBalance).toBe(fpAdd(initialBalance, concurrentRevenue));
@@ -282,7 +282,7 @@ describe("sellAircraft", () => {
     };
     state.timeline = [concurrentEvent, ...(state.timeline as TimelineEvent[])];
 
-    await pendingPurchase;
+    await expect(pendingPurchase).rejects.toThrow("publish failed");
 
     // The new aircraft should be rolled back
     expect(state.fleet).toHaveLength(0);

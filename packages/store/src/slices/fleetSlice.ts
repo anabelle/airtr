@@ -176,9 +176,9 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       set((state) => {
         if (!state.airline) return state;
 
-        // Merge-safe rollback: remove only the newly-created aircraft and
-        // refund the cost, preserving concurrent changes to other fleet
-        // entries and timeline events.
+        // Merge-safe rollback: remove only the newly-created aircraft,
+        // refund the cost, and clean up the optimistic timeline event,
+        // preserving concurrent changes to other fleet entries.
         return {
           airline: {
             ...state.airline,
@@ -186,9 +186,11 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
             fleetIds: state.airline.fleetIds.filter((id) => id !== newInstanceId),
           },
           fleet: state.fleet.filter((ac) => ac.id !== newInstanceId),
+          timeline: state.timeline.filter((evt) => evt.id !== newEvent.id),
         };
       });
       console.error("Failed to sync aircraft purchase to Nostr:", e);
+      throw e;
     } finally {
       purchasesInFlight.delete(purchaseKey);
     }
