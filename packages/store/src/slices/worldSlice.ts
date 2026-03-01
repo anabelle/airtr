@@ -230,10 +230,14 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           const checkpoint = checkpoints.get(authorPubkey) ?? null;
           let scopedEntries = entries;
           if (checkpoint) {
+            const checkpointTick = checkpoint.tick;
             const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
-            scopedEntries = entries.filter(
-              (entry) => (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds,
-            );
+            scopedEntries = entries.filter((entry) => {
+              const actionTick = (entry.action.payload as Record<string, unknown>)?.tick;
+              return typeof actionTick === "number" && Number.isFinite(actionTick)
+                ? actionTick > checkpointTick
+                : (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds;
+            });
             // No fallback: if no actions are newer than checkpoint, checkpoint
             // state is authoritative.  Replaying ALL actions would push lastTick
             // ahead of the checkpoint fleet state, causing the synchronized-
@@ -549,7 +553,11 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
     try {
       // Targeted fetch for this competitor plus global marketplace buys for replay filtering.
       const [actions, checkpoints, globalActions] = await Promise.all([
-        loadActionLog({ authors: [competitorPubkey], limit: 500, maxPages: 5 }),
+        loadActionLog({
+          authors: [competitorPubkey],
+          limit: 500,
+          maxPages: 20,
+        }),
         loadCheckpoints([competitorPubkey]),
         loadActionLog({ limit: 500, maxPages: 20 }),
       ]);
@@ -559,10 +567,14 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       const checkpoint = checkpoints.get(competitorPubkey) ?? null;
       let scopedEntries = actions;
       if (checkpoint) {
+        const checkpointTick = checkpoint.tick;
         const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
-        scopedEntries = actions.filter(
-          (entry) => (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds,
-        );
+        scopedEntries = actions.filter((entry) => {
+          const actionTick = (entry.action.payload as Record<string, unknown>)?.tick;
+          return typeof actionTick === "number" && Number.isFinite(actionTick)
+            ? actionTick > checkpointTick
+            : (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds;
+        });
       }
 
       const rejectedBuyEventIds = computeRejectedBuyEventIds(globalActions);

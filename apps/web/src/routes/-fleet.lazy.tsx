@@ -1,11 +1,12 @@
-import { useAirlineStore } from "@acars/store";
+import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { FleetManager } from "@/features/fleet/components/FleetManager";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
   const { airline, initializeIdentity, isLoading } = useAirlineStore();
   const isViewingOther = useAirlineStore((state) => Boolean(state.viewedPubkey));
-  const fleetSize = useAirlineStore((state) => state.fleet.length);
+  const { fleet } = useActiveAirline();
+  const fleetSize = fleet.length;
 
   if (!airline && !isViewingOther) {
     return (

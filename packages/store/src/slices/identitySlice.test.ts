@@ -116,7 +116,7 @@ describe("identitySlice initializeIdentity", () => {
     expect(state.airline?.lastTick).toBe(50000);
   });
 
-  it("filters action log entries after checkpoint timestamp", async () => {
+  it("filters action log entries using tick-based scoping (not wall-clock)", async () => {
     loadCheckpoint.mockResolvedValueOnce({
       schemaVersion: 1,
       tick: 10,
@@ -131,19 +131,73 @@ describe("identitySlice initializeIdentity", () => {
     loadActionLog.mockResolvedValueOnce([
       {
         event: {
-          id: "event-old",
-          created_at: 1,
+          id: "event-at-checkpoint-tick",
+          created_at: 3, // wall-clock AFTER checkpoint, but tick == checkpoint
           author: { pubkey: "pubkey-1" },
         },
         action: { action: "TICK_UPDATE", payload: { tick: 10 } },
       },
       {
         event: {
-          id: "event-new",
-          created_at: 3,
+          id: "event-after-checkpoint-tick",
+          created_at: 2, // wall-clock AT checkpoint, but tick > checkpoint
           author: { pubkey: "pubkey-1" },
         },
-        action: { action: "TICK_UPDATE", payload: { tick: 11 } },
+        action: { action: "PURCHASE_AIRCRAFT", payload: { tick: 11 } },
+      },
+    ]);
+    replayActionLog.mockResolvedValueOnce({
+      airline: makeAirline(10),
+      fleet: [],
+      routes: [],
+      actionChainHash: "hash",
+    });
+
+    const { state } = createSliceState();
+
+    await state.initializeIdentity();
+
+    // tick:10 should be excluded (== checkpoint tick, not >)
+    // tick:11 should be included even though wall-clock (2) == checkpoint wall-clock (2)
+    expect(replayActionLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actions: [
+          expect.objectContaining({
+            eventId: "event-after-checkpoint-tick",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("falls back to wall-clock filtering for actions without tick field", async () => {
+    loadCheckpoint.mockResolvedValueOnce({
+      schemaVersion: 1,
+      tick: 10,
+      createdAt: 2000,
+      actionChainHash: "hash",
+      stateHash: "state",
+      airline: makeAirline(10),
+      fleet: [],
+      routes: [],
+      timeline: [],
+    });
+    loadActionLog.mockResolvedValueOnce([
+      {
+        event: {
+          id: "event-no-tick-old",
+          created_at: 1, // before checkpoint (createdAt 2000 => 2 seconds)
+          author: { pubkey: "pubkey-1" },
+        },
+        action: { action: "LEGACY_ACTION", payload: {} },
+      },
+      {
+        event: {
+          id: "event-no-tick-new",
+          created_at: 3, // after checkpoint
+          author: { pubkey: "pubkey-1" },
+        },
+        action: { action: "LEGACY_ACTION", payload: {} },
       },
     ]);
     replayActionLog.mockResolvedValueOnce({
@@ -161,7 +215,7 @@ describe("identitySlice initializeIdentity", () => {
       expect.objectContaining({
         actions: [
           expect.objectContaining({
-            eventId: "event-new",
+            eventId: "event-no-tick-new",
           }),
         ],
       }),

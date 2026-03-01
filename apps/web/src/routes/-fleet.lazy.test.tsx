@@ -10,6 +10,17 @@ vi.mock("@acars/store", () => {
       const state = mockUseAirlineStore();
       return selector ? selector(state) : state;
     },
+    useActiveAirline: () => {
+      const state = mockUseAirlineStore();
+      return {
+        airline: state.airline,
+        fleet: state.fleet ?? [],
+        routes: state.routes ?? [],
+        timeline: state.timeline ?? [],
+        isViewingOther: false,
+        isGuest: !state.airline,
+      };
+    },
   };
 });
 

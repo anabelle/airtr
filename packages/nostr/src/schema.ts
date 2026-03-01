@@ -384,6 +384,7 @@ export async function loadCheckpoint(pubkey: string): Promise<Checkpoint | null>
   const filter: NDKFilter = {
     kinds: [ACTION_KIND],
     authors: [pubkey],
+    "#d": [CHECKPOINT_D_TAG],
     limit: 5,
   };
 
@@ -432,6 +433,7 @@ export async function loadCheckpoints(pubkeys: string[]): Promise<Map<string, Ch
   const filter: NDKFilter = {
     kinds: [ACTION_KIND],
     authors: pubkeys,
+    "#d": [CHECKPOINT_D_TAG],
     limit: Math.max(pubkeys.length, 100),
   };
 
