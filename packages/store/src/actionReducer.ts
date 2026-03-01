@@ -206,10 +206,19 @@ export async function replayActionLog(params: {
     airline = { ...airline, corporateBalance: clampedBalance };
   };
 
-  /** Returns true if the airline can afford the given cost. */
-  const canAfford = (cost: FixedPoint): boolean => {
+  /**
+   * During replay, canAfford is not enforced.  The check was already
+   * performed at publish time (fleetSlice, networkSlice).  Re-validating
+   * here with incomplete data — only the latest TICK_UPDATE survives on
+   * relays due to NIP-33 replacement, so flight revenue earned between
+   * purchases is invisible during replay — causes legitimate purchases
+   * to be silently dropped.  The balance deduction (applyBalanceDelta)
+   * still executes, so the ledger tracks all debits/credits accurately.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const canAfford = (_cost: FixedPoint): boolean => {
     if (!airline) return false;
-    return airline.corporateBalance >= cost;
+    return true;
   };
 
   const resolveEventTimestamp = (tick: number, createdAt: number | null) =>
@@ -378,7 +387,10 @@ export async function replayActionLog(params: {
       case "HUB_REMOVE": {
         const iata = sanitizeIata(payload.iata);
         if (iata) {
-          airline = { ...airline, hubs: airline.hubs.filter((hub) => hub !== iata) };
+          airline = {
+            ...airline,
+            hubs: airline.hubs.filter((hub) => hub !== iata),
+          };
         }
         updateLastTick(actionTick);
         if (iata) {
