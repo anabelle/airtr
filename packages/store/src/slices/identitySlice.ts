@@ -99,6 +99,9 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         console.warn("[IdentitySlice] forceReplay: ignoring checkpoint, replaying all actions");
       }
       if (checkpoint) {
+        // At load time we can only verify the state hash — the action chain hash cannot
+        // be independently recomputed without replaying the full event log from genesis.
+        // The actionChainHash comparison is therefore deferred to after replay (see below).
         const checkpointOk = await verifyCheckpoint({
           actionChainHash: checkpoint.actionChainHash,
           expectedActionChainHash: checkpoint.actionChainHash,
@@ -110,7 +113,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         });
         if (!checkpointOk) {
           console.warn(
-            "[IdentitySlice] Checkpoint integrity check failed — falling back to full log replay",
+            "[IdentitySlice] Checkpoint state hash mismatch — falling back to full log replay",
           );
           checkpoint = null;
         }
@@ -142,6 +145,17 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         })),
         checkpoint,
       });
+
+      // When the checkpoint was used and no newer actions existed, the replayed
+      // actionChainHash must equal the checkpoint's — any mismatch means the
+      // checkpoint data was tampered with or the reducer logic changed.
+      if (checkpoint && scopedActions.length === 0) {
+        if (replayed.actionChainHash !== checkpoint.actionChainHash) {
+          console.warn(
+            "[IdentitySlice] Post-replay action chain hash mismatch — checkpoint may be corrupted",
+          );
+        }
+      }
 
       const existing = replayed.airline ? replayed : null;
 

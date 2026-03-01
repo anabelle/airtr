@@ -125,7 +125,7 @@ export function RouteManager() {
   });
   const [fareError, setFareError] = useState<string | null>(null);
   const [isSavingFares, setIsSavingFares] = useState(false);
-  const [isOpeningRoute, setIsOpeningRoute] = useState(false);
+  const [openingRouteIata, setOpeningRouteIata] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [rebaseTargets, setRebaseTargets] = useState<Record<string, string>>({});
   const [planningOriginIata, setPlanningOriginIata] = useState<string | null>(
@@ -1284,7 +1284,7 @@ export function RouteManager() {
                             confirmLabel: "Open Route",
                           });
                           if (!approved) return;
-                          setIsOpeningRoute(true);
+                          setOpeningRouteIata(market.destination.iata);
                           try {
                             await openRoute(
                               market.origin.iata,
@@ -1298,13 +1298,13 @@ export function RouteManager() {
                               description: message,
                             });
                           } finally {
-                            setIsOpeningRoute(false);
+                            setOpeningRouteIata(null);
                           }
                         }}
-                        disabled={!canOpenFromOrigin || isOpeningRoute}
+                        disabled={!canOpenFromOrigin || openingRouteIata !== null}
                         className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:scale-105 transition-all shadow-lg shadow-primary/25 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                       >
-                        {isOpeningRoute ? (
+                        {openingRouteIata === market.destination.iata ? (
                           <>
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                             Opening…
