@@ -8,6 +8,15 @@ const replayActionLog = vi.fn();
 const loadActionLog = vi.fn();
 const loadCheckpoint = vi.fn();
 
+vi.mock("@acars/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@acars/core")>();
+  return {
+    ...actual,
+    // Always return true so tests don't need real state hashes
+    verifyCheckpoint: vi.fn(() => Promise.resolve(true)),
+  };
+});
+
 vi.mock("@acars/nostr", () => ({
   attachSigner: vi.fn(),
   ensureConnected: vi.fn(),

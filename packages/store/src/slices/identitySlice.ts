@@ -5,7 +5,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
-import { fp, fpAdd, fpSub, GENESIS_TIME } from "@acars/core";
+import { fp, fpAdd, fpSub, GENESIS_TIME, verifyCheckpoint } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import {
   attachSigner,
@@ -94,14 +94,31 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         typeof window !== "undefined" &&
         new URLSearchParams(window.location.search).has("forceReplay");
 
-      const checkpoint = forceReplay ? null : await loadCheckpoint(pubkey);
+      let checkpoint = forceReplay ? null : await loadCheckpoint(pubkey);
       if (forceReplay) {
         console.warn("[IdentitySlice] forceReplay: ignoring checkpoint, replaying all actions");
+      }
+      if (checkpoint) {
+        const checkpointOk = await verifyCheckpoint({
+          actionChainHash: checkpoint.actionChainHash,
+          expectedActionChainHash: checkpoint.actionChainHash,
+          expectedStateHash: checkpoint.stateHash,
+          airline: checkpoint.airline,
+          fleet: checkpoint.fleet,
+          routes: checkpoint.routes,
+          timeline: checkpoint.timeline,
+        });
+        if (!checkpointOk) {
+          console.warn(
+            "[IdentitySlice] Checkpoint integrity check failed — falling back to full log replay",
+          );
+          checkpoint = null;
+        }
       }
       const actions = await loadActionLog({
         authors: [pubkey],
         limit: 500,
-        maxPages: forceReplay ? 100 : 20,
+        maxPages: checkpoint ? 20 : 100,
       });
 
       let scopedActions = actions;

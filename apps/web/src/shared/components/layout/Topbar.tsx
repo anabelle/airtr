@@ -2,6 +2,7 @@ import { fpFormat } from "@acars/core";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
+import { useRelayHealth } from "@/shared/hooks/useRelayHealth";
 
 export function Topbar() {
   const airline = useAirlineStore((state) => state.airline);
@@ -10,6 +11,7 @@ export function Topbar() {
   const viewAs = useAirlineStore((state) => state.viewAs);
   const { airline: activeAirline, timeline, isViewingOther } = useActiveAirline();
   const navigate = useNavigate();
+  const { isConnected, relayCount } = useRelayHealth();
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
   const pulse = useFinancialPulse(safeTimeline);
   const avgLoadFactor = pulse.avgLoadFactor;
@@ -80,6 +82,24 @@ export function Topbar() {
 
       {/* Critical Macro Metrics */}
       <div className="hidden md:flex items-center space-x-8">
+        {/* Relay health indicator */}
+        <div
+          className="flex items-center gap-1.5"
+          title={
+            isConnected
+              ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
+              : "Disconnected from Nostr — changes may not save"
+          }
+        >
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${isConnected ? "bg-emerald-400" : "bg-rose-500 animate-pulse"}`}
+          />
+          {!isConnected && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-rose-400">
+              Offline
+            </span>
+          )}
+        </div>
         <div className="flex flex-col items-end">
           <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
             Corporate Balance
