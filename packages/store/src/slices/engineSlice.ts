@@ -36,6 +36,7 @@ const TICK_UPDATE_TIMELINE_EVENTS = 200;
 let skippedTickLockCount = 0;
 const TICK_LOCK_LOG_BURST = 3;
 const TICK_LOCK_LOG_SAMPLE = 100;
+const CHAPTER11_BALANCE_THRESHOLD = fp(CHAPTER11_BALANCE_THRESHOLD_USD);
 
 /** @internal — test/diagnostic helper */
 export function _getTickLockSkippedCount(): number {
@@ -71,7 +72,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       // EMERGENCY BANKRUPTCY CHECK
       // If balance breaches chapter11 threshold, auto-pause operations
       if (
-        fpToNumber(airline.corporateBalance) < CHAPTER11_BALANCE_THRESHOLD_USD &&
+        airline.corporateBalance < CHAPTER11_BALANCE_THRESHOLD &&
         airline.status !== "chapter11"
       ) {
         // Ground all in-flight aircraft and clear active flight state.
@@ -128,7 +129,14 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           get,
           set,
         }).catch((e) => {
-          set(previousState);
+          const current = get();
+          if (
+            current.airline === updatedAirline &&
+            current.fleet === groundedFleet &&
+            current.timeline === updatedTimeline
+          ) {
+            set(previousState);
+          }
           console.error("Bankruptcy sync failed", e);
         });
         return;

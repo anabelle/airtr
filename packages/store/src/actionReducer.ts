@@ -364,6 +364,7 @@ export async function replayActionLog(params: {
       routeIdAliases.clear();
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
+      backfillTickSet.clear();
 
       const name = clampString(payload.name, MAX_NAME_LENGTH) ?? "New Airline";
       const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
@@ -416,6 +417,7 @@ export async function replayActionLog(params: {
       routeIdAliases.clear();
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
+      backfillTickSet.clear();
       continue;
     }
 
