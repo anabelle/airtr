@@ -507,7 +507,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
 
       for (const ac of currentFleet) {
         if (ac.status === "idle" && ac.assignedRouteId) {
-          const route = routes.find((r) => r.id === ac.assignedRouteId);
+          const route = routeById.get(ac.assignedRouteId);
           const model = getAircraftById(ac.modelId);
           if (!route || route.status !== "active" || !model) continue;
           const isGrounded = ac.condition < 0.2 || ac.flightHoursSinceCheck > 600;
@@ -605,7 +605,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
 
           // Look up the route to calculate full financial breakdown
           const isFerry = ac.flight?.purpose === "ferry";
-          const route = !isFerry ? routes.find((r) => r.id === ac.assignedRouteId) : null;
+          const route = !isFerry ? routeById.get(ac.assignedRouteId) : null;
 
           // Calculate financials BEFORE mutating aircraft state so ac.flight is intact
           let landingResult: ReturnType<typeof estimateLandingFinancials> | null = null;
@@ -670,7 +670,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         }
 
         if (ac.status === "turnaround" && (ac.turnaroundEndTick || 0) <= targetTick) {
-          const route = routes.find((r) => r.id === ac.assignedRouteId);
+          const route = routeById.get(ac.assignedRouteId);
           const model = getAircraftById(ac.modelId);
           if (route && ac.flight && model) {
             const hours = route.distanceKm / (model.speedKmh || 800);
