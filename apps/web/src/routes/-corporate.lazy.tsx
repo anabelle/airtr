@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
+import { useBillingCycle } from "@/features/corporate/hooks/useBillingCycle";
 import type { FinancialPulse as FinancialPulseData } from "@/features/corporate/hooks/useFinancialPulse";
 import {
   RECENT_FLIGHT_COUNT,
@@ -43,13 +44,24 @@ function FinancialPulse({
   leasedCount: number;
 }) {
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const billingCycle = useBillingCycle();
 
   const totalFixedCosts = fpAdd(fp(hubOpex), fleetLease);
-  // Hourly lease burn = monthly lease / (30 days * 24 hours)
-  const leasePerHour = fpToNumber(fleetLease) / (30 * 24);
+  // Hourly fixed-cost burn = monthly fixed costs / (30 days × 24 hours)
+  const fixedCostsPerHour = fpToNumber(totalFixedCosts) / (30 * 24);
   const netIncomeNum = pulse.flightCount > 0 ? fpToNumber(pulse.netIncomeRate) : 0;
-  const trueBurnPerHour = netIncomeNum - leasePerHour;
-  const trueBurnPositive = trueBurnPerHour >= 0;
+  const netCashFlowPerHour = netIncomeNum - fixedCostsPerHour;
+  const netCashFlowPositive = netCashFlowPerHour >= 0;
+
+  const lowConfidence = pulse.flightCount > 0 && pulse.flightCount < 5;
+
+  // Billing cycle urgency colors
+  const cycleColor =
+    billingCycle.daysRemaining <= 2
+      ? "bg-rose-500"
+      : billingCycle.daysRemaining <= 7
+        ? "bg-amber-500"
+        : "bg-muted-foreground/30";
 
   return (
     <section className="space-y-3">
@@ -71,7 +83,7 @@ function FinancialPulse({
           {pulse.flightCount > 0 && (
             <div className="shrink-0 text-right space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Net Income Rate
+                Flight Revenue Rate
               </p>
               <div
                 className={`flex items-center justify-end gap-1 text-lg font-black ${
@@ -92,8 +104,12 @@ function FinancialPulse({
               >
                 {fpFormat(fp(netIncomeNum * 24 * 30), 0)}/mo
               </p>
-              <p className="text-[10px] text-muted-foreground">
-                Last {pulse.flightCount} flight{pulse.flightCount !== 1 ? "s" : ""}
+              <p
+                className={`text-[10px] ${lowConfidence ? "text-amber-400" : "text-muted-foreground"}`}
+              >
+                {lowConfidence ? "⚠ " : ""}Last {pulse.flightCount} flight
+                {pulse.flightCount !== 1 ? "s" : ""}
+                {lowConfidence ? " — low sample" : ""}
               </p>
             </div>
           )}
@@ -106,7 +122,10 @@ function FinancialPulse({
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             <span>Hub OPEX</span>
-            <span>{fpFormat(fp(hubOpex), 0)}/mo</span>
+            <span>
+              {fpFormat(fp(hubOpex), 0)}/mo{" "}
+              <span className="text-muted-foreground/50">(30 days)</span>
+            </span>
           </div>
           {leasedCount > 0 && (
             <div
@@ -126,34 +145,68 @@ function FinancialPulse({
           </div>
         </div>
 
-        {/* True Burn Rate — flight income minus lease amortization */}
-        {pulse.flightCount > 0 && leasedCount > 0 && (
+        {/* Billing cycle progress */}
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="font-bold uppercase tracking-wider">Billing Cycle</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {billingCycle.daysRemaining} day{billingCycle.daysRemaining !== 1 ? "s" : ""}{" "}
+              remaining
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/30">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${cycleColor}`}
+              style={{ width: `${Math.max(2, billingCycle.progress * 100)}%` }}
+            />
+          </div>
+          {fpToNumber(totalFixedCosts) > 0 && (
+            <p
+              className="text-[10px] text-muted-foreground/60"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              Next deduction: {fpFormat(totalFixedCosts, 0)}
+            </p>
+          )}
+        </div>
+
+        {/* Net Cash Flow — flight revenue minus fixed costs */}
+        {pulse.flightCount > 0 && fpToNumber(totalFixedCosts) > 0 && (
           <div
-            className={`mt-3 flex items-center justify-between rounded-lg border px-3 py-2 text-xs font-bold ${
-              trueBurnPositive
-                ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
-                : "border-rose-500/20 bg-rose-500/5 text-rose-400"
+            className={`mt-3 rounded-lg border px-3 py-2 ${
+              netCashFlowPositive
+                ? "border-emerald-500/20 bg-emerald-500/5"
+                : "border-rose-500/20 bg-rose-500/5"
             }`}
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
-            <span className="flex items-center gap-1">
-              {trueBurnPositive ? (
-                <TrendingUp className="h-3 w-3" aria-hidden="true" />
-              ) : (
-                <TrendingDown className="h-3 w-3" aria-hidden="true" />
-              )}
-              True Burn Rate
-            </span>
-            <span className="text-right">
-              <span>
-                {trueBurnPositive ? "+" : ""}
-                {fpFormat(fp(trueBurnPerHour), 0)}/hr
+            <div
+              className={`flex items-center justify-between text-xs font-bold ${
+                netCashFlowPositive ? "text-emerald-400" : "text-rose-400"
+              }`}
+            >
+              <span className="flex items-center gap-1">
+                {netCashFlowPositive ? (
+                  <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" aria-hidden="true" />
+                )}
+                Net Cash Flow
               </span>
-              <span className="ml-2 opacity-60">
-                {trueBurnPositive ? "+" : ""}
-                {fpFormat(fp(trueBurnPerHour * 24 * 30), 0)}/mo
+              <span className="text-right">
+                <span>
+                  {netCashFlowPositive ? "+" : ""}
+                  {fpFormat(fp(netCashFlowPerHour), 0)}/hr
+                </span>
+                <span className="ml-2 opacity-60">
+                  {netCashFlowPositive ? "+" : ""}
+                  {fpFormat(fp(netCashFlowPerHour * 24 * 30), 0)}/mo
+                </span>
               </span>
-            </span>
+            </div>
+            <p className="mt-0.5 text-[9px] text-muted-foreground/60">
+              Flight revenue minus fixed costs
+            </p>
           </div>
         )}
 

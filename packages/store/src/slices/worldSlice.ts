@@ -14,7 +14,7 @@ import {
   fpSub,
   GENESIS_TIME,
   TICK_DURATION,
-  TICKS_PER_HOUR,
+  TICKS_PER_MONTH,
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { getNDK, loadActionLog, loadCheckpoints, MARKETPLACE_KIND, NDKEvent } from "@acars/nostr";
@@ -46,8 +46,7 @@ export interface WorldSlice {
 
 let isSyncingWorld = false;
 let pendingSyncWorldOptions: { force?: boolean } | null = null;
-const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
-const MONTH_TICKS = 30 * TICKS_PER_DAY;
+const MONTH_TICKS = TICKS_PER_MONTH;
 
 /** @internal — test-only helper to reset module-level concurrency flags */
 export function _resetWorldFlags() {

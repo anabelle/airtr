@@ -3,6 +3,8 @@
 export const GENESIS_TIME = 1740333600000;
 export const TICK_DURATION = 3000; // ms
 export const TICKS_PER_HOUR = 3600 / (TICK_DURATION / 1000); // 1200 ticks per hour
+export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR; // 28,800
+export const TICKS_PER_MONTH = 30 * TICKS_PER_DAY; // 864,000 (1 billing month = 30 real days)
 
 // --- Fixed-Point Financial Type ---
 

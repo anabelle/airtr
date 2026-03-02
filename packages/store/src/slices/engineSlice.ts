@@ -9,6 +9,7 @@ import {
   GENESIS_TIME,
   TICK_DURATION,
   TICKS_PER_HOUR,
+  TICKS_PER_MONTH,
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { publishCheckpoint } from "@acars/nostr";
@@ -121,8 +122,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       let anyChanges = false;
       let consumedDeletedFleetIds = new Set<string>();
 
-      const ticksPerDay = 24 * TICKS_PER_HOUR;
-      const ticksPerMonth = ticksPerDay * 30;
+      const ticksPerMonth = TICKS_PER_MONTH;
 
       const hasActiveRoutes = routes.some((route) => route.status === "active");
       const hasAssignedRoutes = currentFleet.some((ac) => !!ac.assignedRouteId);

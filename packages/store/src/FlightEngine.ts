@@ -28,6 +28,7 @@ import {
   scaleToAddressableMarket,
   TICK_DURATION,
   TICKS_PER_HOUR,
+  TICKS_PER_MONTH,
 } from "@acars/core";
 import { airports, getAircraftById, HUB_CLASSIFICATIONS } from "@acars/data";
 
@@ -564,8 +565,7 @@ export function processFlightEngine(
   }
 
   // 2. Lease deductions (Robust logic for catch-up)
-  const TICKS_PER_DAY = 24 * TICKS_PER_HOUR;
-  const MONTH_TICKS = 30 * TICKS_PER_DAY;
+  const MONTH_TICKS = TICKS_PER_MONTH;
 
   const cyclesPrevious = Math.floor(lastTick / MONTH_TICKS);
   const cyclesCurrent = Math.floor(tick / MONTH_TICKS);

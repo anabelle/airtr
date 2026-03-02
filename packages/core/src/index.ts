@@ -105,4 +105,10 @@ export type {
   TimelineEventType,
 } from "./types.js";
 // Types
-export { GENESIS_TIME, TICK_DURATION, TICKS_PER_HOUR } from "./types.js";
+export {
+  GENESIS_TIME,
+  TICK_DURATION,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
+  TICKS_PER_MONTH,
+} from "./types.js";
