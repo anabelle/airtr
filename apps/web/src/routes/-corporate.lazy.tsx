@@ -23,6 +23,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
@@ -809,6 +810,19 @@ export default function CorporateDashboard() {
   const pulse = useFinancialPulse(timeline);
 
   const routePerformance = useRoutePerformance(timeline, routes);
+  const routePerformanceContainerRef = useRef<HTMLDivElement>(null);
+  const sortedRoutePerformance = useMemo(
+    () =>
+      [...routePerformance].sort(
+        (a, b) => fpToNumber(b.profitPerHour) - fpToNumber(a.profitPerHour),
+      ),
+    [routePerformance],
+  );
+  const routePerformanceVirtualizer = useVirtualizer({
+    count: sortedRoutePerformance.length,
+    getScrollElement: () => routePerformanceContainerRef.current,
+    estimateSize: () => 44,
+  });
 
   const currentMonthlyOpex = useMemo(
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,
@@ -926,11 +940,13 @@ export default function CorporateDashboard() {
                 Last {RECENT_FLIGHT_COUNT} flights
               </span>
             </div>
-            <div className="space-y-2">
-              {routePerformance
-                .sort((a, b) => fpToNumber(b.profitPerHour) - fpToNumber(a.profitPerHour))
-                .slice(0, 6)
-                .map((route) => {
+            <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
+              <div
+                className="relative w-full"
+                style={{ height: `${routePerformanceVirtualizer.getTotalSize()}px` }}
+              >
+                {routePerformanceVirtualizer.getVirtualItems().map((virtualItem) => {
+                  const route = sortedRoutePerformance[virtualItem.index];
                   const lf = Math.round(route.avgLoadFactor * 100);
                   const lfTone =
                     lf >= 80 ? "text-emerald-400" : lf >= 60 ? "text-amber-400" : "text-rose-400";
@@ -939,21 +955,28 @@ export default function CorporateDashboard() {
                   return (
                     <div
                       key={route.routeId}
-                      className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2"
+                      className="absolute left-0 top-0 w-full"
+                      style={{
+                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
                     >
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-foreground">{route.label}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {route.fleetCount} aircraft
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-[10px] font-mono">
-                        <span className={lfTone}>{lf}% LF</span>
-                        <span className={profitTone}>{fpFormat(route.profitPerHour, 0)}/hr</span>
+                      <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-foreground">{route.label}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {route.fleetCount} aircraft
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-mono">
+                          <span className={lfTone}>{lf}% LF</span>
+                          <span className={profitTone}>{fpFormat(route.profitPerHour, 0)}/hr</span>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+              </div>
             </div>
           </section>
         )}
