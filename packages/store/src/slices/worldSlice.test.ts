@@ -341,6 +341,179 @@ describe("syncWorld", () => {
     expect(ids).toHaveLength(2);
   });
 
+  it("rescues aircraft purchases missing from a stale checkpoint", async () => {
+    const { loadActionLog, loadCheckpoints } = await import("@acars/nostr");
+    const pubkey = "comp-stale-checkpoint";
+
+    // Stale checkpoint: has only 3 aircraft, but 5 were actually purchased.
+    // Aircraft ac-4 and ac-5 were purchased BEFORE the checkpoint tick but
+    // are missing from the checkpoint fleet (corrupt checkpoint).
+    const staleCheckpoint = {
+      schemaVersion: 1,
+      tick: 10000,
+      createdAt: Date.now(),
+      actionChainHash: "hash",
+      stateHash: "state-hash",
+      airline: {
+        ceoPubkey: pubkey,
+        name: "Stale Air",
+        iataCode: "SA",
+        hubs: ["JFK"],
+        corporateBalance: 1000000000000,
+        fleetIds: ["ac-1", "ac-2", "ac-3"],
+        routeIds: [],
+        brandScore: 0.5,
+        lastTick: 10000,
+        status: "active",
+        genesisHash: "genesis",
+        shareCount: 10000000,
+        capTable: [],
+      },
+      fleet: [
+        {
+          id: "ac-1",
+          modelId: "atr72-600",
+          status: "idle",
+          ownerPubkey: pubkey,
+        },
+        {
+          id: "ac-2",
+          modelId: "atr72-600",
+          status: "idle",
+          ownerPubkey: pubkey,
+        },
+        {
+          id: "ac-3",
+          modelId: "atr72-600",
+          status: "idle",
+          ownerPubkey: pubkey,
+        },
+      ],
+      routes: [],
+      timeline: [],
+    };
+
+    (loadCheckpoints as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Map([[pubkey, staleCheckpoint]]),
+    );
+
+    // Action log includes all 5 purchases (ac-1..ac-5) plus a post-checkpoint TICK_UPDATE.
+    // ac-4 and ac-5 have ticks below the checkpoint tick (8000, 9000) — they should
+    // be rescued by the defensive scoping logic.
+    (loadActionLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        event: { id: "evt-create", author: { pubkey }, created_at: 1 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRLINE_CREATE",
+          payload: {
+            name: "Stale Air",
+            hubs: ["JFK"],
+            corporateBalance: 1000000000000,
+            tick: 100,
+          },
+        },
+      },
+      {
+        event: { id: "evt-p1", author: { pubkey }, created_at: 2 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-1",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 200,
+          },
+        },
+      },
+      {
+        event: { id: "evt-p2", author: { pubkey }, created_at: 3 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-2",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 300,
+          },
+        },
+      },
+      {
+        event: { id: "evt-p3", author: { pubkey }, created_at: 4 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-3",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 400,
+          },
+        },
+      },
+      // These two are missing from the checkpoint but have ticks below checkpoint tick
+      {
+        event: { id: "evt-p4", author: { pubkey }, created_at: 5 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-4",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 8000,
+          },
+        },
+      },
+      {
+        event: { id: "evt-p5", author: { pubkey }, created_at: 6 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-5",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 9000,
+          },
+        },
+      },
+      // Post-checkpoint action
+      {
+        event: { id: "evt-tick", author: { pubkey }, created_at: 7 },
+        action: {
+          schemaVersion: 2,
+          action: "TICK_UPDATE",
+          payload: { tick: 10001 },
+        },
+      },
+    ]);
+
+    const { state } = createSliceState({
+      competitors: new Map(),
+      fleetByOwner: buildFleetIndex([]),
+      routesByOwner: buildRoutesIndex([]),
+    });
+
+    await state.syncWorld();
+
+    // All 5 aircraft should be present: 3 from checkpoint + 2 rescued purchases
+    const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
+    expect(ids).toContain("ac-1");
+    expect(ids).toContain("ac-2");
+    expect(ids).toContain("ac-3");
+    expect(ids).toContain("ac-4");
+    expect(ids).toContain("ac-5");
+    expect(ids).toHaveLength(5);
+  });
+
   it("projects competitor fleet to current tick during sync", async () => {
     const { loadActionLog } = await import("@acars/nostr");
     const pubkey = "comp-catchup";

@@ -22,6 +22,7 @@ import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { reconcileFleetToTick } from "../FlightEngine";
 import { computeRejectedBuyEventIds } from "../marketplaceReplay";
+import { scopeActionsToCheckpoint } from "../scopeActions";
 import type { AirlineState } from "../types";
 
 export interface IdentitySlice {
@@ -134,14 +135,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
       let scopedActions = actions;
       if (checkpoint) {
-        const checkpointTick = checkpoint.tick;
-        const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
-        scopedActions = actions.filter((entry) => {
-          const actionTick = (entry.action.payload as Record<string, unknown>)?.tick;
-          return typeof actionTick === "number" && Number.isFinite(actionTick)
-            ? actionTick > checkpointTick
-            : (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds;
-        });
+        scopedActions = scopeActionsToCheckpoint(actions, checkpoint);
         // If no actions are newer than the checkpoint, the checkpoint
         // state is authoritative — do NOT fall back to replaying all
         // actions, as that overwrites live flight state (status, flight,
