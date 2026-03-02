@@ -360,7 +360,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           const cycleAnchor = ac.routeAssignedAtTick ?? ac.purchasedAtTick;
           if (cycleAnchor != null && cycleAnchor < targetTick) {
             const elapsed = targetTick - cycleAnchor;
-            const positionInCycle = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+            const positionInCycle = elapsed % roundTripTicks;
             const cycleStartTick = targetTick - positionInCycle;
             const phase = getCyclePhase(
               cycleStartTick,

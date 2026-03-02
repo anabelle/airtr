@@ -4,8 +4,9 @@ import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
 import { createEngineSlice } from "./engineSlice";
 
-// Reset mock call counts (but not implementations) between tests so accumulated
-// calls from one test don't pollute assertions in subsequent tests.
+// Reset mock call counts (but not implementations) before each test so that
+// accumulated calls from one test suite do not pollute assertions in others
+// (e.g. the fast-path test that asserts processFlightEngine was never called).
 beforeEach(() => {
   vi.clearAllMocks();
 });
