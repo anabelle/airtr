@@ -5,6 +5,7 @@ import {
   fpScale,
   fpSub,
   fpToNumber,
+  getCyclePhase,
   GENESIS_TIME,
   TICK_DURATION,
   TICKS_PER_HOUR,
@@ -344,38 +345,75 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           const isGrounded = ac.condition < 0.2 || ac.flightHoursSinceCheck > 600;
           if (isGrounded) continue;
           if (route.distanceKm > (model.rangeKm || 0)) continue;
-          const isAtOrigin = ac.baseAirportIata === route.originIata;
-          const isAtDestination = ac.baseAirportIata === route.destinationIata;
-          if (!isAtOrigin && !isAtDestination) continue;
 
           const hours = route.distanceKm / (model.speedKmh || 800);
-          const durationTicks = Math.ceil(hours * TICKS_PER_HOUR);
-          const originIata = isAtOrigin ? route.originIata : route.destinationIata;
-          const destinationIata = isAtOrigin ? route.destinationIata : route.originIata;
+          const durationTicks = Math.max(1, Math.ceil(hours * TICKS_PER_HOUR));
+          const turnaroundTicks = Math.max(
+            1,
+            Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR),
+          );
+          const roundTripTicks = durationTicks * 2 + turnaroundTicks * 2;
 
-          ac.status = "enroute";
-          ac.flight = {
-            originIata,
-            destinationIata,
-            departureTick: targetTick,
-            arrivalTick: targetTick + Math.max(1, durationTicks),
-            direction: isAtOrigin ? "outbound" : "inbound",
-          };
-          ac.arrivalTickProcessed = undefined;
-          ac.turnaroundEndTick = undefined;
+          // Use deterministic cycle algebra to place the aircraft at the correct
+          // round-trip position rather than forcing every idle aircraft to depart
+          // at the same targetTick (which causes the synchronized-departure bug).
+          const cycleAnchor = ac.routeAssignedAtTick ?? ac.purchasedAtTick;
+          if (cycleAnchor != null && cycleAnchor < targetTick) {
+            const elapsed = targetTick - cycleAnchor;
+            const positionInCycle = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+            const cycleStartTick = targetTick - positionInCycle;
+            const phase = getCyclePhase(
+              cycleStartTick,
+              targetTick,
+              durationTicks,
+              turnaroundTicks,
+              route,
+            );
+            ac.status = phase.status;
+            ac.flight = {
+              originIata: phase.originIata,
+              destinationIata: phase.destinationIata,
+              departureTick: phase.departureTick,
+              arrivalTick: phase.arrivalTick,
+              direction: phase.direction,
+            };
+            ac.turnaroundEndTick = phase.turnaroundEndTick ?? undefined;
+            ac.arrivalTickProcessed = phase.status === "turnaround" ? phase.arrivalTick : undefined;
+            ac.baseAirportIata = phase.baseAirportIata;
+          } else {
+            // No cycle anchor yet (brand-new assignment): depart from current
+            // position using the legacy isAtOrigin safety check.
+            const isAtOrigin = ac.baseAirportIata === route.originIata;
+            const isAtDestination = ac.baseAirportIata === route.destinationIata;
+            if (!isAtOrigin && !isAtDestination) continue;
+            const originIata = isAtOrigin ? route.originIata : route.destinationIata;
+            const destinationIata = isAtOrigin ? route.destinationIata : route.originIata;
+            ac.status = "enroute";
+            ac.flight = {
+              originIata,
+              destinationIata,
+              departureTick: targetTick,
+              arrivalTick: targetTick + durationTicks,
+              direction: isAtOrigin ? "outbound" : "inbound",
+            };
+            ac.arrivalTickProcessed = undefined;
+            ac.turnaroundEndTick = undefined;
+          }
           anyChanges = true;
-          recoveryEvents.push({
-            id: `evt-recovery-takeoff-${ac.id}-${targetTick}`,
-            tick: targetTick,
-            timestamp: simulatedTimestamp,
-            type: "takeoff",
-            aircraftId: ac.id,
-            aircraftName: ac.name,
-            routeId: route.id,
-            originIata,
-            destinationIata,
-            description: `${ac.name} recovery takeoff: ${originIata} → ${destinationIata}`,
-          });
+          if (ac.status === "enroute" && ac.flight) {
+            recoveryEvents.push({
+              id: `evt-recovery-takeoff-${ac.id}-${ac.flight.departureTick}`,
+              tick: ac.flight.departureTick,
+              timestamp: GENESIS_TIME + ac.flight.departureTick * TICK_DURATION,
+              type: "takeoff",
+              aircraftId: ac.id,
+              aircraftName: ac.name,
+              routeId: route.id,
+              originIata: ac.flight.originIata,
+              destinationIata: ac.flight.destinationIata,
+              description: `${ac.name} recovery takeoff: ${ac.flight.originIata} → ${ac.flight.destinationIata}`,
+            });
+          }
         }
 
         if (ac.status === "enroute" && ac.flight && ac.flight.arrivalTick <= targetTick) {
@@ -412,7 +450,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           ac.status = "turnaround";
           ac.baseAirportIata = ac.flight.destinationIata;
           ac.arrivalTickProcessed = ac.flight.arrivalTick;
-          ac.turnaroundEndTick = targetTick + turnaroundTicks;
+          ac.turnaroundEndTick = ac.flight.arrivalTick + turnaroundTicks;
           anyChanges = true;
 
           if (landingResult) {
@@ -459,21 +497,25 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             const hours = route.distanceKm / (model.speedKmh || 800);
             const durationTicks = Math.ceil(hours * TICKS_PER_HOUR);
             const isReturning = ac.flight.direction === "outbound";
+            // Use the actual turnaround-end tick as the departure time so that
+            // aircraft with different turnaround schedules do not all depart at
+            // the same targetTick (which causes the synchronized-departure bug).
+            const actualDeparture = ac.turnaroundEndTick ?? targetTick;
 
             ac.status = "enroute";
             ac.arrivalTickProcessed = undefined;
             ac.flight = {
               originIata: isReturning ? route.destinationIata : route.originIata,
               destinationIata: isReturning ? route.originIata : route.destinationIata,
-              departureTick: targetTick,
-              arrivalTick: targetTick + Math.max(1, durationTicks),
+              departureTick: actualDeparture,
+              arrivalTick: actualDeparture + Math.max(1, durationTicks),
               direction: isReturning ? "inbound" : "outbound",
             };
             anyChanges = true;
             recoveryEvents.push({
-              id: `evt-recovery-takeoff-rtn-${ac.id}-${targetTick}`,
-              tick: targetTick,
-              timestamp: simulatedTimestamp,
+              id: `evt-recovery-takeoff-rtn-${ac.id}-${actualDeparture}`,
+              tick: actualDeparture,
+              timestamp: GENESIS_TIME + actualDeparture * TICK_DURATION,
               type: "takeoff",
               aircraftId: ac.id,
               aircraftName: ac.name,

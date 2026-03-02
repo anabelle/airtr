@@ -1,8 +1,14 @@
 import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
 import { createEngineSlice } from "./engineSlice";
+
+// Reset mock call counts (but not implementations) between tests so accumulated
+// calls from one test don't pollute assertions in subsequent tests.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 vi.mock("../FlightEngine", () => ({
   processFlightEngine: vi.fn(),
@@ -130,6 +136,147 @@ const createSliceState = (overrides: Partial<AirlineState>) => {
   Object.assign(state, overrides);
   return { state, set };
 };
+
+const makeRoute = (id: string, distanceKm: number): Route => ({
+  id,
+  originIata: "JFK",
+  destinationIata: "LAX",
+  airlinePubkey: "player",
+  distanceKm,
+  assignedAircraftIds: [],
+  fareEconomy: 500 as FixedPoint,
+  fareBusiness: 1000 as FixedPoint,
+  fareFirst: 2000 as FixedPoint,
+  status: "active",
+});
+
+describe("recovery sweep synchronized departure fix", () => {
+  it("idle aircraft with different routeAssignedAtTick get different departure ticks (not all targetTick)", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    // Route: 400 km @ 800 km/h → durationTicks = ceil(400/800 * 1200) = 600
+    // turnaroundTicks = ceil(60/60 * 1200) = 1200, roundTripTicks = 3600
+    const route = makeRoute("rt-1", 400);
+
+    // Two idle aircraft assigned to the same route, but at different ticks.
+    // routeAssignedAtTick=900 → positionInCycle = (1000-900) % 3600 = 100 → outbound enroute, departureTick=900
+    // routeAssignedAtTick=950 → positionInCycle = (1000-950) % 3600 = 50  → outbound enroute, departureTick=950
+    const ac1: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 900,
+      baseAirportIata: "JFK",
+    };
+    const ac2: AircraftInstance = {
+      ...makeAircraft("ac-2"),
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 950,
+      baseAirportIata: "JFK",
+    };
+
+    const airline = makeAirline(999);
+    const { state } = createSliceState({ airline, fleet: [ac1, ac2], routes: [route] });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(1000);
+
+    const final1 = state.fleet.find((ac) => ac.id === "ac-1");
+    const final2 = state.fleet.find((ac) => ac.id === "ac-2");
+
+    // Both aircraft must have been placed in-flight (not left idle)
+    expect(final1?.status).toBe("enroute");
+    expect(final2?.status).toBe("enroute");
+
+    // They must NOT share the same departure tick (the old bug)
+    expect(final1?.flight?.departureTick).toBe(900);
+    expect(final2?.flight?.departureTick).toBe(950);
+    expect(final1?.flight?.departureTick).not.toBe(final2?.flight?.departureTick);
+  });
+
+  it("turnaround aircraft depart at their own turnaroundEndTick rather than all at targetTick", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    const route = makeRoute("rt-1", 400);
+
+    // Two turnaround aircraft that finished turnaround before targetTick=1000 at different ticks
+    const baseFlight = {
+      originIata: "JFK",
+      destinationIata: "LAX",
+      departureTick: 300,
+      arrivalTick: 900,
+      direction: "outbound" as const,
+    };
+
+    const ac1: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "turnaround",
+      assignedRouteId: "rt-1",
+      turnaroundEndTick: 990,
+      arrivalTickProcessed: 900,
+      baseAirportIata: "LAX",
+      flight: baseFlight,
+    };
+    const ac2: AircraftInstance = {
+      ...makeAircraft("ac-2"),
+      status: "turnaround",
+      assignedRouteId: "rt-1",
+      turnaroundEndTick: 995,
+      arrivalTickProcessed: 900,
+      baseAirportIata: "LAX",
+      flight: baseFlight,
+    };
+
+    const airline = makeAirline(999);
+    const { state } = createSliceState({ airline, fleet: [ac1, ac2], routes: [route] });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(1000);
+
+    const final1 = state.fleet.find((ac) => ac.id === "ac-1");
+    const final2 = state.fleet.find((ac) => ac.id === "ac-2");
+
+    // Both must be on their return legs
+    expect(final1?.status).toBe("enroute");
+    expect(final2?.status).toBe("enroute");
+    expect(final1?.flight?.direction).toBe("inbound");
+    expect(final2?.flight?.direction).toBe("inbound");
+
+    // Each aircraft must depart at its own turnaroundEndTick, not the shared targetTick
+    expect(final1?.flight?.departureTick).toBe(990);
+    expect(final2?.flight?.departureTick).toBe(995);
+    expect(final1?.flight?.departureTick).not.toBe(final2?.flight?.departureTick);
+  });
+});
 
 describe("engineSlice fast-path", () => {
   it("skips flight engine when idle and no active routes", async () => {
