@@ -1024,7 +1024,7 @@ export function Globe({
             "icon-halo-blur": 0.2,
           },
         });
-        // Starboard light (blue, steady)
+        // Starboard light (green, steady)
         map.addLayer({
           id: `${prefix}-light-stbd`,
           type: "symbol",
@@ -1035,9 +1035,9 @@ export function Globe({
             "icon-offset": stbdOffsetExpr,
           },
           paint: {
-            "icon-color": "#4488ff",
+            "icon-color": "#00ff00",
             "icon-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0, 5, baseOpacity],
-            "icon-halo-color": "#4488ff",
+            "icon-halo-color": "#00ff00",
             "icon-halo-width": 0.4,
             "icon-halo-blur": 0.2,
           },
