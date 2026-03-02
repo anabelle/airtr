@@ -3,6 +3,13 @@ import { fp } from "@acars/core";
 import { describe, expect, it, vi } from "vitest";
 import { getRouteDemandSnapshot } from "./useRouteDemand";
 
+vi.mock("@acars/store", () => {
+  return {
+    useAirlineStore: vi.fn(),
+    useEngineStore: vi.fn(),
+  };
+});
+
 vi.mock("@acars/data", () => {
   return {
     airports: [

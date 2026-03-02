@@ -79,6 +79,36 @@ export const FAMILY_ICONS: Record<string, { body: string; accent: string }> = {
 };
 
 // =============================================================================
+// Navigation light icon + per-family wing-tip offsets
+//
+// A single high-res SDF circle is used for all lights. Per-family icon-offset
+// match expressions position it at the correct wing tip. This avoids SDF
+// rasterization artifacts from tiny circles in huge viewBoxes.
+//
+// Offsets are in 48×48 icon-coordinate space (multiplied by icon-size at
+// runtime). Computed from SVG viewBox geometry: each family's wing-tip
+// position is projected into the rendered 48×48 space, then offset from center.
+// =============================================================================
+
+export const LIGHT_DOT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="white"><circle cx="6" cy="6" r="1.5"/></svg>`;
+
+// Port wing-tip offsets [x, y] in 48px icon space (starboard = negate x)
+export const WING_TIP_OFFSETS: Record<string, [number, number]> = {
+  atr: [-18.8, -4.2],
+  dash8: [-17.7, -1.9],
+  a220: [-22.6, 2.8],
+  ejet: [-22.6, 2.8],
+  a320: [-20.8, 3.4],
+  b737: [-18.4, 3.5],
+  a330: [-22.3, 2.6],
+  b787: [-18.5, 7.6],
+  b777: [-18.5, 7.6],
+  a350: [-21.7, 6.3],
+  a380: [-18.2, 5.2],
+  b747: [-20.3, 7.5],
+};
+
+// =============================================================================
 // Backward-compatible aliases (old type-based exports)
 // These map to a representative family for each aircraft type category.
 // =============================================================================

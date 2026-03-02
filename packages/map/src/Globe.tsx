@@ -11,7 +11,7 @@ import {
   pointInViewport,
   routeIntersectsViewport,
 } from "./geo.js";
-import { FAMILY_ICONS } from "./icons.js";
+import { FAMILY_ICONS, LIGHT_DOT_SVG, WING_TIP_OFFSETS } from "./icons.js";
 
 const NIGHT_CANVAS_W = 1024;
 const NIGHT_CANVAS_H = 512;
@@ -469,6 +469,9 @@ export function Globe({
       // Backward-compatible fallback alias
       addIcon("airplane-icon", FAMILY_ICONS["a320"].body);
       addIcon("airplane-icon-accent", FAMILY_ICONS["a320"].accent);
+
+      // Register navigation light icon (single SDF circle, positioned via icon-offset)
+      addIcon("light-dot", LIGHT_DOT_SVG);
 
       // --- Night canvas source (smooth solar gradient) ---
       const nightCanvas = document.createElement("canvas");
@@ -958,6 +961,131 @@ export function Globe({
         "flights-layer",
       );
 
+      // Navigation light layers (port/starboard/strobe for each flight source)
+      // Build per-family icon-offset match expressions from WING_TIP_OFFSETS
+      const portOffsetExpr = [
+        "match",
+        ["get", "familyId"],
+        ...Object.entries(WING_TIP_OFFSETS).flatMap(([fam, [px, py]]) => [
+          fam,
+          ["literal", [px, py]],
+        ]),
+        ["literal", [-20, 3]],
+      ] as unknown as maplibregl.ExpressionSpecification;
+      const stbdOffsetExpr = [
+        "match",
+        ["get", "familyId"],
+        ...Object.entries(WING_TIP_OFFSETS).flatMap(([fam, [px, py]]) => [
+          fam,
+          ["literal", [-px, py]],
+        ]),
+        ["literal", [20, 3]],
+      ] as unknown as maplibregl.ExpressionSpecification;
+      // Keep icon-size scaling identical to aircraft icons so wing-tip offsets
+      // remain aligned per family and wingspan across zoom levels.
+      const lightIconSizeExpr: maplibregl.ExpressionSpecification = [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        2,
+        ["*", ["get", "sizeScale"], 0.15],
+        5,
+        ["*", ["get", "sizeScale"], 0.4],
+        8,
+        ["*", ["get", "sizeScale"], 0.7],
+        12,
+        ["*", ["get", "sizeScale"], 1.0],
+      ];
+      const addLightLayers = (sourceId: string, prefix: string, baseOpacity: number) => {
+        const sharedLayout: maplibregl.SymbolLayerSpecification["layout"] = {
+          "icon-image": "light-dot",
+          "icon-rotate": ["get", "bearing"],
+          "icon-rotation-alignment": "map",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
+          "icon-size": lightIconSizeExpr,
+        };
+        // Port light (red, steady)
+        map.addLayer({
+          id: `${prefix}-light-port`,
+          type: "symbol",
+          source: sourceId,
+          minzoom: 4,
+          layout: {
+            ...sharedLayout,
+            "icon-offset": portOffsetExpr,
+          },
+          paint: {
+            "icon-color": "#ff0000",
+            "icon-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0, 5, baseOpacity],
+            "icon-halo-color": "#ff0000",
+            "icon-halo-width": 0.4,
+            "icon-halo-blur": 0.2,
+          },
+        });
+        // Starboard light (green, steady)
+        map.addLayer({
+          id: `${prefix}-light-stbd`,
+          type: "symbol",
+          source: sourceId,
+          minzoom: 4,
+          layout: {
+            ...sharedLayout,
+            "icon-offset": stbdOffsetExpr,
+          },
+          paint: {
+            "icon-color": "#00ff00",
+            "icon-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0, 5, baseOpacity],
+            "icon-halo-color": "#00ff00",
+            "icon-halo-width": 0.4,
+            "icon-halo-blur": 0.2,
+          },
+        });
+        // Strobe light — offset symbol pulse so white flash is not hidden by fuselage.
+        const strobeIconSizeExpr: maplibregl.ExpressionSpecification = [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          2,
+          ["*", ["get", "sizeScale"], 0.22],
+          5,
+          ["*", ["get", "sizeScale"], 0.55],
+          8,
+          ["*", ["get", "sizeScale"], 0.9],
+          12,
+          ["*", ["get", "sizeScale"], 1.25],
+        ];
+        map.addLayer({
+          id: `${prefix}-light-strobe`,
+          type: "symbol",
+          source: sourceId,
+          minzoom: 4,
+          layout: {
+            ...sharedLayout,
+            "icon-size": strobeIconSizeExpr,
+            "icon-offset": [0, 8],
+          },
+          paint: {
+            "icon-color": "#ffffff",
+            "icon-opacity": [
+              "*",
+              ["get", "strobeOn"],
+              ["interpolate", ["linear"], ["zoom"], 4, 0, 5, baseOpacity],
+            ],
+            "icon-halo-color": "#ffffff",
+            "icon-halo-width": [
+              "*",
+              ["get", "strobeOn"],
+              ["interpolate", ["linear"], ["zoom"], 4, 0.8, 5, 1.8],
+            ],
+            "icon-halo-blur": ["*", ["get", "strobeOn"], 0.8],
+          },
+        });
+      };
+      addLightLayers("global-flights", "global-flight", 0.6);
+      addLightLayers("flights", "flight", 0.9);
+
       // Airport click handler (uses ref to avoid stale closure)
       map.on("click", "airports-layer", (e) => {
         if (!e.features || e.features.length === 0) return;
@@ -965,12 +1093,18 @@ export function Globe({
         latestOnAirportSelect.current(e.features[0].properties as unknown as Airport);
       });
 
-      // Aircraft click handlers (all 4 flight layers, uses ref to avoid stale closure)
+      // Aircraft click handlers (flight + light layers, uses ref to avoid stale closure)
       const flightLayers = [
         "flights-layer",
         "flights-accent-layer",
         "global-flights-layer",
         "global-flights-accent-layer",
+        "flight-light-port",
+        "flight-light-stbd",
+        "flight-light-strobe",
+        "global-flight-light-port",
+        "global-flight-light-stbd",
+        "global-flight-light-strobe",
       ];
       for (const layerId of flightLayers) {
         map.on("click", layerId, (e) => {
@@ -1290,6 +1424,7 @@ export function Globe({
       bounds: maplibregl.LngLatBounds,
       resolveColor: (ac: AircraftInstance) => { primary?: string; secondary?: string } | undefined,
       baseSize: number,
+      now: number,
     ): GeoJSON.Feature[] => {
       const features: GeoJSON.Feature[] = [];
       for (const ac of targetFleet) {
@@ -1325,6 +1460,15 @@ export function Globe({
         const wingspanM = model?.wingspanM || 35.8;
         const colors = resolveColor(ac);
 
+        // Per-aircraft strobe phase uses ID + departure tick to avoid synchronization.
+        // 1.8s cycle with 500ms pulse keeps the flash clearly visible.
+        const idPhase =
+          ((ac.id.charCodeAt(0) || 0) * 31 +
+            (ac.id.charCodeAt(ac.id.length - 1) || 0) * 17 +
+            f.departureTick) %
+          1800;
+        const strobeOn = (now + idPhase) % 1800 < 500 ? 1 : 0;
+
         features.push({
           type: "Feature",
           geometry: { type: "Point", coordinates: coords },
@@ -1333,6 +1477,7 @@ export function Globe({
             bearing,
             familyId,
             sizeScale: (wingspanM / 35.8) * baseSize,
+            strobeOn,
             ...(colors?.primary ? { primaryColor: colors.primary } : {}),
             ...(colors?.secondary ? { secondaryColor: colors.secondary } : {}),
           },
@@ -1367,6 +1512,7 @@ export function Globe({
         bounds,
         () => latestPlayerLivery.current || undefined,
         1.1,
+        now,
       );
       const globalFlightFeatures = processFleet(
         latestGlobalFleet.current,
@@ -1375,6 +1521,7 @@ export function Globe({
         bounds,
         (ac) => latestCompetitorLiveries.current.get(ac.ownerPubkey),
         0.8,
+        now,
       );
 
       (map.getSource("flights") as maplibregl.GeoJSONSource)?.setData({
