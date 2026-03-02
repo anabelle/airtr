@@ -28,7 +28,10 @@ describe("airline store", () => {
 describe("airline store – event buffering during initial sync", () => {
   // Captured handles set during beforeEach, available in each test.
   let capturedOnEvent:
-    | ((entry: { event: { author: { pubkey: string } }; action: { action: string } }) => void)
+    | ((entry: {
+        event: { author: { pubkey: string }; created_at?: number };
+        action: { action: string };
+      }) => void)
     | null;
   let resolveSyncWorld: (() => void) | null;
   let syncCompetitorSpy: ReturnType<typeof vi.fn>;
@@ -64,7 +67,7 @@ describe("airline store – event buffering during initial sync", () => {
           onEvent,
         }: {
           onEvent: (e: {
-            event: { author: { pubkey: string } };
+            event: { author: { pubkey: string }; created_at?: number };
             action: { action: string };
           }) => void;
           onClose: () => void;
@@ -205,5 +208,118 @@ describe("airline store – event buffering during initial sync", () => {
 
     // competitor-ddd is genuinely new → must be synced exactly once.
     expect(syncedPubkeys.filter((pk) => pk === "competitor-ddd")).toHaveLength(1);
+  });
+});
+
+describe("airline store – reconnect resubscribe watermark", () => {
+  let capturedOnEvent:
+    | ((entry: {
+        event: { author: { pubkey: string }; created_at?: number };
+        action: { action: string };
+      }) => void)
+    | null;
+  let capturedOnClose: (() => void) | null;
+  let subscribeSinceCalls: number[];
+  let resolveSyncWorld: (() => void) | null;
+  let connectedRelayCountMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+
+    capturedOnEvent = null;
+    capturedOnClose = null;
+    subscribeSinceCalls = [];
+    resolveSyncWorld = null;
+    connectedRelayCountMock = vi.fn().mockReturnValue(1);
+
+    const syncWorldDeferred = new Promise<void>((resolve) => {
+      resolveSyncWorld = resolve;
+    });
+
+    vi.doMock("./engine.js", () => ({
+      useEngineStore: {
+        subscribe: vi.fn(),
+        getState: vi.fn(() => ({ tick: 0 })),
+        setState: vi.fn(),
+      },
+    }));
+
+    vi.doMock("@acars/nostr", () => ({
+      ensureConnected: vi.fn().mockResolvedValue(undefined),
+      connectedRelayCount: connectedRelayCountMock,
+      reconnectIfNeeded: vi.fn().mockResolvedValue(false),
+      subscribeActions: vi.fn(
+        async ({
+          since,
+          onEvent,
+          onClose,
+        }: {
+          since: number;
+          onEvent: (e: {
+            event: { author: { pubkey: string }; created_at?: number };
+            action: { action: string };
+          }) => void;
+          onClose: () => void;
+        }) => {
+          subscribeSinceCalls.push(since);
+          capturedOnEvent = onEvent;
+          capturedOnClose = onClose;
+          return () => {};
+        },
+      ),
+    }));
+
+    vi.doMock("./slices/worldSlice.js", () => ({
+      _resetWorldFlags: vi.fn(),
+      createWorldSlice: (set: (partial: Record<string, unknown>) => void) => ({
+        competitors: new Map<string, unknown>(),
+        globalRouteRegistry: new Map<string, unknown[]>(),
+        fleetByOwner: new Map<string, unknown[]>(),
+        routesByOwner: new Map<string, unknown[]>(),
+        viewAs: vi.fn(),
+        syncWorld: vi.fn(async () => {
+          await syncWorldDeferred;
+          set({ competitors: new Map([["initial-competitor", {}]]) });
+        }),
+        syncCompetitor: vi.fn(),
+        projectCompetitorFleet: vi.fn(),
+      }),
+    }));
+
+    await import("./airline.js");
+    await vi.waitFor(() => expect(capturedOnEvent).not.toBeNull(), { timeout: 2000 });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("re-subscribes from last-seen watermark after unexpected close", async () => {
+    // Initial sync completes so reconnect path behaves like runtime steady-state.
+    resolveSyncWorld!();
+    await vi.waitFor(() => expect(subscribeSinceCalls.length).toBeGreaterThan(0), {
+      timeout: 2000,
+    });
+
+    // Advance wall clock and feed a live event with created_at at this second.
+    vi.setSystemTime(new Date("2024-01-01T00:00:10.000Z"));
+    capturedOnEvent!({
+      event: { author: { pubkey: "competitor-z" }, created_at: 1704067210 },
+      action: { action: "ROUTE_OPEN" },
+    });
+
+    // Simulate relay close and run delayed re-subscribe timer.
+    capturedOnClose!();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await vi.waitFor(() => expect(subscribeSinceCalls.length).toBeGreaterThan(1), {
+      timeout: 2000,
+    });
+
+    // Last seen event at :10 with a 5-second overlap window => since should be :05.
+    expect(subscribeSinceCalls.at(-1)).toBe(1704067205);
   });
 });

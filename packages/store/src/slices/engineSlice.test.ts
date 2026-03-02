@@ -2,13 +2,18 @@ import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
-import { createEngineSlice } from "./engineSlice";
+import {
+  _getTickLockSkippedCount,
+  _resetTickLockDiagnostics,
+  createEngineSlice,
+} from "./engineSlice";
 
 // Reset mock call counts (but not implementations) before each test so that
 // accumulated calls from one test suite do not pollute assertions in others
 // (e.g. the fast-path test that asserts processFlightEngine was never called).
 beforeEach(() => {
   vi.clearAllMocks();
+  _resetTickLockDiagnostics();
 });
 
 vi.mock("../FlightEngine", () => ({
@@ -399,5 +404,36 @@ describe("engineSlice fast-path", () => {
 
     // Fast-path should clear the stale deletion IDs
     expect(state.fleetDeletedDuringCatchup).toEqual([]);
+  });
+});
+
+describe("engineSlice lock diagnostics", () => {
+  it("increments skipped-lock counter when overlapping processTick calls contend", async () => {
+    const airline = makeAirline(0);
+    const fleet = [makeAircraft("ac-1")];
+    const routes: Route[] = [makeRoute("rt-1", 400)];
+    const { state } = createSliceState({ airline, fleet, routes });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    try {
+      const first = state.processTick(2001);
+      const second = state.processTick(2002);
+      await Promise.all([first, second]);
+
+      expect(_getTickLockSkippedCount()).toBeGreaterThan(0);
+      expect(debugSpy).toHaveBeenCalled();
+    } finally {
+      debugSpy.mockRestore();
+    }
   });
 });

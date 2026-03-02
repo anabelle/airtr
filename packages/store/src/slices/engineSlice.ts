@@ -25,10 +25,36 @@ export interface EngineSlice {
 
 const tickMutex = new AsyncMutex();
 const CHECKPOINT_INTERVAL = 1200;
+let skippedTickLockCount = 0;
+const TICK_LOCK_LOG_BURST = 3;
+const TICK_LOCK_LOG_SAMPLE = 100;
+
+/** @internal — test/diagnostic helper */
+export function _getTickLockSkippedCount(): number {
+  return skippedTickLockCount;
+}
+
+/** @internal — test/diagnostic helper */
+export function _resetTickLockDiagnostics(): void {
+  skippedTickLockCount = 0;
+  tickMutex.reset();
+}
 
 export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> = (set, get) => ({
   processTick: async (tick: number) => {
-    if (!tickMutex.tryLock()) return;
+    if (!tickMutex.tryLock()) {
+      skippedTickLockCount += 1;
+      if (
+        skippedTickLockCount <= TICK_LOCK_LOG_BURST ||
+        skippedTickLockCount % TICK_LOCK_LOG_SAMPLE === 0
+      ) {
+        console.debug("[EngineSlice] Tick lock contention; skipping overlapping processTick", {
+          tick,
+          skippedTickLockCount,
+        });
+      }
+      return;
+    }
 
     try {
       const { fleet, airline, routes } = get();

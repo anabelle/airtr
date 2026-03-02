@@ -121,6 +121,8 @@ const enableRealtimeSyncLogs = runtimeEnv !== "production";
 const LIVE_SYNC_BATCH_MS = 1000;
 let pendingCompetitorSyncs = new Set<string>();
 let batchFlushTimer: ReturnType<typeof setTimeout> | null = null;
+const RESUBSCRIBE_REPLAY_WINDOW_SEC = 5;
+let lastSeenActionCreatedAtSec = 0;
 
 // Buffer for live events that arrive before the initial sync completes.
 // Flushed (with deduplication) once initialSyncComplete is set to true.
@@ -129,6 +131,20 @@ const eventBuffer: string[] = [];
 /** @internal — test-only accessor for the pre-sync event buffer */
 export function _getEventBuffer(): string[] {
   return [...eventBuffer];
+}
+
+function updateLastSeenAction(createdAt: number | undefined) {
+  if (typeof createdAt !== "number" || !Number.isFinite(createdAt) || createdAt <= 0) return;
+  // Clamp to local now to avoid future-skewed timestamps widening the gap window.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const normalized = Math.min(Math.floor(createdAt), nowSec);
+  lastSeenActionCreatedAtSec = Math.max(lastSeenActionCreatedAtSec, normalized);
+}
+
+function getResubscribeSince(): number {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const anchor = lastSeenActionCreatedAtSec > 0 ? lastSeenActionCreatedAtSec : nowSec;
+  return Math.max(0, anchor - RESUBSCRIBE_REPLAY_WINDOW_SEC);
 }
 
 function flushPendingCompetitorSyncs() {
@@ -184,8 +200,7 @@ useEngineStore.subscribe((state) => {
       void (async () => {
         const recovered = await reconnectIfNeeded();
         if (recovered && !unsubscribeActionStream) {
-          const freshSince = Math.floor(Date.now() / 1000);
-          await startActionSubscription(freshSince);
+          await startActionSubscription(getResubscribeSince());
           void store.syncWorld({ force: true });
           logger.info("Relay health check: recovered — re-subscribed and resynced.");
         }
@@ -229,11 +244,13 @@ async function startActionSubscription(since: number): Promise<void> {
     unsubscribeActionStream = null;
   }
 
+  lastSeenActionCreatedAtSec = Math.max(lastSeenActionCreatedAtSec, since);
   logger.info(`Starting live action subscription (since=${since})`);
 
   unsubscribeActionStream = await subscribeActions({
     since,
     onEvent: (entry) => {
+      updateLastSeenAction(entry.event.created_at);
       const { pubkey } = useAirlineStore.getState();
       // Skip our own events — we already applied them locally.
       if (pubkey && entry.event.author.pubkey === pubkey) return;
@@ -264,8 +281,7 @@ async function startActionSubscription(since: number): Promise<void> {
       setTimeout(async () => {
         try {
           await ensureConnected();
-          const freshSince = Math.floor(Date.now() / 1000);
-          await startActionSubscription(freshSince);
+          await startActionSubscription(getResubscribeSince());
           // Only trigger a full resync if we've completed the initial sync;
           // otherwise the IIFE retry loop will handle it.
           if (initialSyncComplete) {
@@ -337,8 +353,7 @@ if (typeof document !== "undefined") {
         // active subscription.  Checking connectedRelayCount avoids
         // needlessly tearing down a healthy subscription.
         if (!unsubscribeActionStream || connectedRelayCount() === 0) {
-          const freshSince = Math.floor(Date.now() / 1000);
-          await startActionSubscription(freshSince);
+          await startActionSubscription(getResubscribeSince());
           logger.info("Re-subscribed after tab visibility change.");
         }
       } catch {
