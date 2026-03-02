@@ -411,9 +411,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           }
         }
 
-        // Sort most recent first, cap total
-        historicalLandings.sort((a, b) => b.tick - a.tick);
-        const capped = historicalLandings.slice(0, MAX_BACKFILL_PER_AIRCRAFT);
+        // Process oldest → newest so load-factor state evolves forward in time.
+        historicalLandings.sort((a, b) => a.tick - b.tick);
+        const capped = historicalLandings.slice(-MAX_BACKFILL_PER_AIRCRAFT);
 
         for (const landing of capped) {
           // Use the same ID format as processFlightEngine so the tick loop's

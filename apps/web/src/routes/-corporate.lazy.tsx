@@ -63,7 +63,7 @@ function FinancialPulse({
   const netIncomePerHour = pulse.flightCount > 0 ? pulse.netIncomeRate : FP_ZERO;
   const netCashFlowPerHour = fpSub(netIncomePerHour, fixedCostsPerHour);
   const netCashFlowPositive = netCashFlowPerHour >= FP_ZERO;
-  const billingCyclePercent = Math.round(billingCycle.progress * 100);
+  const billingCyclePercent = Math.min(99, Math.floor(billingCycle.progress * 100));
 
   const lowConfidence = pulse.financialFlightCount > 0 && pulse.financialFlightCount < 5;
 
