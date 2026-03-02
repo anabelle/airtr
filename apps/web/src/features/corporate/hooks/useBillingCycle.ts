@@ -3,7 +3,7 @@ import { useEngineStore } from "@acars/store";
 import { useMemo } from "react";
 
 export interface BillingCycle {
-  /** Days elapsed in the current 30-day billing cycle */
+  /** Days elapsed in the current billing cycle */
   daysElapsed: number;
   /** Days remaining until next monthly deduction */
   daysRemaining: number;
@@ -16,8 +16,9 @@ export function useBillingCycle(): BillingCycle {
 
   return useMemo(() => {
     const ticksIntoCycle = tick % TICKS_PER_MONTH;
+    const cycleDays = Math.floor(TICKS_PER_MONTH / TICKS_PER_DAY);
     const daysElapsed = Math.floor(ticksIntoCycle / TICKS_PER_DAY);
-    const daysRemaining = 30 - daysElapsed;
+    const daysRemaining = Math.max(0, cycleDays - daysElapsed);
     const progress = ticksIntoCycle / TICKS_PER_MONTH;
 
     return { daysElapsed, daysRemaining, progress };

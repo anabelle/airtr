@@ -1,5 +1,16 @@
 import type { Airport, FixedPoint, TimelineEvent } from "@acars/core";
-import { FP_ZERO, fp, fpAdd, fpFormat, fpSub, fpSum, fpToNumber, TICK_DURATION } from "@acars/core";
+import {
+  FP_ZERO,
+  fp,
+  fpAdd,
+  fpDiv,
+  fpFormat,
+  fpScale,
+  fpSub,
+  fpSum,
+  fpToNumber,
+  TICK_DURATION,
+} from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
 import {
@@ -48,10 +59,11 @@ function FinancialPulse({
 
   const totalFixedCosts = fpAdd(fp(hubOpex), fleetLease);
   // Hourly fixed-cost burn = monthly fixed costs / (30 days × 24 hours)
-  const fixedCostsPerHour = fpToNumber(totalFixedCosts) / (30 * 24);
-  const netIncomeNum = pulse.flightCount > 0 ? fpToNumber(pulse.netIncomeRate) : 0;
-  const netCashFlowPerHour = netIncomeNum - fixedCostsPerHour;
-  const netCashFlowPositive = netCashFlowPerHour >= 0;
+  const fixedCostsPerHour = fpDiv(totalFixedCosts, fp(30 * 24));
+  const netIncomePerHour = pulse.flightCount > 0 ? pulse.netIncomeRate : FP_ZERO;
+  const netCashFlowPerHour = fpSub(netIncomePerHour, fixedCostsPerHour);
+  const netCashFlowPositive = netCashFlowPerHour >= FP_ZERO;
+  const billingCyclePercent = Math.round(billingCycle.progress * 100);
 
   const lowConfidence = pulse.financialFlightCount > 0 && pulse.financialFlightCount < 5;
 
@@ -102,7 +114,7 @@ function FinancialPulse({
                 className={`text-[10px] font-mono font-bold ${pulse.isPositive ? "text-emerald-400/60" : "text-rose-400/60"}`}
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
-                {fpFormat(fp(netIncomeNum * 24 * 30), 0)}/mo
+                {fpFormat(fpScale(netIncomePerHour, 24 * 30), 0)}/mo (30 days)
               </p>
               <p
                 className={`text-[10px] ${lowConfidence ? "text-amber-400" : "text-muted-foreground"}`}
@@ -135,7 +147,7 @@ function FinancialPulse({
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               <span>Fleet Leases ({leasedCount} aircraft)</span>
-              <span>{fpFormat(fleetLease, 0)}/mo</span>
+              <span>{fpFormat(fleetLease, 0)}/mo (30 days)</span>
             </div>
           )}
           <div
@@ -143,7 +155,7 @@ function FinancialPulse({
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
             <span className="text-muted-foreground">Total Fixed Costs</span>
-            <span className="text-rose-400">{fpFormat(totalFixedCosts, 0)}/mo</span>
+            <span className="text-rose-400">{fpFormat(totalFixedCosts, 0)}/mo (30 days)</span>
           </div>
         </div>
 
@@ -159,7 +171,13 @@ function FinancialPulse({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/30">
             <div
               className={`h-full rounded-full transition-all duration-1000 ${cycleColor}`}
-              style={{ width: `${Math.max(2, billingCycle.progress * 100)}%` }}
+              role="progressbar"
+              aria-label="Billing cycle progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={billingCyclePercent}
+              aria-valuetext={`${billingCycle.daysRemaining} days remaining`}
+              style={{ width: `${Math.max(2, billingCyclePercent)}%` }}
             />
           </div>
           {fpToNumber(totalFixedCosts) > 0 && (
@@ -198,11 +216,11 @@ function FinancialPulse({
               <span className="text-right">
                 <span>
                   {netCashFlowPositive ? "+" : ""}
-                  {fpFormat(fp(netCashFlowPerHour), 0)}/hr
+                  {fpFormat(netCashFlowPerHour, 0)}/hr
                 </span>
                 <span className="ml-2 opacity-60">
                   {netCashFlowPositive ? "+" : ""}
-                  {fpFormat(fp(netCashFlowPerHour * 24 * 30), 0)}/mo
+                  {fpFormat(fpScale(netCashFlowPerHour, 24 * 30), 0)}/mo (30 days)
                 </span>
               </span>
             </div>

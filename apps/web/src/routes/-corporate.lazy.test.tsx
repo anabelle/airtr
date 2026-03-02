@@ -125,6 +125,17 @@ describe("Corporate route", () => {
     expect(screen.getByText("Flight Revenue Rate")).toBeInTheDocument();
   });
 
+  it("shows billing cycle indicator", () => {
+    render(<CorporateRoute />);
+    expect(screen.getByText("Billing Cycle")).toBeInTheDocument();
+    expect(screen.getByLabelText("Billing cycle progress")).toBeInTheDocument();
+  });
+
+  it("shows low-sample warning when financial sample is small", () => {
+    render(<CorporateRoute />);
+    expect(screen.getByText(/low financial sample/)).toBeInTheDocument();
+  });
+
   it("expands activity log to show full timeline", async () => {
     const user = userEvent.setup();
     render(<CorporateRoute />);
