@@ -137,7 +137,6 @@ function normalizeLngToViewport(lng: number, swLng: number, neLng: number): numb
   const wraps = Math.round((lng - center) / 360);
   return lng - wraps * 360;
 }
-}
 
 /**
  * Fast bounding-box test: does a great circle route between two points
