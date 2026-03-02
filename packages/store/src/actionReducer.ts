@@ -70,6 +70,8 @@ const TIMELINE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set([
   "ferry",
   "competitor_hub",
   "price_war",
+  "bankruptcy",
+  "financial_warning",
 ]);
 
 const asString = (value: unknown): string | null =>
@@ -391,6 +393,13 @@ export async function replayActionLog(params: {
         routeIds: [],
         lastTick: actionTick,
       };
+      continue;
+    }
+
+    if (action.action === "AIRLINE_DISSOLVE") {
+      if (airline) {
+        airline = { ...airline, status: "liquidated" as const };
+      }
       continue;
     }
 

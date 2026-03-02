@@ -436,6 +436,86 @@ function CompanyProfile({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Bankruptcy Panel                                                   */
+/* ------------------------------------------------------------------ */
+
+function BankruptcyPanel({
+  airline,
+  isProcessing,
+  onDissolve,
+}: {
+  airline: { status: string; name: string };
+  isProcessing: boolean;
+  onDissolve: () => void;
+}) {
+  const [confirmDissolve, setConfirmDissolve] = useState(false);
+
+  return (
+    <section className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+        <h3 className="text-sm font-bold text-rose-400">
+          {airline.status === "chapter11"
+            ? "Chapter 11 — Operations Suspended"
+            : "Airline Liquidated"}
+        </h3>
+      </div>
+      <p className="text-xs text-rose-300/70 leading-relaxed">
+        {airline.status === "chapter11"
+          ? "Your airline's accumulated debt exceeded the critical threshold of $10,000,000. All flight operations have been automatically suspended and aircraft grounded to prevent further losses."
+          : "This airline has been permanently dissolved. All operations have ceased."}
+      </p>
+      {airline.status === "chapter11" && (
+        <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-rose-300/60">
+            What This Means
+          </p>
+          <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+            <li>All flights are grounded — no revenue is being generated</li>
+            <li>Lease obligations and hub costs continue to accrue</li>
+            <li>Your airline is visible to competitors as bankrupt</li>
+          </ul>
+        </div>
+      )}
+      {airline.status === "chapter11" && !confirmDissolve && (
+        <button
+          type="button"
+          onClick={() => setConfirmDissolve(true)}
+          className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
+        >
+          Dissolve Airline & Start Fresh
+        </button>
+      )}
+      {confirmDissolve && (
+        <div className="rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
+          <p className="text-xs text-rose-300 font-semibold">
+            This will permanently dissolve {airline.name}. All aircraft, routes, and hubs will be
+            lost. You will create a new airline from scratch.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDissolve(false)}
+              className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onDissolve}
+              disabled={isProcessing}
+              className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
+            >
+              {isProcessing ? "Dissolving..." : "Confirm Dissolution"}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hub Card                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -797,7 +877,7 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 /* ------------------------------------------------------------------ */
 
 export default function CorporateDashboard() {
-  const { airline, modifyHubs, initializeIdentity, isLoading } = useAirlineStore();
+  const { airline, modifyHubs, dissolveAirline, initializeIdentity, isLoading } = useAirlineStore();
   const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
 
@@ -995,36 +1075,18 @@ export default function CorporateDashboard() {
 
         {/* Bankruptcy explanation panel */}
         {(airline.status === "chapter11" || airline.status === "liquidated") && !isViewingOther && (
-          <section className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
-              <h3 className="text-sm font-bold text-rose-400">
-                {airline.status === "chapter11"
-                  ? "Chapter 11 — Operations Suspended"
-                  : "Airline Liquidated"}
-              </h3>
-            </div>
-            <p className="text-xs text-rose-300/70 leading-relaxed">
-              {airline.status === "chapter11"
-                ? "Your airline's accumulated debt exceeded the critical threshold of $10,000,000. All flight operations have been automatically suspended and aircraft grounded to prevent further losses."
-                : "This airline has been permanently dissolved. All operations have ceased."}
-            </p>
-            {airline.status === "chapter11" && (
-              <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-300/60">
-                  What This Means
-                </p>
-                <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>All flights are grounded — no revenue is being generated</li>
-                  <li>Lease obligations and hub costs continue to accrue</li>
-                  <li>Your airline is visible to competitors as bankrupt</li>
-                </ul>
-                <p className="text-[10px] text-muted-foreground/60 pt-1 italic">
-                  Recovery mechanics are under development for a future update.
-                </p>
-              </div>
-            )}
-          </section>
+          <BankruptcyPanel
+            airline={airline}
+            isProcessing={isProcessing}
+            onDissolve={async () => {
+              setIsProcessing(true);
+              try {
+                await dissolveAirline();
+              } finally {
+                setIsProcessing(false);
+              }
+            }}
+          />
         )}
 
         {/* 3. Hub Operations — actionable */}

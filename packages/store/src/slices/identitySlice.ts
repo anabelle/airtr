@@ -17,7 +17,7 @@ import {
   waitForNip07,
 } from "@acars/nostr";
 import type { StateCreator } from "zustand";
-import { updateActionChainHashFromEvent } from "../actionChain";
+import { publishActionWithChain, updateActionChainHashFromEvent } from "../actionChain";
 import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { reconcileFleetToTick } from "../FlightEngine";
@@ -39,6 +39,7 @@ export interface IdentitySlice {
   latestCheckpoint: Checkpoint | null;
   initializeIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
+  dissolveAirline: () => Promise<void>;
 }
 
 const MAX_PLAYER_CATCHUP = 50000;
@@ -383,6 +384,37 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create airline.";
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  dissolveAirline: async () => {
+    const { airline } = get();
+    if (!airline) return;
+    if (airline.status !== "chapter11" && airline.status !== "liquidated") return;
+
+    set({ isLoading: true, error: null });
+    try {
+      const action = {
+        schemaVersion: 2,
+        action: "AIRLINE_DISSOLVE" as const,
+        payload: {
+          tick: useEngineStore.getState().tick,
+        },
+      };
+
+      await publishActionWithChain({ action, get, set });
+
+      set({
+        airline: null,
+        fleet: [],
+        routes: [],
+        timeline: [],
+        fleetDeletedDuringCatchup: [],
+        isLoading: false,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to dissolve airline.";
       set({ error: message, isLoading: false });
     }
   },

@@ -390,6 +390,7 @@ export interface Checkpoint {
 
 export type GameActionType =
   | "AIRLINE_CREATE"
+  | "AIRLINE_DISSOLVE"
   | "TICK_UPDATE"
   | "HUB_ADD"
   | "HUB_REMOVE"

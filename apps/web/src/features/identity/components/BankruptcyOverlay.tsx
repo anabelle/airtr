@@ -5,13 +5,20 @@ import React from "react";
 
 export function BankruptcyOverlay() {
   const airline = useAirlineStore((s) => s.airline);
+  const dissolveAirline = useAirlineStore((s) => s.dissolveAirline);
+  const isLoading = useAirlineStore((s) => s.isLoading);
   const [dismissed, setDismissed] = React.useState(false);
+  const [confirmDissolve, setConfirmDissolve] = React.useState(false);
 
   if (!airline) return null;
   if (airline.status !== "chapter11" && airline.status !== "liquidated") return null;
   if (dismissed) return null;
 
   const isLiquidated = airline.status === "liquidated";
+
+  const handleDissolve = async () => {
+    await dissolveAirline();
+  };
 
   return (
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -59,20 +66,58 @@ export function BankruptcyOverlay() {
             </div>
           </div>
 
-          {!isLiquidated && (
+          {!isLiquidated && !confirmDissolve && (
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Visit the <strong className="text-foreground">Corporate</strong> tab to review your
-              financial status. Recovery mechanics are coming in a future update.
+              You can dissolve this airline and start fresh with a new company, or dismiss this to
+              review your finances in the <strong className="text-foreground">Corporate</strong>{" "}
+              tab.
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={() => setDismissed(true)}
-            className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
-          >
-            {isLiquidated ? "Acknowledged" : "I Understand"}
-          </button>
+          {confirmDissolve && !isLiquidated && (
+            <div className="w-full rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
+              <p className="text-xs text-rose-300 font-semibold">
+                This will permanently dissolve {airline.name}. All aircraft, routes, and hubs will
+                be lost. You will start over with a new airline.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDissolve(false)}
+                  className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDissolve}
+                  disabled={isLoading}
+                  className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
+                >
+                  {isLoading ? "Dissolving..." : "Confirm Dissolution"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="w-full flex flex-col gap-2">
+            {!isLiquidated && !confirmDissolve && (
+              <button
+                type="button"
+                onClick={() => setConfirmDissolve(true)}
+                className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
+              >
+                Dissolve & Start Fresh
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="w-full rounded-lg border border-border/40 bg-background/50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition hover:bg-muted/30"
+            >
+              {isLiquidated ? "Acknowledged" : "Dismiss"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
