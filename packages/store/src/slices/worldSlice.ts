@@ -148,6 +148,11 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       const compFleet = fleetByOwner.get(pubkey) || [];
       const compRoutes = routesByOwner.get(pubkey) || [];
 
+      // Match player semantics: bankrupt/liquidated airlines do not advance.
+      if (airline.status === "chapter11" || airline.status === "liquidated") {
+        continue;
+      }
+
       if (compFleet.length === 0) {
         continue;
       }
@@ -272,7 +277,12 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           // Without this, checkpoint fleet has stale arrivalTick/turnaroundEndTick
           // values while lastTick was pushed ahead by TICK_UPDATE actions, causing
           // all competitor aircraft to land and depart simultaneously on load.
-          if (airline.lastTick != null && resolvedFleet.length > 0) {
+          if (
+            airline.status !== "chapter11" &&
+            airline.status !== "liquidated" &&
+            airline.lastTick != null &&
+            resolvedFleet.length > 0
+          ) {
             const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
               resolvedFleet,
               finalRoutes,
@@ -417,6 +427,13 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           for (const [competitorPubkey, airline] of competitors) {
             const compFleet = allFleetByOwner.get(competitorPubkey) || [];
             const compRoutes = allRoutesByOwner.get(competitorPubkey) || [];
+
+            // Match player semantics: bankrupt/liquidated airlines do not advance.
+            if (airline.status === "chapter11" || airline.status === "liquidated") {
+              updatedFleetByOwner.set(competitorPubkey, compFleet);
+              updatedRoutesByOwner.set(competitorPubkey, compRoutes);
+              continue;
+            }
 
             // Apply monthly costs even for competitors with zero aircraft.
             // They may have hub opex that needs to be charged.
@@ -587,7 +604,12 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       const resolvedRoutes = replayed.routes;
 
       // Reconcile fleet positions to lastTick
-      if (airline.lastTick != null && resolvedFleet.length > 0) {
+      if (
+        airline.status !== "chapter11" &&
+        airline.status !== "liquidated" &&
+        airline.lastTick != null &&
+        resolvedFleet.length > 0
+      ) {
         const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
           resolvedFleet,
           resolvedRoutes,
@@ -600,7 +622,12 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       // Project fleet forward to the current tick so the stored state is
       // up-to-date.  This replaces the old processGlobalTick catch-up.
       const currentTick = useEngineStore.getState().tick;
-      if (currentTick > 0 && (airline.lastTick == null || currentTick > airline.lastTick)) {
+      if (
+        airline.status !== "chapter11" &&
+        airline.status !== "liquidated" &&
+        currentTick > 0 &&
+        (airline.lastTick == null || currentTick > airline.lastTick)
+      ) {
         const { fleet: projectedFleet, balanceDelta } = reconcileFleetToTick(
           resolvedFleet,
           resolvedRoutes,

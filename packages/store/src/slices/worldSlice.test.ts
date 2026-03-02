@@ -221,6 +221,34 @@ describe("projectCompetitorFleet", () => {
     // No changes should have been made since the only competitor is ahead
     expect(set).not.toHaveBeenCalled();
   });
+
+  it("does not project bankrupt competitors", () => {
+    const tick = 200;
+    const pubkey = "comp-bankrupt";
+    const airline = { ...makeAirline(pubkey, tick - 50), status: "chapter11" as const };
+    const aircraft: AircraftInstance = {
+      ...makeAircraft("ac-bankrupt", pubkey),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 100,
+        arrivalTick: 150,
+      },
+    };
+
+    const { state, set } = createSliceState({
+      competitors: new Map([[pubkey, airline]]),
+      fleetByOwner: buildFleetIndex([aircraft]),
+      routesByOwner: buildRoutesIndex([]),
+    });
+
+    state.projectCompetitorFleet(tick);
+
+    expect(set).not.toHaveBeenCalled();
+    expect(state.fleetByOwner.get(pubkey)?.[0].id).toBe("ac-bankrupt");
+  });
 });
 
 describe("syncWorld", () => {
