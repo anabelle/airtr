@@ -620,10 +620,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             // for this exact landing (same aircraft + arrival tick).
             const backfillId = `evt-landing-${ac.id}-${ac.flight.arrivalTick}`;
             if (!timelineEventIds.has(backfillId)) {
+              const arrivalTick = ac.flight.arrivalTick;
               recoveryEvents.push({
-                id: `evt-recovery-landing-${ac.id}-${targetTick}`,
-                tick: targetTick,
-                timestamp: simulatedTimestamp,
+                id: `evt-recovery-landing-${ac.id}-${arrivalTick}`,
+                tick: arrivalTick,
+                timestamp: GENESIS_TIME + arrivalTick * TICK_DURATION,
                 type: "landing",
                 aircraftId: ac.id,
                 aircraftName: ac.name,
@@ -639,10 +640,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             }
           } else {
             // Ferry or no route — bare event (no financials to calculate)
+            const arrivalTick = ac.flight.arrivalTick;
             recoveryEvents.push({
-              id: `evt-recovery-landing-${ac.id}-${targetTick}`,
-              tick: targetTick,
-              timestamp: simulatedTimestamp,
+              id: `evt-recovery-landing-${ac.id}-${arrivalTick}`,
+              tick: arrivalTick,
+              timestamp: GENESIS_TIME + arrivalTick * TICK_DURATION,
               type: isFerry ? "ferry" : "landing",
               aircraftId: ac.id,
               aircraftName: ac.name,

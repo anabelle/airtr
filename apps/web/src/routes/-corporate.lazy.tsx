@@ -65,7 +65,7 @@ function FinancialPulse({
   const netCashFlowPositive = netCashFlowPerHour >= FP_ZERO;
   const billingCyclePercent = Math.min(99, Math.floor(billingCycle.progress * 100));
 
-  const lowConfidence = pulse.financialFlightCount > 0 && pulse.financialFlightCount < 5;
+  const lowConfidence = pulse.flightCount > 0 && pulse.financialFlightCount < 5;
 
   // Billing cycle urgency colors
   const cycleColor =
@@ -180,7 +180,7 @@ function FinancialPulse({
               style={{ width: `${Math.max(2, billingCyclePercent)}%` }}
             />
           </div>
-          {fpToNumber(totalFixedCosts) > 0 && (
+          {totalFixedCosts !== FP_ZERO && (
             <p
               className="text-[10px] text-muted-foreground/60"
               style={{ fontVariantNumeric: "tabular-nums" }}
@@ -191,7 +191,7 @@ function FinancialPulse({
         </div>
 
         {/* Net Cash Flow — flight revenue minus fixed costs */}
-        {pulse.flightCount > 0 && fpToNumber(totalFixedCosts) > 0 && (
+        {pulse.flightCount > 0 && totalFixedCosts !== FP_ZERO && (
           <div
             className={`mt-3 rounded-lg border px-3 py-2 ${
               netCashFlowPositive
