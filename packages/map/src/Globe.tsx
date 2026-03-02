@@ -1093,12 +1093,18 @@ export function Globe({
         latestOnAirportSelect.current(e.features[0].properties as unknown as Airport);
       });
 
-      // Aircraft click handlers (all 4 flight layers, uses ref to avoid stale closure)
+      // Aircraft click handlers (flight + light layers, uses ref to avoid stale closure)
       const flightLayers = [
         "flights-layer",
         "flights-accent-layer",
         "global-flights-layer",
         "global-flights-accent-layer",
+        "flight-light-port",
+        "flight-light-stbd",
+        "flight-light-strobe",
+        "global-flight-light-port",
+        "global-flight-light-stbd",
+        "global-flight-light-strobe",
       ];
       for (const layerId of flightLayers) {
         map.on("click", layerId, (e) => {
