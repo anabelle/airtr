@@ -23,6 +23,7 @@ import { replayActionLog } from "../actionReducer";
 import { useEngineStore } from "../engine";
 import { reconcileFleetToTick } from "../FlightEngine";
 import { computeRejectedBuyEventIds } from "../marketplaceReplay";
+import { scopeActionsToCheckpoint } from "../scopeActions";
 import type { AirlineState } from "../types";
 
 export interface WorldSlice {
@@ -216,14 +217,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           const checkpoint = checkpoints.get(authorPubkey) ?? null;
           let scopedEntries = entries;
           if (checkpoint) {
-            const checkpointTick = checkpoint.tick;
-            const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
-            scopedEntries = entries.filter((entry) => {
-              const actionTick = (entry.action.payload as Record<string, unknown>)?.tick;
-              return typeof actionTick === "number" && Number.isFinite(actionTick)
-                ? actionTick > checkpointTick
-                : (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds;
-            });
+            scopedEntries = scopeActionsToCheckpoint(entries, checkpoint);
             // No fallback: if no actions are newer than checkpoint, checkpoint
             // state is authoritative.  Replaying ALL actions would push lastTick
             // ahead of the checkpoint fleet state, causing the synchronized-
@@ -570,14 +564,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
       const checkpoint = checkpoints.get(competitorPubkey) ?? null;
       let scopedEntries = actions;
       if (checkpoint) {
-        const checkpointTick = checkpoint.tick;
-        const checkpointCreatedAtSeconds = Math.floor(checkpoint.createdAt / 1000);
-        scopedEntries = actions.filter((entry) => {
-          const actionTick = (entry.action.payload as Record<string, unknown>)?.tick;
-          return typeof actionTick === "number" && Number.isFinite(actionTick)
-            ? actionTick > checkpointTick
-            : (entry.event.created_at ?? 0) > checkpointCreatedAtSeconds;
-        });
+        scopedEntries = scopeActionsToCheckpoint(actions, checkpoint);
       }
 
       const rejectedBuyEventIds = computeRejectedBuyEventIds(globalActions);
