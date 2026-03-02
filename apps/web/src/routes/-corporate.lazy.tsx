@@ -448,12 +448,14 @@ function CompanyProfile({
 
 function BankruptcyPanel({
   airline,
-  isProcessing,
+  isDissolving,
+  dissolveError,
   onDissolve,
 }: {
   airline: { status: string; name: string };
-  isProcessing: boolean;
-  onDissolve: () => void;
+  isDissolving: boolean;
+  dissolveError: string | null;
+  onDissolve: () => Promise<void>;
 }) {
   const [confirmDissolve, setConfirmDissolve] = useState(false);
 
@@ -493,7 +495,7 @@ function BankruptcyPanel({
           Dissolve Airline & Start Fresh
         </button>
       )}
-      {confirmDissolve && (
+      {confirmDissolve && airline.status === "chapter11" && (
         <div className="rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
           <p className="text-xs text-rose-300 font-semibold">
             This will permanently dissolve {airline.name}. All aircraft, routes, and hubs will be
@@ -509,14 +511,21 @@ function BankruptcyPanel({
             </button>
             <button
               type="button"
-              onClick={onDissolve}
-              disabled={isProcessing}
+              onClick={() => {
+                void onDissolve();
+              }}
+              disabled={isDissolving}
               className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
             >
-              {isProcessing ? "Dissolving..." : "Confirm Dissolution"}
+              {isDissolving ? "Dissolving..." : "Confirm Dissolution"}
             </button>
           </div>
         </div>
+      )}
+      {dissolveError && (
+        <p className="text-[11px] text-rose-300/90 rounded-lg border border-rose-500/20 bg-rose-950/40 px-3 py-2">
+          {dissolveError}
+        </p>
       )}
     </section>
   );
@@ -894,6 +903,8 @@ export default function CorporateDashboard() {
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDissolving, setIsDissolving] = useState(false);
+  const [dissolveError, setDissolveError] = useState<string | null>(null);
 
   const pulse = useFinancialPulse(timeline);
 
@@ -911,6 +922,12 @@ export default function CorporateDashboard() {
     getScrollElement: () => routePerformanceContainerRef.current,
     estimateSize: () => 44,
   });
+
+  useEffect(() => {
+    if (airline?.status !== "chapter11") {
+      setDissolveError(null);
+    }
+  }, [airline?.status]);
 
   const currentMonthlyOpex = useMemo(
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,
@@ -1083,14 +1100,26 @@ export default function CorporateDashboard() {
         {/* Bankruptcy explanation panel */}
         {(airline.status === "chapter11" || airline.status === "liquidated") && !isViewingOther && (
           <BankruptcyPanel
+            key={`bankruptcy-${airline.status}`}
             airline={airline}
-            isProcessing={isProcessing}
+            isDissolving={isDissolving}
+            dissolveError={dissolveError}
             onDissolve={async () => {
-              setIsProcessing(true);
+              setDissolveError(null);
+              setIsDissolving(true);
               try {
                 await dissolveAirline();
+                const latestError = useAirlineStore.getState().error;
+                if (latestError) {
+                  throw new Error(latestError);
+                }
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : "Unable to dissolve airline.";
+                console.error("Dissolution failed", error);
+                setDissolveError(message);
               } finally {
-                setIsProcessing(false);
+                setIsDissolving(false);
               }
             }}
           />

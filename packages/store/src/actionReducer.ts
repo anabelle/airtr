@@ -167,7 +167,7 @@ export async function replayActionLog(params: {
   const routesById = new Map<string, Route>();
   const timeline: TimelineEvent[] = checkpoint?.timeline ? [...checkpoint.timeline] : [];
   const timelineEventIds = new Set(timeline.map((event) => event.id));
-  const allowActionTimeline = timeline.length === 0;
+  let allowActionTimeline = timeline.length === 0;
   let actionChainHash = checkpoint?.actionChainHash ?? "";
 
   if (checkpoint?.fleet) {
@@ -365,6 +365,7 @@ export async function replayActionLog(params: {
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
       backfillTickSet.clear();
+      allowActionTimeline = true;
 
       const name = clampString(payload.name, MAX_NAME_LENGTH) ?? "New Airline";
       const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
@@ -418,6 +419,7 @@ export async function replayActionLog(params: {
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
       backfillTickSet.clear();
+      allowActionTimeline = true;
       continue;
     }
 

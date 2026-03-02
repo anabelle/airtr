@@ -108,7 +108,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         };
 
         const updatedTimeline = [bankruptcyEvent, ...get().timeline];
-        const updatedAirline = { ...airline, status: "chapter11" as const };
+        const updatedAirline = {
+          ...airline,
+          status: "chapter11" as const,
+          lastTick: Math.max(airline.lastTick ?? 0, tick),
+        };
         const previousState = {
           airline,
           fleet,
