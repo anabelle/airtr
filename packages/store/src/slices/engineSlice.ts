@@ -16,7 +16,11 @@ import { publishCheckpoint } from "@acars/nostr";
 import type { StateCreator } from "zustand";
 import { publishActionWithChain } from "../actionChain";
 import { useEngineStore } from "../engine";
-import { estimateLandingFinancials, processFlightEngine } from "../FlightEngine";
+import {
+  estimateLandingFinancials,
+  processFlightEngine,
+  reconcileFleetToTick,
+} from "../FlightEngine";
 import type { AirlineState } from "../types";
 import { AsyncMutex } from "../utils/asyncMutex";
 
@@ -233,6 +237,15 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         }
         useEngineStore.setState({ catchupProgress: null });
         return;
+      }
+
+      // Immediate visual reconciliation: project fleet to target tick using
+      // deterministic cycle algebra so the map shows correct positions while
+      // the tick-by-tick financial simulation catches up. Without this, the
+      // fleet appears stuck at stale arrivalTick positions during catch-up.
+      if (targetTick - lastTick > 1) {
+        const { fleet: projectedFleet } = reconcileFleetToTick(fleet, routes, targetTick);
+        set({ fleet: projectedFleet });
       }
 
       let processingError = false;

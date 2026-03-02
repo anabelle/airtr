@@ -24,6 +24,10 @@ vi.mock("../FlightEngine", () => ({
     profit: 0,
     details: {},
   })),
+  reconcileFleetToTick: vi.fn((fleet: AircraftInstance[]) => ({
+    fleet,
+    balanceDelta: 0,
+  })),
 }));
 
 vi.mock("@acars/nostr", () => ({
@@ -702,5 +706,109 @@ describe("deterministic timeline backfill", () => {
 
     // Total should be 11 (all computed landings) — 2 existing + 9 new
     expect(uniqueIds.size).toBe(11);
+  });
+});
+
+describe("immediate visual reconciliation during catch-up", () => {
+  it("projects fleet to target tick before tick-by-tick loop begins", async () => {
+    const { reconcileFleetToTick } = await import("../FlightEngine");
+    const { processFlightEngine } = await import("../FlightEngine");
+
+    const enrouteAircraft: AircraftInstance = {
+      ...makeAircraft("ac-enroute"),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 800,
+        arrivalTick: 1400,
+        distanceKm: 4000,
+        purpose: "scheduled",
+      },
+    };
+
+    const projectedAircraft: AircraftInstance = {
+      ...enrouteAircraft,
+      status: "enroute",
+      flight: {
+        originIata: "LAX",
+        destinationIata: "JFK",
+        departureTick: 2600,
+        arrivalTick: 3200,
+        distanceKm: 4000,
+        purpose: "scheduled",
+      },
+    };
+
+    vi.mocked(reconcileFleetToTick).mockReturnValue({
+      fleet: [projectedAircraft],
+      balanceDelta: 0 as FixedPoint,
+    });
+
+    vi.mocked(processFlightEngine).mockReturnValue({
+      updatedFleet: [projectedAircraft],
+      corporateBalance: 1000000000 as FixedPoint,
+      events: [],
+      hasChanges: true,
+    });
+
+    const route = makeRoute("rt-1", 4000);
+    const { state, set } = createSliceState({
+      airline: makeAirline(1000),
+      fleet: [enrouteAircraft],
+      routes: [route],
+    });
+
+    await state.processTick(5000);
+
+    // reconcileFleetToTick should have been called with original fleet and target tick
+    expect(reconcileFleetToTick).toHaveBeenCalledWith([enrouteAircraft], [route], 5000);
+
+    // The first set() call with fleet should be the projected fleet (immediate visual fix)
+    const fleetSetCalls = vi
+      .mocked(set)
+      .mock.calls.filter(
+        (call) => typeof call[0] === "object" && "fleet" in (call[0] as Record<string, unknown>),
+      );
+    expect(fleetSetCalls.length).toBeGreaterThanOrEqual(1);
+    const firstFleetSet = fleetSetCalls[0][0] as { fleet: AircraftInstance[] };
+    expect(firstFleetSet.fleet).toEqual([projectedAircraft]);
+  });
+
+  it("skips projection when gap is only 1 tick", async () => {
+    const { reconcileFleetToTick } = await import("../FlightEngine");
+    const { processFlightEngine } = await import("../FlightEngine");
+
+    vi.mocked(processFlightEngine).mockReturnValue({
+      updatedFleet: [makeAircraft("ac-1")],
+      corporateBalance: 1000000000 as FixedPoint,
+      events: [],
+      hasChanges: false,
+    });
+
+    const route = makeRoute("rt-1", 400);
+    const aircraft: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      assignedRouteId: "rt-1",
+      status: "enroute",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 998,
+        arrivalTick: 1500,
+        distanceKm: 400,
+        purpose: "scheduled",
+      },
+    };
+
+    createSliceState({
+      airline: makeAirline(999),
+      fleet: [aircraft],
+      routes: [route],
+    });
+
+    // Gap = 1 tick (1000 - 999), should NOT trigger projection
+    expect(reconcileFleetToTick).not.toHaveBeenCalled();
   });
 });
