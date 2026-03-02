@@ -13,6 +13,12 @@ beforeEach(() => {
 
 vi.mock("../FlightEngine", () => ({
   processFlightEngine: vi.fn(),
+  estimateLandingFinancials: vi.fn(() => ({
+    revenue: { revenueTotal: 0, loadFactor: 0 },
+    cost: { costTotal: 0 },
+    profit: 0,
+    details: {},
+  })),
 }));
 
 vi.mock("@acars/nostr", () => ({
@@ -276,6 +282,49 @@ describe("recovery sweep synchronized departure fix", () => {
     expect(final1?.flight?.departureTick).toBe(990);
     expect(final2?.flight?.departureTick).toBe(995);
     expect(final1?.flight?.departureTick).not.toBe(final2?.flight?.departureTick);
+  });
+
+  it("enroute recovery computes turnaroundEndTick from arrivalTick (not targetTick)", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60, // => 1200 ticks
+      rangeKm: 5000,
+    } as never);
+
+    const route = makeRoute("rt-1", 400);
+
+    // Aircraft is enroute and arrived before targetTick=1000
+    const ac: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 300,
+        arrivalTick: 900, // arrived before targetTick=1000
+        direction: "outbound",
+      },
+    };
+
+    const { state } = createSliceState({ airline: makeAirline(999), fleet: [ac], routes: [route] });
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(1000);
+    const final = state.fleet.find((x) => x.id === "ac-1");
+    // turnaroundEndTick must be anchored to arrivalTick, not targetTick
+    expect(final?.status).toBe("turnaround");
+    expect(final?.turnaroundEndTick).toBe(900 + 1200);
   });
 });
 

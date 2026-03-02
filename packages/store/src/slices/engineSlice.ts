@@ -358,6 +358,10 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           // round-trip position rather than forcing every idle aircraft to depart
           // at the same targetTick (which causes the synchronized-departure bug).
           const cycleAnchor = ac.routeAssignedAtTick ?? ac.purchasedAtTick;
+          if (cycleAnchor != null && cycleAnchor > targetTick) {
+            // Assignment is in the future relative to this recovery tick — skip.
+            continue;
+          }
           if (cycleAnchor != null && cycleAnchor < targetTick) {
             const elapsed = targetTick - cycleAnchor;
             const positionInCycle = elapsed % roundTripTicks;
