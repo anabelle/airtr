@@ -6,6 +6,7 @@ import { routeTree } from "../routeTree.gen";
 import "../index.css";
 import { TimelineToastBridge } from "@/shared/components/feedback/TimelineToastBridge";
 import { ToastHost } from "@/shared/components/feedback/ToastHost";
+import { BankruptcyOverlay } from "@/features/identity/components/BankruptcyOverlay";
 import { ConfirmProvider } from "@/shared/lib/useConfirm";
 
 // Create a new router instance
@@ -28,6 +29,7 @@ if (!rootElement.innerHTML) {
         <RouterProvider router={router} />
         <ToastHost />
         <TimelineToastBridge />
+        <BankruptcyOverlay />
       </ConfirmProvider>
     </React.StrictMode>,
   );

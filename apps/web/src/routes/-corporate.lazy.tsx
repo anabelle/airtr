@@ -14,6 +14,7 @@ import {
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
 import {
+  AlertTriangle,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -991,6 +992,40 @@ export default function CorporateDashboard() {
           status={airline.status}
           ceoPubkey={airline.ceoPubkey}
         />
+
+        {/* Bankruptcy explanation panel */}
+        {(airline.status === "chapter11" || airline.status === "liquidated") && !isViewingOther && (
+          <section className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+              <h3 className="text-sm font-bold text-rose-400">
+                {airline.status === "chapter11"
+                  ? "Chapter 11 — Operations Suspended"
+                  : "Airline Liquidated"}
+              </h3>
+            </div>
+            <p className="text-xs text-rose-300/70 leading-relaxed">
+              {airline.status === "chapter11"
+                ? "Your airline's accumulated debt exceeded the critical threshold of $10,000,000. All flight operations have been automatically suspended and aircraft grounded to prevent further losses."
+                : "This airline has been permanently dissolved. All operations have ceased."}
+            </p>
+            {airline.status === "chapter11" && (
+              <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-300/60">
+                  What This Means
+                </p>
+                <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                  <li>All flights are grounded — no revenue is being generated</li>
+                  <li>Lease obligations and hub costs continue to accrue</li>
+                  <li>Your airline is visible to competitors as bankrupt</li>
+                </ul>
+                <p className="text-[10px] text-muted-foreground/60 pt-1 italic">
+                  Recovery mechanics are under development for a future update.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 3. Hub Operations — actionable */}
         <section className="space-y-2">

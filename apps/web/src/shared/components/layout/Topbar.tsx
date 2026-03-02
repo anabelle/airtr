@@ -1,6 +1,7 @@
 import { fpFormat } from "@acars/core";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
+import { AlertTriangle } from "lucide-react";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 import { useRelayHealth } from "@/shared/hooks/useRelayHealth";
 
@@ -44,105 +45,126 @@ export function Topbar() {
 
   if (!activeAirline) return null;
 
+  const isBankrupt = activeAirline.status === "chapter11" || activeAirline.status === "liquidated";
+
   return (
-    <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
-      <div className="flex items-center space-x-4">
-        {/* Livery Box */}
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded uppercase text-[10px] font-bold shadow-sm"
-          style={{
-            backgroundColor: activeAirline.livery.primary,
-            color: activeAirline.livery.secondary,
-            border: `1px solid ${activeAirline.livery.secondary}40`,
-          }}
-        >
-          {activeAirline.icaoCode}
-        </div>
-        <div>
-          <h1 className="text-sm font-bold tracking-tight text-foreground leading-none">
-            {activeAirline.name}
-          </h1>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
-            {activeAirline.callsign}
-          </p>
-        </div>
-        {isViewingOther && (
+    <>
+      {isBankrupt && !isViewingOther && (
+        <div className="pointer-events-auto flex w-full items-center justify-center gap-2 border-b border-rose-500/30 bg-rose-950/80 px-4 py-2 backdrop-blur-xl">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+          <span className="text-xs font-semibold text-rose-300">
+            {activeAirline.status === "chapter11"
+              ? "Chapter 11 Bankruptcy — All operations suspended"
+              : "Airline Liquidated — This airline has ceased operations"}
+          </span>
           <button
             type="button"
-            onClick={() => {
-              viewAs(null);
-              navigate({ to: "/" });
-            }}
-            className="ml-4 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            onClick={() => navigate({ to: "/corporate" })}
+            className="ml-2 shrink-0 rounded border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
           >
-            Back to Your Airline
+            Details
           </button>
-        )}
-      </div>
-
-      {/* Critical Macro Metrics */}
-      <div className="hidden md:flex items-center space-x-8">
-        {/* Relay health indicator */}
-        <div
-          className="flex items-center gap-1.5"
-          role="status"
-          aria-live="polite"
-          title={
-            isConnected
-              ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
-              : "Disconnected from Nostr — changes may not save"
-          }
-        >
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${isConnected ? "bg-emerald-400" : "bg-rose-500 animate-pulse"}`}
-          />
-          {!isConnected && (
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-rose-400">
-              Offline
-            </span>
-          )}
-          <span className="sr-only">
-            {isConnected
-              ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
-              : "Relay offline"}
-          </span>
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
-            Corporate Balance
-          </span>
-          <span className="font-mono text-sm font-bold text-green-400 mt-1">
-            {fpFormat(activeAirline.corporateBalance)}
-          </span>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
-            Stock Price
-          </span>
-          <span className="font-mono text-sm font-bold text-primary mt-1">
-            {fpFormat(activeAirline.stockPrice)}
-          </span>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
-            Brand / Tier
-          </span>
-          <span className="font-mono text-sm font-bold text-foreground mt-1 text-right">
-            {(activeAirline.brandScore * 10).toFixed(1)}{" "}
-            <span className="text-muted-foreground">T{activeAirline.tier}</span>
-          </span>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
-            Avg Load Factor
-          </span>
-          <span
-            className={`font-mono text-sm font-bold mt-1 ${avgLoadFactor >= 0.8 ? "text-emerald-400" : avgLoadFactor >= 0.6 ? "text-amber-400" : "text-rose-400"}`}
+      )}
+      <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
+        <div className="flex items-center space-x-4">
+          {/* Livery Box */}
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded uppercase text-[10px] font-bold shadow-sm"
+            style={{
+              backgroundColor: activeAirline.livery.primary,
+              color: activeAirline.livery.secondary,
+              border: `1px solid ${activeAirline.livery.secondary}40`,
+            }}
           >
-            {Math.round(avgLoadFactor * 100)}%
-          </span>
+            {activeAirline.icaoCode}
+          </div>
+          <div>
+            <h1 className="text-sm font-bold tracking-tight text-foreground leading-none">
+              {activeAirline.name}
+            </h1>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-0.5">
+              {activeAirline.callsign}
+            </p>
+          </div>
+          {isViewingOther && (
+            <button
+              type="button"
+              onClick={() => {
+                viewAs(null);
+                navigate({ to: "/" });
+              }}
+              className="ml-4 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            >
+              Back to Your Airline
+            </button>
+          )}
+        </div>
+
+        {/* Critical Macro Metrics */}
+        <div className="hidden md:flex items-center space-x-8">
+          {/* Relay health indicator */}
+          <div
+            className="flex items-center gap-1.5"
+            role="status"
+            aria-live="polite"
+            title={
+              isConnected
+                ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
+                : "Disconnected from Nostr — changes may not save"
+            }
+          >
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${isConnected ? "bg-emerald-400" : "bg-rose-500 animate-pulse"}`}
+            />
+            {!isConnected && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-rose-400">
+                Offline
+              </span>
+            )}
+            <span className="sr-only">
+              {isConnected
+                ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
+                : "Relay offline"}
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
+              Corporate Balance
+            </span>
+            <span className="font-mono text-sm font-bold text-green-400 mt-1">
+              {fpFormat(activeAirline.corporateBalance)}
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
+              Stock Price
+            </span>
+            <span className="font-mono text-sm font-bold text-primary mt-1">
+              {fpFormat(activeAirline.stockPrice)}
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
+              Brand / Tier
+            </span>
+            <span className="font-mono text-sm font-bold text-foreground mt-1 text-right">
+              {(activeAirline.brandScore * 10).toFixed(1)}{" "}
+              <span className="text-muted-foreground">T{activeAirline.tier}</span>
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
+              Avg Load Factor
+            </span>
+            <span
+              className={`font-mono text-sm font-bold mt-1 ${avgLoadFactor >= 0.8 ? "text-emerald-400" : avgLoadFactor >= 0.6 ? "text-amber-400" : "text-rose-400"}`}
+            >
+              {Math.round(avgLoadFactor * 100)}%
+            </span>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

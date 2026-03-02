@@ -323,7 +323,9 @@ export type TimelineEventType =
   | "route_change"
   | "ferry"
   | "competitor_hub"
-  | "price_war";
+  | "price_war"
+  | "bankruptcy"
+  | "financial_warning";
 
 export interface TimelineEvent {
   id: string;

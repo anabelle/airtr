@@ -70,6 +70,27 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       // EMERGENCY BANKRUPTCY CHECK
       // If balance is severely negative (e.g. -$10M), auto-pause operations
       if (fpToNumber(airline.corporateBalance) < -10000000 && airline.status !== "chapter11") {
+        // Ground all in-flight aircraft at their origin airport
+        const groundedFleet = fleet.map((ac) => {
+          if (ac.status === "enroute" || ac.status === "turnaround") {
+            return {
+              ...ac,
+              status: "idle" as const,
+              currentTick: tick,
+            };
+          }
+          return ac;
+        });
+
+        const bankruptcyEvent: import("@acars/core").TimelineEvent = {
+          id: `bankruptcy-${tick}`,
+          tick,
+          timestamp: Date.now(),
+          type: "bankruptcy",
+          description: `${airline.name} has filed for Chapter 11 bankruptcy. All operations suspended.`,
+        };
+
+        const updatedTimeline = [bankruptcyEvent, ...get().timeline];
         const updatedAirline = { ...airline, status: "chapter11" as const };
         const previousState = {
           airline,
@@ -77,7 +98,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           routes,
           timeline: get().timeline,
         };
-        set({ airline: updatedAirline });
+        set({ airline: updatedAirline, fleet: groundedFleet, timeline: updatedTimeline });
         publishActionWithChain({
           action: {
             schemaVersion: 2,
