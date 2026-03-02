@@ -1,5 +1,6 @@
 import type { Airport, FixedPoint, TimelineEvent } from "@acars/core";
 import {
+  CHAPTER11_BALANCE_THRESHOLD_USD,
   FP_ZERO,
   fp,
   fpAdd,
@@ -14,6 +15,7 @@ import {
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
 import {
+  AlertTriangle,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -37,6 +39,12 @@ import { useRoutePerformance } from "@/features/corporate/hooks/useRoutePerforma
 import { HubPicker } from "@/features/network/components/HubPicker";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
+
+const CHAPTER11_THRESHOLD_DISPLAY = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+}).format(Math.abs(CHAPTER11_BALANCE_THRESHOLD_USD));
 
 /* ------------------------------------------------------------------ */
 /*  Financial Pulse                                                    */
@@ -435,6 +443,95 @@ function CompanyProfile({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Bankruptcy Panel                                                   */
+/* ------------------------------------------------------------------ */
+
+function BankruptcyPanel({
+  airline,
+  isDissolving,
+  dissolveError,
+  onDissolve,
+}: {
+  airline: { status: string; name: string };
+  isDissolving: boolean;
+  dissolveError: string | null;
+  onDissolve: () => Promise<void>;
+}) {
+  const [confirmDissolve, setConfirmDissolve] = useState(false);
+
+  return (
+    <section className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+        <h3 className="text-sm font-bold text-rose-400">
+          {airline.status === "chapter11"
+            ? "Chapter 11 — Operations Suspended"
+            : "Airline Liquidated"}
+        </h3>
+      </div>
+      <p className="text-xs text-rose-300/70 leading-relaxed">
+        {airline.status === "chapter11"
+          ? `Your airline's accumulated debt exceeded the critical threshold of ${CHAPTER11_THRESHOLD_DISPLAY}. All flight operations have been automatically suspended and aircraft grounded to prevent further losses.`
+          : "This airline has been permanently dissolved. All operations have ceased."}
+      </p>
+      {airline.status === "chapter11" && (
+        <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-rose-300/60">
+            What This Means
+          </p>
+          <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+            <li>All flights are grounded — no revenue is being generated</li>
+            <li>Lease obligations and hub costs continue to accrue</li>
+            <li>Your airline is visible to competitors as bankrupt</li>
+          </ul>
+        </div>
+      )}
+      {airline.status === "chapter11" && !confirmDissolve && (
+        <button
+          type="button"
+          onClick={() => setConfirmDissolve(true)}
+          className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
+        >
+          Dissolve Airline & Start Fresh
+        </button>
+      )}
+      {confirmDissolve && airline.status === "chapter11" && (
+        <div className="rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
+          <p className="text-xs text-rose-300 font-semibold">
+            This will permanently dissolve {airline.name}. All aircraft, routes, and hubs will be
+            lost. You will create a new airline from scratch.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDissolve(false)}
+              className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void onDissolve();
+              }}
+              disabled={isDissolving}
+              className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
+            >
+              {isDissolving ? "Dissolving..." : "Confirm Dissolution"}
+            </button>
+          </div>
+        </div>
+      )}
+      {dissolveError && (
+        <p className="text-[11px] text-rose-300/90 rounded-lg border border-rose-500/20 bg-rose-950/40 px-3 py-2">
+          {dissolveError}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hub Card                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -796,7 +893,7 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 /* ------------------------------------------------------------------ */
 
 export default function CorporateDashboard() {
-  const { airline, modifyHubs, initializeIdentity, isLoading } = useAirlineStore();
+  const { airline, modifyHubs, dissolveAirline, initializeIdentity, isLoading } = useAirlineStore();
   const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
 
@@ -806,6 +903,8 @@ export default function CorporateDashboard() {
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDissolving, setIsDissolving] = useState(false);
+  const [dissolveError, setDissolveError] = useState<string | null>(null);
 
   const pulse = useFinancialPulse(timeline);
 
@@ -823,6 +922,12 @@ export default function CorporateDashboard() {
     getScrollElement: () => routePerformanceContainerRef.current,
     estimateSize: () => 44,
   });
+
+  useEffect(() => {
+    if (airline?.status !== "chapter11") {
+      setDissolveError(null);
+    }
+  }, [airline?.status]);
 
   const currentMonthlyOpex = useMemo(
     () => airline?.hubs.reduce((sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex, 0) ?? 0,
@@ -991,6 +1096,34 @@ export default function CorporateDashboard() {
           status={airline.status}
           ceoPubkey={airline.ceoPubkey}
         />
+
+        {/* Bankruptcy explanation panel */}
+        {(airline.status === "chapter11" || airline.status === "liquidated") && !isViewingOther && (
+          <BankruptcyPanel
+            key={`bankruptcy-${airline.status}`}
+            airline={airline}
+            isDissolving={isDissolving}
+            dissolveError={dissolveError}
+            onDissolve={async () => {
+              setDissolveError(null);
+              setIsDissolving(true);
+              try {
+                await dissolveAirline();
+                const latestError = useAirlineStore.getState().error;
+                if (latestError) {
+                  throw new Error(latestError);
+                }
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : "Unable to dissolve airline.";
+                console.error("Dissolution failed", error);
+                setDissolveError(message);
+              } finally {
+                setIsDissolving(false);
+              }
+            }}
+          />
+        )}
 
         {/* 3. Hub Operations — actionable */}
         <section className="space-y-2">

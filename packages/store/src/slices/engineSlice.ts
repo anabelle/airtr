@@ -1,4 +1,5 @@
 import {
+  CHAPTER11_BALANCE_THRESHOLD_USD,
   computeCheckpointStateHash,
   fp,
   fpAdd,
@@ -35,6 +36,7 @@ const TICK_UPDATE_TIMELINE_EVENTS = 200;
 let skippedTickLockCount = 0;
 const TICK_LOCK_LOG_BURST = 3;
 const TICK_LOCK_LOG_SAMPLE = 100;
+const CHAPTER11_BALANCE_THRESHOLD = fp(CHAPTER11_BALANCE_THRESHOLD_USD);
 
 /** @internal — test/diagnostic helper */
 export function _getTickLockSkippedCount(): number {
@@ -68,16 +70,56 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       if (!airline || airline.status === "liquidated") return;
 
       // EMERGENCY BANKRUPTCY CHECK
-      // If balance is severely negative (e.g. -$10M), auto-pause operations
-      if (fpToNumber(airline.corporateBalance) < -10000000 && airline.status !== "chapter11") {
-        const updatedAirline = { ...airline, status: "chapter11" as const };
+      // If balance breaches chapter11 threshold, auto-pause operations
+      if (
+        airline.corporateBalance < CHAPTER11_BALANCE_THRESHOLD &&
+        airline.status !== "chapter11"
+      ) {
+        // Ground all in-flight aircraft and clear active flight state.
+        const groundedFleet = fleet.map((ac) => {
+          if (ac.status === "enroute") {
+            return {
+              ...ac,
+              status: "idle" as const,
+              baseAirportIata: ac.flight?.originIata ?? ac.baseAirportIata,
+              flight: null,
+              turnaroundEndTick: undefined,
+              arrivalTickProcessed: undefined,
+            };
+          }
+          if (ac.status === "turnaround") {
+            return {
+              ...ac,
+              status: "idle" as const,
+              flight: null,
+              turnaroundEndTick: undefined,
+              arrivalTickProcessed: undefined,
+            };
+          }
+          return ac;
+        });
+
+        const bankruptcyEvent: import("@acars/core").TimelineEvent = {
+          id: `bankruptcy-${tick}`,
+          tick,
+          timestamp: GENESIS_TIME + tick * TICK_DURATION,
+          type: "bankruptcy",
+          description: `${airline.name} has filed for Chapter 11 bankruptcy. All operations suspended.`,
+        };
+
+        const updatedTimeline = [bankruptcyEvent, ...get().timeline];
+        const updatedAirline = {
+          ...airline,
+          status: "chapter11" as const,
+          lastTick: Math.max(airline.lastTick ?? 0, tick),
+        };
         const previousState = {
           airline,
           fleet,
           routes,
           timeline: get().timeline,
         };
-        set({ airline: updatedAirline });
+        set({ airline: updatedAirline, fleet: groundedFleet, timeline: updatedTimeline });
         publishActionWithChain({
           action: {
             schemaVersion: 2,
@@ -91,7 +133,14 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           get,
           set,
         }).catch((e) => {
-          set(previousState);
+          const current = get();
+          if (
+            current.airline === updatedAirline &&
+            current.fleet === groundedFleet &&
+            current.timeline === updatedTimeline
+          ) {
+            set(previousState);
+          }
           console.error("Bankruptcy sync failed", e);
         });
         return;

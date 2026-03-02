@@ -106,6 +106,7 @@ export type {
 } from "./types.js";
 // Types
 export {
+  CHAPTER11_BALANCE_THRESHOLD_USD,
   GENESIS_TIME,
   TICK_DURATION,
   TICKS_PER_DAY,

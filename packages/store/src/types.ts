@@ -34,6 +34,7 @@ export interface AirlineState {
   // Actions
   initializeIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
+  dissolveAirline: () => Promise<void>;
   modifyHubs: (action: HubAction) => Promise<void>;
   purchaseAircraft: (
     model: AircraftModel,

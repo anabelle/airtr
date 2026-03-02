@@ -18,6 +18,8 @@ const EVENT_TITLES: Record<TimelineEventType, string> = {
   ferry: "Ferry Flight",
   competitor_hub: "Competitor Alert",
   price_war: "Price War Detected",
+  bankruptcy: "⚠️ BANKRUPTCY FILED",
+  financial_warning: "Financial Warning",
 };
 
 const EVENT_TOAST_KIND: Record<TimelineEventType, "success" | "info" | "warning"> = {
@@ -33,6 +35,8 @@ const EVENT_TOAST_KIND: Record<TimelineEventType, "success" | "info" | "warning"
   ferry: "info",
   competitor_hub: "warning",
   price_war: "warning",
+  bankruptcy: "warning",
+  financial_warning: "warning",
 };
 
 const showTimelineToast = (event: TimelineEvent) => {
@@ -40,6 +44,10 @@ const showTimelineToast = (event: TimelineEvent) => {
   const description = event.description;
   const kind = EVENT_TOAST_KIND[event.type] ?? "info";
 
+  if (event.type === "bankruptcy") {
+    toast.error(title, { description, duration: 15000 });
+    return;
+  }
   if (kind === "success") {
     toast.success(title, { description, duration: 4000 });
     return;

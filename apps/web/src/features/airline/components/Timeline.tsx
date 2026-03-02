@@ -2,6 +2,7 @@ import { fpFormat, TICK_DURATION, TICKS_PER_HOUR, type TimelineEvent } from "@ac
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  AlertTriangle,
   ArrowRight,
   Clock,
   DollarSign,
@@ -11,6 +12,7 @@ import {
   PlaneLanding,
   PlaneTakeoff,
   ShoppingBag,
+  Skull,
   TrendingDown,
   TrendingUp,
   UserMinus,
@@ -36,6 +38,10 @@ const EventIcon = ({ type }: { type: TimelineEvent["type"] }) => {
       return <Package className="w-4 h-4 text-blue-400" />;
     case "hub_change":
       return <MapPin className="w-4 h-4 text-cyan-400" />;
+    case "bankruptcy":
+      return <Skull className="w-4 h-4 text-rose-500" />;
+    case "financial_warning":
+      return <AlertTriangle className="w-4 h-4 text-amber-400" />;
     default:
       return <Package className="w-4 h-4 text-gray-400" />;
   }

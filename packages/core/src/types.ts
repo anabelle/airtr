@@ -5,6 +5,7 @@ export const TICK_DURATION = 3000; // ms
 export const TICKS_PER_HOUR = 3600 / (TICK_DURATION / 1000); // 1200 ticks per hour
 export const TICKS_PER_DAY = 24 * TICKS_PER_HOUR; // 28,800
 export const TICKS_PER_MONTH = 30 * TICKS_PER_DAY; // 864,000 (1 billing month = 30 real days)
+export const CHAPTER11_BALANCE_THRESHOLD_USD = -10_000_000;
 
 // --- Fixed-Point Financial Type ---
 
@@ -323,7 +324,9 @@ export type TimelineEventType =
   | "route_change"
   | "ferry"
   | "competitor_hub"
-  | "price_war";
+  | "price_war"
+  | "bankruptcy"
+  | "financial_warning";
 
 export interface TimelineEvent {
   id: string;
@@ -388,6 +391,7 @@ export interface Checkpoint {
 
 export type GameActionType =
   | "AIRLINE_CREATE"
+  | "AIRLINE_DISSOLVE"
   | "TICK_UPDATE"
   | "HUB_ADD"
   | "HUB_REMOVE"

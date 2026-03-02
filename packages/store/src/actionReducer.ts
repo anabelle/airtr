@@ -70,6 +70,8 @@ const TIMELINE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set([
   "ferry",
   "competitor_hub",
   "price_war",
+  "bankruptcy",
+  "financial_warning",
 ]);
 
 const asString = (value: unknown): string | null =>
@@ -165,7 +167,7 @@ export async function replayActionLog(params: {
   const routesById = new Map<string, Route>();
   const timeline: TimelineEvent[] = checkpoint?.timeline ? [...checkpoint.timeline] : [];
   const timelineEventIds = new Set(timeline.map((event) => event.id));
-  const allowActionTimeline = timeline.length === 0;
+  let allowActionTimeline = timeline.length === 0;
   let actionChainHash = checkpoint?.actionChainHash ?? "";
 
   if (checkpoint?.fleet) {
@@ -354,6 +356,17 @@ export async function replayActionLog(params: {
     });
 
     if (action.action === "AIRLINE_CREATE") {
+      // Starting a new airline resets all prior owned state.
+      fleetById.clear();
+      routesById.clear();
+      routePairs.clear();
+      routePairToRouteId.clear();
+      routeIdAliases.clear();
+      timeline.splice(0, timeline.length);
+      timelineEventIds.clear();
+      backfillTickSet.clear();
+      allowActionTimeline = true;
+
       const name = clampString(payload.name, MAX_NAME_LENGTH) ?? "New Airline";
       const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
       const callsign = clampString(payload.callsign, MAX_CODE_LENGTH) ?? "";
@@ -394,6 +407,22 @@ export async function replayActionLog(params: {
       continue;
     }
 
+    if (action.action === "AIRLINE_DISSOLVE") {
+      // Dissolution wipes the owned airline state so IdentityGate can re-open
+      // airline creation on reload before a fresh AIRLINE_CREATE event.
+      airline = null;
+      fleetById.clear();
+      routesById.clear();
+      routePairs.clear();
+      routePairToRouteId.clear();
+      routeIdAliases.clear();
+      timeline.splice(0, timeline.length);
+      timelineEventIds.clear();
+      backfillTickSet.clear();
+      allowActionTimeline = true;
+      continue;
+    }
+
     if (!airline) continue;
 
     const updateLastTick = (tickValue: number) => {
@@ -401,11 +430,54 @@ export async function replayActionLog(params: {
       airline = airline ? { ...airline, lastTick: nextTick } : airline;
     };
 
+    if (
+      (airline.status === "chapter11" || airline.status === "liquidated") &&
+      action.action !== "TICK_UPDATE"
+    ) {
+      continue;
+    }
+
     switch (action.action) {
       case "TICK_UPDATE": {
         const status = asString(payload.status);
         if (status && VALID_STATUSES.includes(status as AirlineEntity["status"])) {
           airline = { ...airline, status: status as AirlineEntity["status"] };
+        }
+
+        if (airline.status === "chapter11" || airline.status === "liquidated") {
+          const groundedFleet = Array.from(fleetById.values()).map((aircraft) => {
+            if (aircraft.status === "enroute") {
+              return {
+                ...aircraft,
+                status: "idle" as const,
+                baseAirportIata: aircraft.flight?.originIata ?? aircraft.baseAirportIata,
+                flight: null,
+                turnaroundEndTick: undefined,
+                arrivalTickProcessed: undefined,
+              };
+            }
+            if (aircraft.status === "turnaround") {
+              return {
+                ...aircraft,
+                status: "idle" as const,
+                flight: null,
+                turnaroundEndTick: undefined,
+                arrivalTickProcessed: undefined,
+              };
+            }
+            return aircraft;
+          });
+          fleetById.clear();
+          for (const aircraft of groundedFleet) {
+            fleetById.set(aircraft.id, aircraft);
+          }
+
+          updateLastTick(actionTick);
+          if (actionTick >= backfillStartTick) {
+            backfillTickSet.add(actionTick);
+          }
+          mergeTickTimelineEvents(payload.timeline);
+          break;
         }
 
         const previousTick = airline.lastTick ?? 0;
