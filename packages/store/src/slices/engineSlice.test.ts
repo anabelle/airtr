@@ -437,3 +437,270 @@ describe("engineSlice lock diagnostics", () => {
     }
   });
 });
+
+describe("deterministic timeline backfill", () => {
+  it("generates historical landing events for aircraft with assigned routes regardless of status", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    // Route: 400 km @ 800 km/h → durationTicks = ceil(400/800 * 1200) = 600
+    // turnaroundTicks = ceil(60/60 * 1200) = 1200
+    // roundTripTicks = 600 * 2 + 1200 * 2 = 3600
+    // First outbound landing at cycleAnchor + 600 = 1600
+    // First inbound landing at cycleAnchor + 600*2 + 1200 = 3400
+    // Second outbound at 1600 + 3600 = 5200, etc.
+    const route = makeRoute("rt-1", 400);
+
+    // Aircraft assigned at tick 1000, NOW at tick 20000.
+    // It's already been reconciled to enroute (not idle) — the backfill must still work.
+    const ac: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "enroute", // Already reconciled by reconcileFleetToTick
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 1000,
+      baseAirportIata: "JFK",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 19900,
+        arrivalTick: 20500,
+        direction: "outbound",
+      },
+    };
+
+    // airline.lastTick close to tick (simulating TICK_UPDATE advancing lastTick)
+    const airline = makeAirline(19999);
+    const { state } = createSliceState({
+      airline,
+      fleet: [ac],
+      routes: [route],
+      timeline: [],
+    });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(20000);
+
+    // Compute expected landings: from routeAssignedAtTick=1000 to targetTick=20000
+    // Outbound landings at: 1600, 5200, 8800, 12400, 16000, 19600 (6 landings)
+    // Inbound landings at: 3400, 7000, 10600, 14200, 17800 (5 landings)
+    // Total: 11 landings
+    const landings = state.timeline.filter(
+      (e) => e.type === "landing" && e.id.startsWith("evt-landing-"),
+    );
+    expect(landings.length).toBe(11);
+
+    // Verify chronological ordering (most recent first in timeline)
+    expect(landings[0].tick).toBe(19600);
+    expect(landings[landings.length - 1].tick).toBe(1600);
+
+    // Each event has financial data
+    for (const landing of landings) {
+      expect(landing.revenue).toBeDefined();
+      expect(landing.cost).toBeDefined();
+      expect(landing.profit).toBeDefined();
+    }
+  });
+
+  it("caps backfill to MAX_BACKFILL_PER_AIRCRAFT most recent events", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    // Short route: 100 km → durationTicks = ceil(100/800 * 1200) = 150
+    // turnaroundTicks = 1200, roundTripTicks = 150*2 + 1200*2 = 2700
+    // Very many landings in a large gap
+    const route = makeRoute("rt-1", 100);
+
+    const ac: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 1000,
+      baseAirportIata: "JFK",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 199900,
+        arrivalTick: 200050,
+        direction: "outbound",
+      },
+    };
+
+    // Huge gap — would produce 100+ landings without capping
+    const airline = makeAirline(199999);
+    const { state } = createSliceState({
+      airline,
+      fleet: [ac],
+      routes: [route],
+      timeline: [],
+    });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(200000);
+
+    const landings = state.timeline.filter(
+      (e) => e.type === "landing" && e.id.startsWith("evt-landing-"),
+    );
+    // MAX_BACKFILL_PER_AIRCRAFT = 40, so capped at 40
+    expect(landings.length).toBe(40);
+
+    // Verify they're the most recent 40 landings (highest ticks)
+    for (let i = 0; i < landings.length - 1; i++) {
+      expect(landings[i].tick).toBeGreaterThan(landings[i + 1].tick);
+    }
+  });
+
+  it("does not modify balance (display-only events)", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    const route = makeRoute("rt-1", 400);
+
+    const ac: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 1000,
+      baseAirportIata: "JFK",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 19900,
+        arrivalTick: 20500,
+        direction: "outbound",
+      },
+    };
+
+    const initialBalance = 1000000000 as FixedPoint;
+    const airline = makeAirline(19999);
+    airline.corporateBalance = initialBalance;
+
+    const { state } = createSliceState({
+      airline,
+      fleet: [ac],
+      routes: [route],
+      timeline: [],
+    });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(20000);
+
+    // Balance should only be affected by processFlightEngine (mocked to no-op)
+    // and monthly costs, not by backfill events
+    expect(state.airline?.corporateBalance).toBe(initialBalance);
+  });
+
+  it("deduplicates against existing timeline events from checkpoint", async () => {
+    const { getAircraftById } = await import("@acars/data");
+    vi.mocked(getAircraftById).mockReturnValue({
+      monthlyLease: 500 as FixedPoint,
+      speedKmh: 800,
+      turnaroundTimeMinutes: 60,
+      rangeKm: 5000,
+    } as never);
+
+    const route = makeRoute("rt-1", 400);
+
+    const ac: AircraftInstance = {
+      ...makeAircraft("ac-1"),
+      status: "enroute",
+      assignedRouteId: "rt-1",
+      routeAssignedAtTick: 1000,
+      baseAirportIata: "JFK",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 19900,
+        arrivalTick: 20500,
+        direction: "outbound",
+      },
+    };
+
+    // Pre-populate timeline with some events (simulating checkpoint)
+    const existingEvents = [
+      {
+        id: "evt-landing-ac-1-1600",
+        tick: 1600,
+        timestamp: 0,
+        type: "landing" as const,
+        description: "existing",
+      },
+      {
+        id: "evt-landing-ac-1-3400",
+        tick: 3400,
+        timestamp: 0,
+        type: "landing" as const,
+        description: "existing",
+      },
+    ];
+
+    const airline = makeAirline(19999);
+    const { state } = createSliceState({
+      airline,
+      fleet: [ac],
+      routes: [route],
+      timeline: existingEvents,
+    });
+
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: false,
+      }),
+    );
+
+    await state.processTick(20000);
+
+    // Should not have duplicates — existing events preserved, new ones added
+    const allLandingIds = state.timeline.filter((e) => e.type === "landing").map((e) => e.id);
+    const uniqueIds = new Set(allLandingIds);
+    expect(uniqueIds.size).toBe(allLandingIds.length);
+
+    // Total should be 11 (all computed landings) — 2 existing + 9 new
+    expect(uniqueIds.size).toBe(11);
+  });
+});

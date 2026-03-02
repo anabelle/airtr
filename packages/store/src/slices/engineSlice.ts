@@ -341,6 +341,128 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       const simulatedTimestamp = GENESIS_TIME + targetTick * TICK_DURATION;
       const deliveryEvents: typeof currentTimeline = [];
       const recoveryEvents: typeof currentTimeline = [];
+
+      // Deterministic timeline backfill: reconstruct landing events for all
+      // completed round-trips using cycle algebra.  This runs for EVERY
+      // aircraft with an assigned route regardless of its current status,
+      // because reconcileFleetToTick (run earlier during identity load) may
+      // have already changed idle→enroute/turnaround.
+      //
+      // These events are DISPLAY-ONLY — the balance was already adjusted by
+      // reconcileFleetToTick and will be further adjusted by the tick loop.
+      // Event IDs use the same format as processFlightEngine so duplicates
+      // produced later by the tick loop are automatically filtered out.
+      const MAX_BACKFILL_PER_AIRCRAFT = 40;
+      for (const ac of currentFleet) {
+        if (!ac.assignedRouteId) continue;
+        const route = routes.find((r) => r.id === ac.assignedRouteId);
+        const model = getAircraftById(ac.modelId);
+        if (!route || route.status !== "active" || !model) continue;
+        if (route.distanceKm > (model.rangeKm || 0)) continue;
+        const cycleAnchor = ac.routeAssignedAtTick ?? ac.purchasedAtTick;
+        if (cycleAnchor == null || cycleAnchor >= targetTick) continue;
+
+        const hours = route.distanceKm / (model.speedKmh || 800);
+        const durationTicks = Math.max(1, Math.ceil(hours * TICKS_PER_HOUR));
+        const turnaroundTicks = Math.max(
+          1,
+          Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR),
+        );
+        const roundTripTicks = durationTicks * 2 + turnaroundTicks * 2;
+        const flightHoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+
+        // Two landing offsets per cycle: outbound at durationTicks,
+        // inbound at 2*durationTicks + turnaroundTicks
+        const legInfos = [
+          {
+            offset: durationTicks,
+            originIata: route.originIata,
+            destinationIata: route.destinationIata,
+          },
+          {
+            offset: durationTicks * 2 + turnaroundTicks,
+            originIata: route.destinationIata,
+            destinationIata: route.originIata,
+          },
+        ];
+
+        const historicalLandings: Array<{
+          tick: number;
+          originIata: string;
+          destinationIata: string;
+        }> = [];
+
+        for (const leg of legInfos) {
+          const firstLandingTick = cycleAnchor + leg.offset;
+          if (firstLandingTick > targetTick) continue;
+
+          // Walk backwards from the most recent landing to collect up to
+          // MAX_BACKFILL_PER_AIRCRAFT events per aircraft.
+          const totalCompleted = Math.floor((targetTick - firstLandingTick) / roundTripTicks) + 1;
+          const startIdx = Math.max(0, totalCompleted - MAX_BACKFILL_PER_AIRCRAFT);
+          for (let idx = totalCompleted - 1; idx >= startIdx; idx--) {
+            const landingTick = firstLandingTick + idx * roundTripTicks;
+            if (landingTick > targetTick) continue;
+            historicalLandings.push({
+              tick: landingTick,
+              originIata: leg.originIata,
+              destinationIata: leg.destinationIata,
+            });
+          }
+        }
+
+        // Sort most recent first, cap total
+        historicalLandings.sort((a, b) => b.tick - a.tick);
+        const capped = historicalLandings.slice(0, MAX_BACKFILL_PER_AIRCRAFT);
+
+        for (const landing of capped) {
+          // Use the same ID format as processFlightEngine so the tick loop's
+          // duplicate events are automatically deduplicated.
+          const eventId = `evt-landing-${ac.id}-${landing.tick}`;
+          if (timelineEventIds.has(eventId)) continue;
+
+          const landingResult = estimateLandingFinancials(
+            ac,
+            route,
+            model,
+            flightHoursPerLeg,
+            ac.lastKnownLoadFactor ?? 0.65,
+          );
+
+          ac.lastKnownLoadFactor = landingResult.revenue.loadFactor;
+          anyChanges = true;
+
+          recoveryEvents.push({
+            id: eventId,
+            tick: landing.tick,
+            timestamp: GENESIS_TIME + landing.tick * TICK_DURATION,
+            type: "landing",
+            aircraftId: ac.id,
+            aircraftName: ac.name,
+            routeId: route.id,
+            originIata: landing.originIata,
+            destinationIata: landing.destinationIata,
+            revenue: landingResult.revenue.revenueTotal,
+            cost: landingResult.cost.costTotal,
+            profit: landingResult.profit,
+            description: `${ac.name} landed at ${landing.destinationIata}. Net Profit: ${fpToNumber(landingResult.profit) > 0 ? "+" : ""}${fpToNumber(landingResult.profit)}`,
+            details: landingResult.details,
+          });
+        }
+      }
+
+      // Merge backfill events into timeline BEFORE the tick loop so that
+      // processFlightEngine's duplicate landing events are deduplicated.
+      if (recoveryEvents.length > 0) {
+        const newEvents = recoveryEvents.filter((e) => !timelineEventIds.has(e.id));
+        if (newEvents.length > 0) {
+          currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
+          timelineEventIds.clear();
+          for (const event of currentTimeline) timelineEventIds.add(event.id);
+        }
+        recoveryEvents.length = 0;
+      }
+
       for (const ac of currentFleet) {
         if (ac.status !== "delivery") continue;
         if (ac.deliveryAtTick == null || ac.deliveryAtTick > targetTick) continue;
