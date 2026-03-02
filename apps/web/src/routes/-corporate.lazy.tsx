@@ -940,7 +940,7 @@ export default function CorporateDashboard() {
                 Last {RECENT_FLIGHT_COUNT} flights
               </span>
             </div>
-            <div ref={routePerformanceContainerRef} className="h-64 overflow-y-auto">
+            <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
               <div
                 className="relative w-full"
                 style={{ height: `${routePerformanceVirtualizer.getTotalSize()}px` }}
