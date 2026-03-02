@@ -53,7 +53,7 @@ function FinancialPulse({
   const netCashFlowPerHour = netIncomeNum - fixedCostsPerHour;
   const netCashFlowPositive = netCashFlowPerHour >= 0;
 
-  const lowConfidence = pulse.flightCount > 0 && pulse.flightCount < 5;
+  const lowConfidence = pulse.financialFlightCount > 0 && pulse.financialFlightCount < 5;
 
   // Billing cycle urgency colors
   const cycleColor =
@@ -108,8 +108,10 @@ function FinancialPulse({
                 className={`text-[10px] ${lowConfidence ? "text-amber-400" : "text-muted-foreground"}`}
               >
                 {lowConfidence ? "⚠ " : ""}Last {pulse.flightCount} flight
-                {pulse.flightCount !== 1 ? "s" : ""}
-                {lowConfidence ? " — low sample" : ""}
+                {pulse.flightCount !== 1 ? "s" : ""}{" "}
+                {pulse.financialFlightCount !== pulse.flightCount &&
+                  `(${pulse.financialFlightCount} with full financials)`}
+                {lowConfidence ? " — low financial sample" : ""}
               </p>
             </div>
           )}

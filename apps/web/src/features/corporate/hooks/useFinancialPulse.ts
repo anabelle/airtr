@@ -19,13 +19,16 @@ export interface FinancialPulse {
   avgProfitPerFlight: FixedPoint;
   /** Number of flights analyzed */
   flightCount: number;
+  /** Number of flights with complete financial fields (revenue+cost) */
+  financialFlightCount: number;
 }
 
 export function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
   return useMemo(() => {
-    const landings = timeline
-      .filter((e) => e.type === "landing" && e.revenue !== undefined && e.cost !== undefined)
-      .slice(0, RECENT_FLIGHT_COUNT);
+    const landings = timeline.filter((e) => e.type === "landing").slice(0, RECENT_FLIGHT_COUNT);
+    const financialLandings = landings.filter(
+      (e) => e.revenue !== undefined && e.cost !== undefined,
+    );
 
     if (landings.length === 0) {
       return {
@@ -36,12 +39,13 @@ export function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
         avgLoadFactor: 0,
         avgProfitPerFlight: FP_ZERO,
         flightCount: 0,
+        financialFlightCount: 0,
       };
     }
 
-    const revenues = landings.map((e) => e.revenue!);
-    const costs = landings.map((e) => e.cost!);
-    const profits = landings.map((e) => e.profit ?? fpSub(e.revenue!, e.cost!));
+    const revenues = financialLandings.map((e) => e.revenue!);
+    const costs = financialLandings.map((e) => e.cost!);
+    const profits = financialLandings.map((e) => e.profit ?? fpSub(e.revenue!, e.cost!));
 
     const totalRevenue = fpSum(revenues);
     const totalCosts = fpSum(costs);
@@ -57,7 +61,7 @@ export function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
         : 0;
 
     // Total flight time from actual flight durations
-    const totalFlightTicks = landings.reduce(
+    const totalFlightTicks = financialLandings.reduce(
       (sum, event) => sum + (event.details?.flightDurationTicks ?? 0),
       0,
     );
@@ -69,7 +73,8 @@ export function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
     const netIncomeRate = fp(netIncomeRateNum);
 
     // Avg profit per flight
-    const avgProfitNum = fpToNumber(totalProfit) / landings.length;
+    const avgProfitNum =
+      financialLandings.length > 0 ? fpToNumber(totalProfit) / financialLandings.length : 0;
     const avgProfitPerFlight = fp(avgProfitNum);
 
     return {
@@ -80,6 +85,7 @@ export function useFinancialPulse(timeline: TimelineEvent[]): FinancialPulse {
       avgLoadFactor,
       avgProfitPerFlight,
       flightCount: landings.length,
+      financialFlightCount: financialLandings.length,
     };
   }, [timeline]);
 }

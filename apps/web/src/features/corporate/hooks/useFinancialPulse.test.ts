@@ -41,5 +41,36 @@ describe("useFinancialPulse", () => {
 
     expect(fpToNumber(result.current.netIncomeRate)).toBeCloseTo(3000, 5);
     expect(result.current.flightCount).toBe(2);
+    expect(result.current.financialFlightCount).toBe(2);
+  });
+
+  it("counts recent landings even when some legacy events lack financial fields", () => {
+    const timeline: TimelineEvent[] = [
+      {
+        id: "evt-legacy",
+        tick: 120,
+        timestamp: 0,
+        type: "landing",
+        description: "Legacy landing without revenue/cost",
+      },
+      {
+        id: "evt-financial",
+        tick: 100,
+        timestamp: 0,
+        type: "landing",
+        description: "Landing with financials",
+        revenue: fp(3000),
+        cost: fp(2000),
+        profit: fp(1000),
+        details: {
+          flightDurationTicks: 1200,
+        },
+      },
+    ];
+
+    const { result } = renderHook(() => useFinancialPulse(timeline));
+
+    expect(result.current.flightCount).toBe(2);
+    expect(result.current.financialFlightCount).toBe(1);
   });
 });
