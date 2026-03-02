@@ -244,7 +244,6 @@ async function startActionSubscription(since: number): Promise<void> {
     unsubscribeActionStream = null;
   }
 
-  lastSeenActionCreatedAtSec = Math.max(lastSeenActionCreatedAtSec, since);
   logger.info(`Starting live action subscription (since=${since})`);
 
   unsubscribeActionStream = await subscribeActions({
