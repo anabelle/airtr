@@ -234,7 +234,7 @@ describe("syncWorld", () => {
     (nostr.loadCheckpoints as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(new Map());
   });
 
-  it("preserves newer competitor state over older sync snapshot", async () => {
+  it("preserves existing fleet when replay returns fewer aircraft (partial relay)", async () => {
     const { loadActionLog } = await import("@acars/nostr");
     const pubkey = "comp-stable";
 
@@ -271,6 +271,74 @@ describe("syncWorld", () => {
 
     const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
     expect(ids).toContain("ac-new");
+  });
+
+  it("adopts replayed fleet when replay has more aircraft than local state", async () => {
+    const { loadActionLog } = await import("@acars/nostr");
+    const pubkey = "comp-growing";
+
+    // Existing state: competitor has 1 aircraft, projected to lastTick 500
+    const existingAirline = makeAirline(pubkey, 500);
+    const existingFleet = [makeAircraft("ac-old", pubkey)];
+
+    // Relay returns actions that replay into 2 aircraft (AIRLINE_CREATE + 2 purchases)
+    (loadActionLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        event: { id: "evt-1", author: { pubkey }, created_at: 1 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRLINE_CREATE",
+          payload: {
+            name: "Growing Air",
+            hubs: ["JFK"],
+            corporateBalance: 1000000000000,
+            tick: 10,
+          },
+        },
+      },
+      {
+        event: { id: "evt-2", author: { pubkey }, created_at: 2 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-old",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 20,
+          },
+        },
+      },
+      {
+        event: { id: "evt-3", author: { pubkey }, created_at: 3 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-new-purchase",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 30,
+          },
+        },
+      },
+    ]);
+
+    const { state } = createSliceState({
+      competitors: new Map([[pubkey, existingAirline]]),
+      fleetByOwner: buildFleetIndex(existingFleet),
+      routesByOwner: buildRoutesIndex([]),
+    });
+
+    await state.syncWorld();
+
+    // The replayed fleet (2 aircraft) should be adopted over the existing (1 aircraft)
+    const ids = [...state.fleetByOwner.values()].flat().map((ac) => ac.id);
+    expect(ids).toContain("ac-old");
+    expect(ids).toContain("ac-new-purchase");
+    expect(ids).toHaveLength(2);
   });
 
   it("projects competitor fleet to current tick during sync", async () => {

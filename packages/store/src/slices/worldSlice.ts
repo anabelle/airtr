@@ -244,49 +244,59 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           if (!replayed.airline) continue;
 
           const airline = replayed.airline;
-          const fleet = replayed.fleet;
-          const routes = replayed.routes;
+          let resolvedFleet = replayed.fleet;
+          const resolvedRoutes = replayed.routes;
 
-          const existingCompetitor = existingState.competitors.get(authorPubkey) ?? null;
-          const existingLastTick = existingCompetitor?.lastTick ?? -1;
-          const parsedLastTick = airline.lastTick ?? 0;
+          // Merge strategy: always use the replayed airline entity (it has the
+          // latest name, hubs, balance, etc.) but protect against partial relay
+          // responses that return fewer actions than expected, which can produce
+          // an empty fleet even though the competitor actually has aircraft.
+          //
+          // The previous staleness guard compared existingCompetitor.lastTick
+          // (inflated to currentTick by local projection every 3s) against
+          // replayed.lastTick and discarded the replay whenever projection had
+          // run.  This caused newly purchased aircraft to never appear for
+          // competitors because the locally-projected stale fleet always "won."
+          //
+          // New approach: if the replay produced strictly fewer aircraft than
+          // we already know about, keep the existing fleet/routes (partial relay
+          // protection).  Otherwise, take the fresh replay (new aircraft appear).
+          const existingCompetitorFleet = existingState.fleetByOwner.get(authorPubkey) || [];
+          const existingCompetitorRoutes = existingState.routesByOwner.get(authorPubkey) || [];
 
-          const resolvedAirline =
-            existingCompetitor && existingLastTick > parsedLastTick ? existingCompetitor : airline;
-          let resolvedFleet =
-            existingCompetitor && existingLastTick > parsedLastTick
-              ? existingState.fleetByOwner.get(authorPubkey) || []
-              : fleet;
-          const resolvedRoutes =
-            existingCompetitor && existingLastTick > parsedLastTick
-              ? existingState.routesByOwner.get(authorPubkey) || []
-              : routes;
+          if (
+            existingCompetitorFleet.length > 0 &&
+            resolvedFleet.length < existingCompetitorFleet.length
+          ) {
+            resolvedFleet = existingCompetitorFleet;
+          }
+          const finalRoutes =
+            existingCompetitorRoutes.length > resolvedRoutes.length
+              ? existingCompetitorRoutes
+              : resolvedRoutes;
 
           // Reconcile fleet positions to lastTick — same fix as player identity.
           // Without this, checkpoint fleet has stale arrivalTick/turnaroundEndTick
           // values while lastTick was pushed ahead by TICK_UPDATE actions, causing
           // all competitor aircraft to land and depart simultaneously on load.
-          if (resolvedAirline.lastTick != null && resolvedFleet.length > 0) {
+          if (airline.lastTick != null && resolvedFleet.length > 0) {
             const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
               resolvedFleet,
-              resolvedRoutes,
-              resolvedAirline.lastTick,
+              finalRoutes,
+              airline.lastTick,
             );
             resolvedFleet = reconciledFleet;
-            resolvedAirline.corporateBalance = fpAdd(
-              resolvedAirline.corporateBalance,
-              balanceDelta,
-            );
+            airline.corporateBalance = fpAdd(airline.corporateBalance, balanceDelta);
           }
 
-          competitors.set(authorPubkey, resolvedAirline);
+          competitors.set(authorPubkey, airline);
           fetchedPubkeys.add(authorPubkey);
           allCompetitorFleet.push(...resolvedFleet);
-          allCompetitorRoutes.push(...resolvedRoutes);
+          allCompetitorRoutes.push(...finalRoutes);
           competitorFleetByOwner.set(authorPubkey, resolvedFleet);
-          competitorRoutesByOwner.set(authorPubkey, resolvedRoutes);
+          competitorRoutesByOwner.set(authorPubkey, finalRoutes);
 
-          for (const route of resolvedRoutes) {
+          for (const route of finalRoutes) {
             if (route.status !== "active") continue;
 
             const key = `${route.originIata}-${route.destinationIata}`;
@@ -316,7 +326,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
             }
 
             const offer: FlightOffer = {
-              airlinePubkey: resolvedAirline.ceoPubkey,
+              airlinePubkey: airline.ceoPubkey,
               fareEconomy: route.fareEconomy,
               fareBusiness: route.fareBusiness,
               fareFirst: route.fareFirst,
@@ -324,7 +334,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
               travelTimeMinutes: Math.round(avgTravelTime) || 480,
               stops: 0,
               serviceScore: 0.7,
-              brandScore: resolvedAirline.brandScore || 0.5,
+              brandScore: airline.brandScore || 0.5,
             };
 
             offers.push(offer);
