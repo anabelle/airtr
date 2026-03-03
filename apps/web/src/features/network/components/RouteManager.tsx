@@ -508,18 +508,18 @@ export function RouteManager() {
 
   return (
     <div className="flex h-full w-full flex-col p-6 overflow-hidden">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <Globe className="h-8 w-8 text-primary" />
+            <Globe className="h-8 w-8 text-primary shrink-0" />
             Network Manager
           </h2>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Manage your routes and flight frequencies from {planningOriginAirport.name}.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {airline.hubs.length > 1 ? (
             <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
               <MapPin className="h-4 w-4 text-primary" />
@@ -536,18 +536,18 @@ export function RouteManager() {
               </select>
             </div>
           ) : null}
-          <div className="flex bg-muted/50 p-1 rounded-xl border border-border/50">
+          <div className="flex flex-col sm:flex-row bg-muted/50 p-1 rounded-xl border border-border/50 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setTab("active")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex-1 text-center ${tab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               Active Network ({activeRoutes.length})
             </button>
             <button
               type="button"
               onClick={() => setTab("opportunities")}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "opportunities" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex-1 text-center ${tab === "opportunities" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               Market Opportunities
             </button>

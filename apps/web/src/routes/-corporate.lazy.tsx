@@ -88,7 +88,7 @@ function FinancialPulse({
     <section className="space-y-3">
       <div className="rounded-xl border border-border/50 bg-background/50 p-5">
         {/* Main balance + rate */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0 space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Corporate Balance
@@ -102,12 +102,12 @@ function FinancialPulse({
           </div>
 
           {pulse.flightCount > 0 && (
-            <div className="shrink-0 text-right space-y-1">
+            <div className="shrink-0 text-left sm:text-right space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Flight Revenue Rate
               </p>
               <div
-                className={`flex items-center justify-end gap-1 text-lg font-black ${
+                className={`flex items-start sm:items-center sm:justify-end gap-1 text-lg font-black ${
                   pulse.isPositive ? "text-emerald-400" : "text-rose-400"
                 }`}
                 style={{ fontVariantNumeric: "tabular-nums" }}
@@ -693,7 +693,7 @@ function HubConfirmDialog({
           </button>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-[10px] uppercase font-semibold text-white/40">Immediate Charge</p>
             <p

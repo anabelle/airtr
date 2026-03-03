@@ -1,8 +1,9 @@
 import type { AircraftInstance, FixedPoint, Route } from "@acars/core";
 import { fpFormat } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDownRight, ArrowUpRight, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   LeaderboardMetric,
   LeaderboardRow as LeaderboardRowData,
@@ -35,6 +36,7 @@ const metricMeta: Record<
     description: "Ranked by total route kilometers",
   },
 };
+const ROW_HEIGHT = 84;
 
 function formatBrandScore(value: number) {
   return `${(value * 10).toFixed(1)}`;
@@ -74,12 +76,12 @@ function LeaderboardRow({
     <div
       className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isOwn ? "border-primary/40 bg-primary/10" : "border-border/50 bg-background/40 hover:bg-accent/10"}`}
     >
-      <div className="flex w-1/2 items-center gap-3">
+      <div className="flex flex-1 min-w-0 items-center gap-3">
         <a
           href={npub ? `https://primal.net/p/${npub}` : undefined}
           target={npub ? "_blank" : undefined}
           rel={npub ? "noreferrer" : undefined}
-          className="h-10 w-10 overflow-hidden rounded-full border border-border/50 bg-background/60"
+          className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-border/50 bg-background/60"
           aria-label={npub ? `Open ${displayName} on Primal` : undefined}
           style={row.liveryPrimary ? { boxShadow: `0 0 0 2px ${row.liveryPrimary}` } : undefined}
         >
@@ -96,16 +98,16 @@ function LeaderboardRow({
             </div>
           )}
         </a>
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">{row.name}</span>
+            <span className="font-semibold text-foreground truncate">{row.name}</span>
             {isOwn && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
+              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
                 Your Airline
               </span>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground truncate">
             {row.icaoCode} · {displayName}
             {profile.nip05 && (
               <span className="ml-2 rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
@@ -123,7 +125,7 @@ function LeaderboardRow({
           </div>
         </div>
       </div>
-      <div className="flex w-1/2 items-center justify-end gap-6">
+      <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-6">
         {!isOwn && (
           <button
             type="button"
@@ -203,6 +205,14 @@ export function Leaderboard() {
   }, [competitors, airline, aircraftById, routeById, currentTick, metric]);
 
   const ownId = airline?.id ?? null;
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 6,
+  });
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -242,9 +252,11 @@ export function Leaderboard() {
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        <div className="space-y-2">
-          {rows.map((row, index) => {
+      <div ref={parentRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            if (!row) return null;
             const isOwn = ownId === row.id;
             const value =
               metric === "balance"
@@ -259,15 +271,22 @@ export function Leaderboard() {
                         ? row.fleetValue
                         : row.networkDistance;
             return (
-              <LeaderboardRow
-                key={row.id}
-                row={row}
-                index={index}
-                isOwn={isOwn}
-                metric={metric}
-                value={value}
-                onView={viewAs}
-              />
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                className="absolute left-0 right-0 pb-2"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <LeaderboardRow
+                  row={row}
+                  index={virtualRow.index}
+                  isOwn={isOwn}
+                  metric={metric}
+                  value={value}
+                  onView={viewAs}
+                />
+              </div>
             );
           })}
         </div>
