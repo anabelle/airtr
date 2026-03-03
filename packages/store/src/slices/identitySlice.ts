@@ -5,7 +5,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
-import { fp, fpAdd, fpSub, GENESIS_TIME, verifyCheckpoint } from "@acars/core";
+import { computeCheckpointStateHash, fp, fpAdd, fpSub, GENESIS_TIME } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import {
   attachSigner,
@@ -102,19 +102,16 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         console.warn("[IdentitySlice] forceReplay: ignoring checkpoint, replaying all actions");
       }
       if (checkpoint) {
-        // At load time we can only verify the state hash — the action chain hash cannot
-        // be independently recomputed without replaying the full event log from genesis.
-        // The actionChainHash comparison is therefore deferred to after replay (see below).
-        const checkpointOk = await verifyCheckpoint({
-          actionChainHash: checkpoint.actionChainHash,
-          expectedActionChainHash: checkpoint.actionChainHash,
-          expectedStateHash: checkpoint.stateHash,
+        // Verify checkpoint internal consistency by recomputing the state hash.
+        // We cannot verify the action chain hash independently without replaying
+        // the entire event log from genesis — that is deferred to after replay.
+        const recomputedStateHash = await computeCheckpointStateHash({
           airline: checkpoint.airline,
           fleet: checkpoint.fleet,
           routes: checkpoint.routes,
           timeline: checkpoint.timeline,
         });
-        if (!checkpointOk) {
+        if (recomputedStateHash !== checkpoint.stateHash) {
           console.warn(
             "[IdentitySlice] Checkpoint state hash mismatch — falling back to full log replay",
           );

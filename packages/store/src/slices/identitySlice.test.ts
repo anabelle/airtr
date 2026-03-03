@@ -12,8 +12,8 @@ vi.mock("@acars/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@acars/core")>();
   return {
     ...actual,
-    // Always return true so tests don't need real state hashes
-    verifyCheckpoint: vi.fn(() => Promise.resolve(true)),
+    // Return the checkpoint's stateHash so verification passes in tests
+    computeCheckpointStateHash: vi.fn(() => Promise.resolve("state")),
   };
 });
 

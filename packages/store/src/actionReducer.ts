@@ -226,18 +226,19 @@ export async function replayActionLog(params: {
   };
 
   /**
-   * During replay, canAfford is not enforced.  The check was already
-   * performed at publish time (fleetSlice, networkSlice).  Re-validating
-   * here with incomplete data — only the latest TICK_UPDATE survives on
-   * relays due to NIP-33 replacement, so flight revenue earned between
-   * purchases is invisible during replay — causes legitimate purchases
-   * to be silently dropped.  The balance deduction (applyBalanceDelta)
-   * still executes, so the ledger tracks all debits/credits accurately.
+   * During replay, canAfford uses a soft floor rather than strict
+   * balance enforcement.  Only the latest TICK_UPDATE survives on relays
+   * due to NIP-33 replacement, so intermediate flight revenue is
+   * invisible during replay.  A strict check would reject legitimate
+   * purchases.  Instead we allow purchases as long as the balance stays
+   * above REPLAY_SOFT_FLOOR (-$50M), which is generous enough for
+   * revenue gaps but blocks unlimited spending exploits.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const canAfford = (_cost: FixedPoint): boolean => {
+  const REPLAY_SOFT_FLOOR = fp(-50_000_000);
+  const canAfford = (cost: FixedPoint): boolean => {
     if (!airline) return false;
-    return true;
+    const projectedBalance = fpSub(airline.corporateBalance, cost);
+    return projectedBalance >= REPLAY_SOFT_FLOOR;
   };
 
   const resolveEventTimestamp = (tick: number, createdAt: number | null) =>
@@ -346,7 +347,18 @@ export async function replayActionLog(params: {
     const { action } = record;
     if (rejectedEventIds?.has(record.eventId)) continue;
     const payload = action.payload;
-    const actionTick = clampInt(payload.tick, 0, Number.MAX_SAFE_INTEGER) ?? 0;
+    // Clamp payload.tick against event.created_at to prevent tick time-travel.
+    // Max allowed tick = derived from event timestamp + 1 hour tolerance.
+    // Only applies when the event timestamp is after GENESIS_TIME (valid game era).
+    const rawActionTick = clampInt(payload.tick, 0, Number.MAX_SAFE_INTEGER) ?? 0;
+    const genesisSeconds = Math.floor(GENESIS_TIME / 1000);
+    const maxTickFromTimestamp =
+      typeof record.createdAt === "number" &&
+      Number.isFinite(record.createdAt) &&
+      record.createdAt > genesisSeconds
+        ? Math.floor((record.createdAt * 1000 - GENESIS_TIME) / TICK_DURATION) + TICKS_PER_HOUR
+        : Number.MAX_SAFE_INTEGER;
+    const actionTick = Math.min(rawActionTick, maxTickFromTimestamp);
     const eventTimestamp = resolveEventTimestamp(actionTick, record.createdAt);
     actionChainHash = await computeActionChainHash(actionChainHash, {
       id: record.eventId,
@@ -961,7 +973,10 @@ export async function replayActionLog(params: {
       case "AIRCRAFT_BUY_USED": {
         const instanceId = clampString(payload.instanceId, 64);
         const modelId = clampString(payload.modelId, 64);
-        if (!instanceId || !modelId) break;
+        // Require a non-empty listingId referencing the seller's marketplace event.
+        // Without this, an attacker could fabricate a purchase for any aircraft.
+        const listingId = clampString(payload.listingId, 128);
+        if (!instanceId || !modelId || !listingId) break;
         const price = clampFixedPoint(payload.price, fpZero, MAX_PRICE);
         if (!price) break;
         if (!canAfford(price)) break;

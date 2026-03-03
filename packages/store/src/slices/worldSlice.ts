@@ -7,6 +7,7 @@ import type {
   TimelineEvent,
 } from "@acars/core";
 import {
+  computeCheckpointStateHash,
   fp,
   fpAdd,
   fpFormat,
@@ -218,7 +219,31 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         for (const [authorPubkey, entries] of actionsByPubkey.entries()) {
           if (authorPubkey === existingState.pubkey) continue;
 
-          const checkpoint = checkpoints.get(authorPubkey) ?? null;
+          let checkpoint = checkpoints.get(authorPubkey) ?? null;
+          // Verify competitor checkpoint state hash to prevent checkpoint poisoning.
+          // A malicious competitor could publish a fabricated checkpoint with
+          // arbitrary balance/fleet — reject it and fall back to full log replay.
+          if (checkpoint) {
+            try {
+              const recomputedHash = await computeCheckpointStateHash({
+                airline: checkpoint.airline,
+                fleet: checkpoint.fleet,
+                routes: checkpoint.routes,
+                timeline: checkpoint.timeline,
+              });
+              if (recomputedHash !== checkpoint.stateHash) {
+                console.warn(
+                  `[WorldSlice] Competitor ${authorPubkey.slice(0, 8)} checkpoint state hash mismatch — ignoring checkpoint`,
+                );
+                checkpoint = null;
+              }
+            } catch {
+              console.warn(
+                `[WorldSlice] Failed to verify competitor ${authorPubkey.slice(0, 8)} checkpoint — ignoring`,
+              );
+              checkpoint = null;
+            }
+          }
           let scopedEntries = entries;
           if (checkpoint) {
             scopedEntries = scopeActionsToCheckpoint(entries, checkpoint);
@@ -741,19 +766,33 @@ async function settleMarketplaceSales(
   const { airline, fleet, routes, timeline, pubkey, fleetByOwner } = get();
   if (!airline || !pubkey) return;
 
-  // Build a set of all aircraft IDs owned by competitors
-  const competitorAircraftIds = new Set<string>();
+  // Build a map of competitor aircraft: ID -> { ownerPubkey, purchasePrice }
+  const competitorAircraft = new Map<string, { ownerPubkey: string; purchasePrice: FixedPoint }>();
   for (const [ownerPubkey, ownerFleet] of fleetByOwner) {
     if (ownerPubkey === pubkey) continue;
     for (const ac of ownerFleet) {
-      competitorAircraftIds.add(ac.id);
+      competitorAircraft.set(ac.id, { ownerPubkey, purchasePrice: ac.purchasePrice });
     }
   }
 
-  // Find our listed aircraft that now appear in a competitor's fleet
-  const soldAircraft = fleet.filter(
-    (ac) => ac.listingPrice != null && ac.listingPrice > 0 && competitorAircraftIds.has(ac.id),
-  );
+  // Find our listed aircraft that now appear in a competitor's fleet,
+  // AND verify the buyer paid the correct price (within 1% FP tolerance).
+  const soldAircraft = fleet.filter((ac) => {
+    if (ac.listingPrice == null || ac.listingPrice <= 0) return false;
+    const buyerEntry = competitorAircraft.get(ac.id);
+    if (!buyerEntry) return false;
+    // Verify the buyer's recorded purchasePrice matches our listingPrice.
+    // Use 1% tolerance for fixed-point rounding differences.
+    const priceDiff = Math.abs(buyerEntry.purchasePrice - ac.listingPrice);
+    const tolerance = fpScale(ac.listingPrice, 0.01);
+    if (priceDiff > tolerance) {
+      console.warn(
+        `[WorldSlice] Settlement rejected for ${ac.id}: buyer price ${fpFormat(buyerEntry.purchasePrice)} != listing ${fpFormat(ac.listingPrice)}`,
+      );
+      return false;
+    }
+    return true;
+  });
 
   if (soldAircraft.length === 0) return;
 

@@ -101,7 +101,7 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       throw new Error("You must establish a Hub airport before purchasing aircraft.");
     }
 
-    const newInstanceId = `ac-${Date.now().toString(36)}`;
+    const newInstanceId = `ac-${pubkey.slice(0, 8)}-${Date.now().toString(36)}`;
 
     const newInstance: AircraftInstance = {
       id: newInstanceId,

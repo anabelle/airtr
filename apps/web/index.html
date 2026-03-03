@@ -1,13 +1,23 @@
 <!doctype html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ACARS - Corporate Console</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/app/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self';
+                   script-src 'self' 'unsafe-eval' blob:;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.cartocdn.com;
+                   font-src 'self' https://fonts.gstatic.com https://*.cartocdn.com;
+                   img-src 'self' data: blob: https://*.cartocdn.com https://*.basemaps.cartocdn.com;
+                   connect-src 'self' https://*.cartocdn.com https://*.basemaps.cartocdn.com wss://nostr.acars.pub wss://relay.damus.io wss://relay.primal.net wss://nos.lol wss://relay.snort.social wss://offchain.pub wss://relay.nostr.net wss://relay.nos.social wss://nostr.land;
+                   worker-src 'self' blob:;" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ACARS - Corporate Console</title>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/app/main.tsx"></script>
+</body>
+
 </html>
