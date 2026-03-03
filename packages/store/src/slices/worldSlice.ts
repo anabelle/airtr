@@ -1,6 +1,7 @@
 import type {
   AircraftInstance,
   AirlineEntity,
+  Checkpoint,
   FixedPoint,
   FlightOffer,
   Route,
@@ -11,6 +12,7 @@ import {
   fp,
   fpAdd,
   fpFormat,
+  fpRaw,
   fpScale,
   fpSub,
   GENESIS_TIME,
@@ -113,6 +115,33 @@ const applyMonthlyCosts = (
   const totalOpexCost = fpScale(fp(opexTotal), numCycles);
   const totalCost = fpAdd(totalLeaseCost, totalOpexCost);
   return fpSub(balance, totalCost);
+};
+
+const verifyCheckpointInternalConsistency = async (
+  checkpoint: Checkpoint | null,
+  ownerPubkey: string,
+): Promise<Checkpoint | null> => {
+  if (!checkpoint) return null;
+  try {
+    const recomputedHash = await computeCheckpointStateHash({
+      airline: checkpoint.airline,
+      fleet: checkpoint.fleet,
+      routes: checkpoint.routes,
+      timeline: checkpoint.timeline,
+    });
+    if (recomputedHash !== checkpoint.stateHash) {
+      console.warn(
+        `[WorldSlice] Competitor ${ownerPubkey.slice(0, 8)} checkpoint state hash mismatch — ignoring checkpoint`,
+      );
+      return null;
+    }
+    return checkpoint;
+  } catch {
+    console.warn(
+      `[WorldSlice] Failed to verify competitor ${ownerPubkey.slice(0, 8)} checkpoint — ignoring`,
+    );
+    return null;
+  }
 };
 
 export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = (set, get) => ({
@@ -219,31 +248,10 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         for (const [authorPubkey, entries] of actionsByPubkey.entries()) {
           if (authorPubkey === existingState.pubkey) continue;
 
-          let checkpoint = checkpoints.get(authorPubkey) ?? null;
-          // Verify competitor checkpoint state hash to prevent checkpoint poisoning.
-          // A malicious competitor could publish a fabricated checkpoint with
-          // arbitrary balance/fleet — reject it and fall back to full log replay.
-          if (checkpoint) {
-            try {
-              const recomputedHash = await computeCheckpointStateHash({
-                airline: checkpoint.airline,
-                fleet: checkpoint.fleet,
-                routes: checkpoint.routes,
-                timeline: checkpoint.timeline,
-              });
-              if (recomputedHash !== checkpoint.stateHash) {
-                console.warn(
-                  `[WorldSlice] Competitor ${authorPubkey.slice(0, 8)} checkpoint state hash mismatch — ignoring checkpoint`,
-                );
-                checkpoint = null;
-              }
-            } catch {
-              console.warn(
-                `[WorldSlice] Failed to verify competitor ${authorPubkey.slice(0, 8)} checkpoint — ignoring`,
-              );
-              checkpoint = null;
-            }
-          }
+          const checkpoint = await verifyCheckpointInternalConsistency(
+            checkpoints.get(authorPubkey) ?? null,
+            authorPubkey,
+          );
           let scopedEntries = entries;
           if (checkpoint) {
             scopedEntries = scopeActionsToCheckpoint(entries, checkpoint);
@@ -602,7 +610,10 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
 
       if (actions.length === 0 && checkpoints.size === 0) return;
 
-      const checkpoint = checkpoints.get(competitorPubkey) ?? null;
+      const checkpoint = await verifyCheckpointInternalConsistency(
+        checkpoints.get(competitorPubkey) ?? null,
+        competitorPubkey,
+      );
       let scopedEntries = actions;
       if (checkpoint) {
         scopedEntries = scopeActionsToCheckpoint(actions, checkpoint);
@@ -776,15 +787,18 @@ async function settleMarketplaceSales(
   }
 
   // Find our listed aircraft that now appear in a competitor's fleet,
-  // AND verify the buyer paid the correct price (within 1% FP tolerance).
+  // AND verify the buyer paid the correct price (within 1 FP unit tolerance).
   const soldAircraft = fleet.filter((ac) => {
     if (ac.listingPrice == null || ac.listingPrice <= 0) return false;
     const buyerEntry = competitorAircraft.get(ac.id);
     if (!buyerEntry) return false;
     // Verify the buyer's recorded purchasePrice matches our listingPrice.
-    // Use 1% tolerance for fixed-point rounding differences.
-    const priceDiff = Math.abs(buyerEntry.purchasePrice - ac.listingPrice);
-    const tolerance = fpScale(ac.listingPrice, 0.01);
+    // Allow at most a 1-unit raw fixed-point delta for rounding differences.
+    const priceDiff =
+      buyerEntry.purchasePrice >= ac.listingPrice
+        ? fpSub(buyerEntry.purchasePrice, ac.listingPrice)
+        : fpSub(ac.listingPrice, buyerEntry.purchasePrice);
+    const tolerance = fpRaw(1);
     if (priceDiff > tolerance) {
       console.warn(
         `[WorldSlice] Settlement rejected for ${ac.id}: buyer price ${fpFormat(buyerEntry.purchasePrice)} != listing ${fpFormat(ac.listingPrice)}`,

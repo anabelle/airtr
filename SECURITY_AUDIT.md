@@ -64,7 +64,7 @@ This design gives excellent offline resilience and censorship resistance, but it
 
 **Finding:** Competitor checkpoints were used as-is, without any hash verification.
 
-**Fix:** Added `computeCheckpointStateHash` verification for competitor checkpoints in `syncWorld`. Invalid checkpoints are discarded and state is rebuilt from the action log.
+**Fix:** Added `computeCheckpointStateHash` verification for competitor checkpoints in both `syncWorld` and `syncCompetitor`. Invalid checkpoints are discarded and state is rebuilt from the action log.
 
 ---
 
@@ -74,7 +74,7 @@ This design gives excellent offline resilience and censorship resistance, but it
 
 **Finding:** Settlement credited the seller based solely on detecting the aircraft in a competitor's fleet, with no verification the buyer paid the correct price.
 
-**Fix:** Settlement now verifies the buyer's `purchasePrice` matches the seller's `listingPrice` within 1% tolerance. Mismatched settlements are rejected with a warning.
+**Fix:** Settlement now verifies the buyer's `purchasePrice` matches the seller's `listingPrice` using fixed-point arithmetic with at most a 1 raw FP unit tolerance. Mismatched settlements are rejected with a warning.
 
 ---
 

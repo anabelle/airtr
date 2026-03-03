@@ -316,10 +316,13 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             get,
             set,
           }).catch((e) => {
-            if (previousPublishedTick == null) {
-              lastTickUpdatePublishByAirline.delete(updatedAirline.id);
-            } else {
-              lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+            const currentPublishedTick = lastTickUpdatePublishByAirline.get(updatedAirline.id);
+            if (currentPublishedTick === targetTick) {
+              if (previousPublishedTick == null) {
+                lastTickUpdatePublishByAirline.delete(updatedAirline.id);
+              } else {
+                lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+              }
             }
             console.error("Auto-sync tick failed", e);
           });
@@ -899,10 +902,13 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           get,
           set,
         }).catch((e) => {
-          if (previousPublishedTick == null) {
-            lastTickUpdatePublishByAirline.delete(updatedAirline.id);
-          } else {
-            lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+          const currentPublishedTick = lastTickUpdatePublishByAirline.get(updatedAirline.id);
+          if (currentPublishedTick === targetTick) {
+            if (previousPublishedTick == null) {
+              lastTickUpdatePublishByAirline.delete(updatedAirline.id);
+            } else {
+              lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+            }
           }
           console.error("Auto-sync tick failed", e);
         });
