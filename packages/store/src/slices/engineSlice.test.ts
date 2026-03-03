@@ -1,4 +1,5 @@
 import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/core";
+import { publishAction } from "@acars/nostr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
@@ -810,5 +811,70 @@ describe("immediate visual reconciliation during catch-up", () => {
     // Gap = 1 tick (1000 - 999), should NOT trigger projection
     await state.processTick(1000);
     expect(reconcileFleetToTick).not.toHaveBeenCalled();
+  });
+});
+
+describe("TICK_UPDATE publish cadence", () => {
+  it("throttles non-material publishes to heartbeat cadence", async () => {
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (_tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events: [],
+        hasChanges: true,
+      }),
+    );
+
+    const route = makeRoute("rt-1", 400);
+    const { state } = createSliceState({
+      airline: makeAirline(999),
+      fleet: [makeAircraft("ac-1")],
+      routes: [route],
+    });
+
+    await state.processTick(1000);
+    for (let tick = 1001; tick < 1020; tick += 1) {
+      await state.processTick(tick);
+    }
+    expect(vi.mocked(publishAction)).toHaveBeenCalledTimes(1);
+
+    await state.processTick(1020);
+    expect(vi.mocked(publishAction)).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes immediately on timeline material changes before heartbeat", async () => {
+    const { processFlightEngine } = await import("../FlightEngine");
+    vi.mocked(processFlightEngine).mockImplementation(
+      (tick, currentFleet, _routes, corporateBalance) => ({
+        updatedFleet: currentFleet,
+        corporateBalance,
+        events:
+          tick === 1001
+            ? [
+                {
+                  id: `evt-material-${tick}`,
+                  tick,
+                  timestamp: 0,
+                  type: "takeoff",
+                  description: "material event",
+                },
+              ]
+            : [],
+        hasChanges: true,
+      }),
+    );
+
+    const route = makeRoute("rt-1", 400);
+    const { state } = createSliceState({
+      airline: makeAirline(999),
+      fleet: [makeAircraft("ac-1")],
+      routes: [route],
+    });
+
+    await state.processTick(1000);
+    await state.processTick(1001);
+
+    expect(vi.mocked(publishAction)).toHaveBeenCalledTimes(2);
   });
 });

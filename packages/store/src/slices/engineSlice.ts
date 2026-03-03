@@ -33,10 +33,28 @@ const tickMutex = new AsyncMutex();
 const CHECKPOINT_INTERVAL = 1200;
 const CHECKPOINT_TIMELINE_EVENTS = 1000;
 const TICK_UPDATE_TIMELINE_EVENTS = 200;
+const TICK_UPDATE_HEARTBEAT_TICKS = 20;
 let skippedTickLockCount = 0;
 const TICK_LOCK_LOG_BURST = 3;
 const TICK_LOCK_LOG_SAMPLE = 100;
 const CHAPTER11_BALANCE_THRESHOLD = fp(CHAPTER11_BALANCE_THRESHOLD_USD);
+const lastTickUpdatePublishByAirline = new Map<string, number>();
+
+function shouldPublishTickUpdate(params: {
+  airlineId: string;
+  tick: number;
+  hasMaterialChange: boolean;
+}): boolean {
+  const { airlineId, tick, hasMaterialChange } = params;
+  const lastPublishedTick = lastTickUpdatePublishByAirline.get(airlineId);
+  if (lastPublishedTick == null) return true;
+  if (hasMaterialChange) return true;
+  return tick - lastPublishedTick >= TICK_UPDATE_HEARTBEAT_TICKS;
+}
+
+function markTickUpdatePublished(airlineId: string, tick: number): void {
+  lastTickUpdatePublishByAirline.set(airlineId, tick);
+}
 
 /** @internal — test/diagnostic helper */
 export function _getTickLockSkippedCount(): number {
@@ -46,6 +64,7 @@ export function _getTickLockSkippedCount(): number {
 /** @internal — test/diagnostic helper */
 export function _resetTickLockDiagnostics(): void {
   skippedTickLockCount = 0;
+  lastTickUpdatePublishByAirline.clear();
   tickMutex.reset();
 }
 
@@ -175,6 +194,8 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       const currentHubs = airline.hubs || [];
       let currentTimeline = [...get().timeline];
       const timelineEventIds = new Set(currentTimeline.map((event) => event.id));
+      const initialAirlineStatus = airline.status;
+      let hasNewTimelineEvents = false;
       let anyChanges = false;
       let consumedDeletedFleetIds = new Set<string>();
 
@@ -220,6 +241,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               cost: totalCost,
             };
             currentTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
+            hasNewTimelineEvents = true;
             anyChanges = true;
           }
         }
@@ -270,7 +292,18 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             set({ latestCheckpoint: checkpoint });
           })().catch((e) => console.error("Checkpoint publish failed", e));
         }
-        if (anyChanges) {
+        const hasMaterialTickUpdate =
+          hasNewTimelineEvents || updatedAirline.status !== initialAirlineStatus;
+        if (
+          anyChanges &&
+          shouldPublishTickUpdate({
+            airlineId: updatedAirline.id,
+            tick: targetTick,
+            hasMaterialChange: hasMaterialTickUpdate,
+          })
+        ) {
+          const previousPublishedTick = lastTickUpdatePublishByAirline.get(updatedAirline.id);
+          markTickUpdatePublished(updatedAirline.id, targetTick);
           publishActionWithChain({
             action: {
               schemaVersion: 2,
@@ -282,7 +315,14 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             },
             get,
             set,
-          }).catch((e) => console.error("Auto-sync tick failed", e));
+          }).catch((e) => {
+            if (previousPublishedTick == null) {
+              lastTickUpdatePublishByAirline.delete(updatedAirline.id);
+            } else {
+              lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+            }
+            console.error("Auto-sync tick failed", e);
+          });
         }
         useEngineStore.setState({ catchupProgress: null });
         return;
@@ -342,6 +382,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
             timelineEventIds.clear();
             for (const event of currentTimeline) timelineEventIds.add(event.id);
+            hasNewTimelineEvents = true;
           }
         }
 
@@ -369,6 +410,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             currentTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
             timelineEventIds.clear();
             for (const event of currentTimeline) timelineEventIds.add(event.id);
+            hasNewTimelineEvents = true;
             anyChanges = true;
           }
         }
@@ -524,6 +566,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             .slice(0, 1000);
           timelineEventIds.clear();
           for (const event of currentTimeline) timelineEventIds.add(event.id);
+          hasNewTimelineEvents = true;
         }
         recoveryEvents.length = 0;
       }
@@ -551,6 +594,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
           timelineEventIds.clear();
           for (const event of currentTimeline) timelineEventIds.add(event.id);
+          hasNewTimelineEvents = true;
         }
       }
 
@@ -775,6 +819,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
           timelineEventIds.clear();
           for (const event of currentTimeline) timelineEventIds.add(event.id);
+          hasNewTimelineEvents = true;
         }
       }
 
@@ -827,7 +872,18 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       }
 
       // 4. Sync to Nostr only if significant events happened
-      if (anyChanges) {
+      const hasMaterialTickUpdate =
+        hasNewTimelineEvents || updatedAirline.status !== initialAirlineStatus;
+      if (
+        anyChanges &&
+        shouldPublishTickUpdate({
+          airlineId: updatedAirline.id,
+          tick: targetTick,
+          hasMaterialChange: hasMaterialTickUpdate,
+        })
+      ) {
+        const previousPublishedTick = lastTickUpdatePublishByAirline.get(updatedAirline.id);
+        markTickUpdatePublished(updatedAirline.id, targetTick);
         // Re-read current state at publish time to avoid overwriting
         // concurrent changes (e.g. hub modifications during tick processing).
         // We merge the tick's computed values with the fresh airline identity.
@@ -842,7 +898,14 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           },
           get,
           set,
-        }).catch((e) => console.error("Auto-sync tick failed", e));
+        }).catch((e) => {
+          if (previousPublishedTick == null) {
+            lastTickUpdatePublishByAirline.delete(updatedAirline.id);
+          } else {
+            lastTickUpdatePublishByAirline.set(updatedAirline.id, previousPublishedTick);
+          }
+          console.error("Auto-sync tick failed", e);
+        });
       }
       useEngineStore.setState({ catchupProgress: null });
     } finally {
