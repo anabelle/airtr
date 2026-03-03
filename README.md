@@ -96,6 +96,17 @@ pnpm typecheck    # Type-check all packages
 pnpm clean        # Remove all build artifacts
 ```
 
+### Android Development
+
+The web application can be built as a native Android app using Capacitor.
+
+```bash
+cd apps/web
+pnpm run build          # 1. Build the production web bundle
+npx cap sync android    # 2. Sync the web bundle into the Android project
+npx cap open android    # 3. Open Android Studio to build the .aab/.apk
+```
+
 ## Project Structure
 
 ```
@@ -195,7 +206,7 @@ Every feature must answer: _"If 10,000 players fire this event simultaneously, w
 | [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)                       | IPOs, M&A, bankruptcy, stock mechanics            |
 | [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md)                 | Aircraft depreciation, maintenance, commonality   |
 | [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md)                 | Bitcoin/Lightning revenue streams                 |
-| [SCALABILITY.md](docs/SCALABILITY.md)                                | Map and rendering scaling strategy                |
+| [SCALABILITY.md](docs/SCALABILITY.md)                               | Map and rendering scaling strategy                |
 | [UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md)                       | Frontend stack and cross-platform strategy        |
 | [TYCOON_UI_ARCHITECTURE.md](docs/TYCOON_UI_ARCHITECTURE.md)         | Enterprise-grade UI layout and data density       |
 | [AGENT_DEVELOPMENT_PARADIGM.md](docs/AGENT_DEVELOPMENT_PARADIGM.md) | Multi-agent coordination and safety contracts     |
