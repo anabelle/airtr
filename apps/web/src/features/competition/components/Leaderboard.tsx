@@ -74,12 +74,12 @@ function LeaderboardRow({
     <div
       className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isOwn ? "border-primary/40 bg-primary/10" : "border-border/50 bg-background/40 hover:bg-accent/10"}`}
     >
-      <div className="flex w-1/2 items-center gap-3">
+      <div className="flex flex-1 min-w-0 items-center gap-3">
         <a
           href={npub ? `https://primal.net/p/${npub}` : undefined}
           target={npub ? "_blank" : undefined}
           rel={npub ? "noreferrer" : undefined}
-          className="h-10 w-10 overflow-hidden rounded-full border border-border/50 bg-background/60"
+          className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-border/50 bg-background/60"
           aria-label={npub ? `Open ${displayName} on Primal` : undefined}
           style={row.liveryPrimary ? { boxShadow: `0 0 0 2px ${row.liveryPrimary}` } : undefined}
         >
@@ -96,16 +96,16 @@ function LeaderboardRow({
             </div>
           )}
         </a>
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">{row.name}</span>
+            <span className="font-semibold text-foreground truncate">{row.name}</span>
             {isOwn && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
+              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
                 Your Airline
               </span>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground truncate">
             {row.icaoCode} · {displayName}
             {profile.nip05 && (
               <span className="ml-2 rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
@@ -123,7 +123,7 @@ function LeaderboardRow({
           </div>
         </div>
       </div>
-      <div className="flex w-1/2 items-center justify-end gap-6">
+      <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-6">
         {!isOwn && (
           <button
             type="button"
