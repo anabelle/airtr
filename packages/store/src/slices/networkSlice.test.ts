@@ -459,6 +459,8 @@ describe("assignAircraftToRoute", () => {
     const route = updatedRoutes.find((rt) => rt.id === "rt-1");
 
     expect(aircraft?.assignedRouteId).toBe("rt-1");
+    expect(aircraft?.routeAssignedAtTick).toBe(100);
+    expect(aircraft?.routeAssignedAtIata).toBe("BOG");
     expect(route?.assignedAircraftIds).toContain("ac-1");
   });
 

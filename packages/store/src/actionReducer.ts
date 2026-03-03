@@ -726,7 +726,7 @@ export async function replayActionLog(params: {
         aircraft.routeAssignedAtIata = aircraft.baseAirportIata;
         // Clear stale flight state from a previous cycle so reconcileFleetToTick
         // uses routeAssignedAtTick as the new cycle anchor instead of old departureTick.
-        if (aircraft.flight && actionTick > aircraft.flight.departureTick) {
+        if (aircraft.flight && actionTick >= aircraft.flight.departureTick) {
           aircraft.status = "idle";
           aircraft.flight = null;
           aircraft.turnaroundEndTick = undefined;

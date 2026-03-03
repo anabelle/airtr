@@ -501,7 +501,7 @@ describe("replayActionLog", () => {
     expect(routeB?.assignedAircraftIds).toContain("ac-1");
   });
 
-  it("ROUTE_ASSIGN_AIRCRAFT clears stale flight state when actionTick > departureTick", async () => {
+  it("ROUTE_ASSIGN_AIRCRAFT clears stale flight state when actionTick >= departureTick", async () => {
     const pubkey = "pubkey-stale";
     const actions = [
       {

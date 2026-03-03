@@ -1332,7 +1332,46 @@ describe("reconcileFleetToTick — destination-aware stagger", () => {
     expect(result[0].flight?.direction).not.toBe(result[1].flight?.direction);
   });
 
-  it("stale enroute state is overridden when routeAssignedAtTick > departureTick", () => {
+  it("falls back to baseAirportIata when routeAssignedAtIata is missing", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-stag-fallback",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-origin-fallback", "ac-dest-fallback"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const acOrigin = makeAircraft({
+      id: "ac-origin-fallback",
+      assignedRouteId: "route-stag-fallback",
+      status: "idle",
+      baseAirportIata: "JFK",
+      flight: null,
+      routeAssignedAtTick: 1000,
+    });
+
+    const acDest = makeAircraft({
+      id: "ac-dest-fallback",
+      assignedRouteId: "route-stag-fallback",
+      status: "idle",
+      baseAirportIata: "LAX",
+      flight: null,
+      routeAssignedAtTick: 1000,
+    });
+
+    const targetTick = 1000 + roundTrip * 4 + 1;
+    const { fleet: result } = reconcileFleetToTick([acOrigin, acDest], [route], targetTick);
+
+    expect(result[0].status).not.toBe("idle");
+    expect(result[1].status).not.toBe("idle");
+    expect(result[0].flight?.direction).not.toBe(result[1].flight?.direction);
+  });
+
+  it("stale enroute state is overridden when routeAssignedAtTick >= departureTick", () => {
     const model = getAircraftById("a320neo")!;
     const route = makeRoute({
       id: "route-stag2",
@@ -1378,6 +1417,58 @@ describe("reconcileFleetToTick — destination-aware stagger", () => {
     const expectedPos = (rawPos + halfTrip) % roundTrip;
 
     // The phase should match the destination-offset calculation, not the stale one
+    if (expectedPos < durationTicks) {
+      expect(result[0].flight?.direction).toBe("outbound");
+    } else if (expectedPos < durationTicks + turnaroundTicks) {
+      expect(result[0].status).toBe("turnaround");
+    } else if (expectedPos < durationTicks * 2 + turnaroundTicks) {
+      expect(result[0].flight?.direction).toBe("inbound");
+    } else {
+      expect(result[0].status).toBe("turnaround");
+    }
+  });
+
+  it("stale enroute state is overridden when routeAssignedAtTick equals departureTick", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-stag2-eq",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-stale-eq"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+    const routeAssignedAtTick = 2000;
+
+    const aircraft = makeAircraft({
+      id: "ac-stale-eq",
+      assignedRouteId: "route-stag2-eq",
+      status: "enroute",
+      baseAirportIata: "LAX",
+      routeAssignedAtTick,
+      routeAssignedAtIata: "LAX",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: routeAssignedAtTick,
+        arrivalTick: routeAssignedAtTick + durationTicks,
+        direction: "outbound",
+      },
+    });
+
+    const targetTick = routeAssignedAtTick + roundTrip * 2 + 1;
+    const { fleet: result } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    expect(result[0].status).not.toBe("idle");
+    expect(result[0].flight).not.toBeNull();
+
+    const elapsed = targetTick - routeAssignedAtTick;
+    const halfTrip = durationTicks + turnaroundTicks;
+    const rawPos = ((elapsed % roundTrip) + roundTrip) % roundTrip;
+    const expectedPos = (rawPos + halfTrip) % roundTrip;
+
     if (expectedPos < durationTicks) {
       expect(result[0].flight?.direction).toBe("outbound");
     } else if (expectedPos < durationTicks + turnaroundTicks) {

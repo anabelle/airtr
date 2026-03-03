@@ -609,8 +609,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             const elapsed = targetTick - cycleAnchor;
             // If the aircraft was at the destination when assigned, offset by
             // half a round-trip so the cycle starts with an inbound leg.
+            const assignedAtAirportIata = ac.routeAssignedAtIata ?? ac.baseAirportIata;
             const assignedAtDest =
-              ac.routeAssignedAtIata != null && ac.routeAssignedAtIata === route.destinationIata;
+              assignedAtAirportIata != null && assignedAtAirportIata === route.destinationIata;
             const sweepPhaseOffset = assignedAtDest ? durationTicks + turnaroundTicks : 0;
             const rawSweepPos = elapsed % roundTripTicks;
             const positionInCycle = (rawSweepPos + sweepPhaseOffset) % roundTripTicks;

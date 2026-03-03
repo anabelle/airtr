@@ -910,11 +910,11 @@ export function reconcileFleetToTick(
       // If the aircraft was reassigned after its current flight started, the
       // flight state is stale (from before the reassignment). Treat it like
       // an idle aircraft and use routeAssignedAtTick as the new cycle anchor.
-      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick > ac.flight.departureTick) {
+      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick >= ac.flight.departureTick) {
         const cycleStartTick = ac.routeAssignedAtTick;
         if (targetTick <= cycleStartTick) return ac;
-        const startedAtDest =
-          ac.routeAssignedAtIata != null && ac.routeAssignedAtIata === route.destinationIata;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
         const stalePhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
         const elapsed = targetTick - cycleStartTick;
         const rawPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
@@ -958,11 +958,11 @@ export function reconcileFleetToTick(
     } else if (ac.status === "turnaround" && ac.flight) {
       // If the aircraft was reassigned after its current flight started,
       // use routeAssignedAtTick as the new cycle anchor (same logic as enroute).
-      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick > ac.flight.departureTick) {
+      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick >= ac.flight.departureTick) {
         const cycleStartTick = ac.routeAssignedAtTick;
         if (targetTick <= cycleStartTick) return ac;
-        const startedAtDest =
-          ac.routeAssignedAtIata != null && ac.routeAssignedAtIata === route.destinationIata;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
         const stalePhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
         const elapsed = targetTick - cycleStartTick;
         const rawPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
@@ -1018,8 +1018,8 @@ export function reconcileFleetToTick(
       // If the aircraft was at the destination when assigned, its first leg
       // is inbound (not outbound). Offset by half a round-trip so the cycle
       // model places it correctly.
-      const startedAtDest =
-        ac.routeAssignedAtIata != null && ac.routeAssignedAtIata === route.destinationIata;
+      const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+      const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
       const phaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
 
       const elapsed = targetTick - cycleStartTick;
@@ -1062,8 +1062,8 @@ export function reconcileFleetToTick(
         }
 
         const elapsed = targetTick - cycleStartTick;
-        const startedAtDest =
-          ac.routeAssignedAtIata != null && ac.routeAssignedAtIata === route.destinationIata;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
         const delPhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
         const rawDelPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
         const positionInCycle = (rawDelPos + delPhaseOffset) % roundTripTicks;

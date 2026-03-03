@@ -755,11 +755,27 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       }
     }
 
+    const currentTick = useEngineStore.getState().tick;
     const updatedFleet = fleet.map((ac) => {
-      if (ac.id === aircraftId) {
-        return { ...ac, assignedRouteId: routeId };
+      if (ac.id !== aircraftId) return ac;
+
+      if (routeId && routeId !== ac.assignedRouteId) {
+        const nextAircraft: AircraftInstance = {
+          ...ac,
+          assignedRouteId: routeId,
+          routeAssignedAtTick: currentTick,
+          routeAssignedAtIata: ac.baseAirportIata,
+        };
+        if (nextAircraft.flight && currentTick >= nextAircraft.flight.departureTick) {
+          nextAircraft.status = "idle";
+          nextAircraft.flight = null;
+          nextAircraft.turnaroundEndTick = undefined;
+          nextAircraft.arrivalTickProcessed = undefined;
+        }
+        return nextAircraft;
       }
-      return ac;
+
+      return { ...ac, assignedRouteId: routeId };
     });
 
     const updatedRoutes = routes.map((rt) => {
@@ -771,7 +787,6 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     });
 
     const currentTimeline = [...get().timeline];
-    const currentTick = useEngineStore.getState().tick;
     const simulatedTimestamp = GENESIS_TIME + currentTick * TICK_DURATION;
 
     const aircraftName = aircraft?.name || "Aircraft";
@@ -797,7 +812,17 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     };
 
     // Capture the previous assignment state for surgical rollback
-    const previousAircraftAssignment = aircraft ? aircraft.assignedRouteId : null;
+    const previousAircraft = aircraft
+      ? {
+          assignedRouteId: aircraft.assignedRouteId,
+          routeAssignedAtTick: aircraft.routeAssignedAtTick,
+          routeAssignedAtIata: aircraft.routeAssignedAtIata,
+          status: aircraft.status,
+          flight: aircraft.flight,
+          turnaroundEndTick: aircraft.turnaroundEndTick,
+          arrivalTickProcessed: aircraft.arrivalTickProcessed,
+        }
+      : null;
     const previousRouteAssignments = new Map(
       routes.map((rt) => [rt.id, [...rt.assignedAircraftIds]]),
     );
@@ -825,11 +850,20 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       });
     } catch (e) {
       set((state) => {
-        // Merge-safe rollback: only revert the specific aircraft assignment
+        // Merge-safe rollback: only revert the specific aircraft assignment state
         // and route assignedAircraftIds, preserving concurrent updates.
         const restoredFleet = state.fleet.map((ac) => {
-          if (ac.id === aircraftId) {
-            return { ...ac, assignedRouteId: previousAircraftAssignment };
+          if (ac.id === aircraftId && previousAircraft) {
+            return {
+              ...ac,
+              assignedRouteId: previousAircraft.assignedRouteId,
+              routeAssignedAtTick: previousAircraft.routeAssignedAtTick,
+              routeAssignedAtIata: previousAircraft.routeAssignedAtIata,
+              status: previousAircraft.status,
+              flight: previousAircraft.flight,
+              turnaroundEndTick: previousAircraft.turnaroundEndTick,
+              arrivalTickProcessed: previousAircraft.arrivalTickProcessed,
+            };
           }
           return ac;
         });
