@@ -422,6 +422,7 @@ describe("replayActionLog", () => {
             instanceId: "ac-1",
             modelId: "a320neo",
             price: fp(50000000),
+            deliveryHubIata: "JFK",
             tick: 2,
           },
         },
@@ -495,7 +496,109 @@ describe("replayActionLog", () => {
 
     expect(aircraft?.assignedRouteId).toBe("rt-b");
     expect(aircraft?.routeAssignedAtTick).toBe(200);
+    expect(aircraft?.routeAssignedAtIata).toBe("JFK"); // baseAirportIata at assignment time
     expect(routeA?.assignedAircraftIds).not.toContain("ac-1");
     expect(routeB?.assignedAircraftIds).toContain("ac-1");
+  });
+
+  it("ROUTE_ASSIGN_AIRCRAFT clears stale flight state when actionTick > departureTick", async () => {
+    const pubkey = "pubkey-stale";
+    const actions = [
+      {
+        eventId: "e1",
+        authorPubkey: pubkey,
+        createdAt: 100,
+        action: {
+          schemaVersion: 2,
+          action: "AIRLINE_CREATE",
+          payload: { name: "Test Airline", hubs: ["JFK"] },
+        },
+      },
+      {
+        eventId: "e2",
+        authorPubkey: pubkey,
+        createdAt: 101,
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-1",
+            modelId: "a320neo",
+            name: "Test A320",
+            purchaseType: "buy",
+            deliveryHubIata: "JFK",
+            tick: 100,
+          },
+        },
+      },
+      {
+        eventId: "e3",
+        authorPubkey: pubkey,
+        createdAt: 102,
+        action: {
+          schemaVersion: 2,
+          action: "ROUTE_OPEN",
+          payload: {
+            routeId: "rt-a",
+            originIata: "JFK",
+            destinationIata: "LAX",
+            distanceKm: 3983,
+            tick: 100,
+          },
+        },
+      },
+      {
+        eventId: "e4",
+        authorPubkey: pubkey,
+        createdAt: 103,
+        action: {
+          schemaVersion: 2,
+          action: "ROUTE_ASSIGN_AIRCRAFT",
+          payload: { aircraftId: "ac-1", routeId: "rt-a", tick: 100 },
+        },
+      },
+      // TICK_UPDATE to reconcile fleet — this gives the aircraft a flight state
+      {
+        eventId: "e5",
+        authorPubkey: pubkey,
+        createdAt: 104,
+        action: {
+          schemaVersion: 2,
+          action: "TICK_UPDATE",
+          payload: { tick: 5000, timeline: [] },
+        },
+      },
+      // Unassign then reassign at a later tick (stagger scenario)
+      {
+        eventId: "e6",
+        authorPubkey: pubkey,
+        createdAt: 105,
+        action: {
+          schemaVersion: 2,
+          action: "ROUTE_UNASSIGN_AIRCRAFT",
+          payload: { aircraftId: "ac-1", routeId: "rt-a", tick: 6000 },
+        },
+      },
+      {
+        eventId: "e7",
+        authorPubkey: pubkey,
+        createdAt: 106,
+        action: {
+          schemaVersion: 2,
+          action: "ROUTE_ASSIGN_AIRCRAFT",
+          payload: { aircraftId: "ac-1", routeId: "rt-a", tick: 6000 },
+        },
+      },
+    ];
+
+    const result = await replayActionLog({ pubkey, actions });
+    const aircraft = result.fleet.find((ac) => ac.id === "ac-1");
+
+    // The TICK_UPDATE at tick 5000 gave the aircraft a flight state with a
+    // departureTick in the past. The ROUTE_ASSIGN at tick 6000 should have
+    // cleared that stale flight state.
+    expect(aircraft?.routeAssignedAtTick).toBe(6000);
+    expect(aircraft?.status).toBe("idle");
+    expect(aircraft?.flight).toBeNull();
   });
 });

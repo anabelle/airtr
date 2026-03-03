@@ -49,6 +49,8 @@ const makeAircraft = (overrides: Partial<AircraftInstance> = {}): AircraftInstan
     flightHoursTotal: overrides.flightHoursTotal ?? 0,
     flightHoursSinceCheck: overrides.flightHoursSinceCheck ?? 0,
     condition: overrides.condition ?? 1.0,
+    routeAssignedAtTick: overrides.routeAssignedAtTick,
+    routeAssignedAtIata: overrides.routeAssignedAtIata,
   };
 };
 
@@ -1279,5 +1281,164 @@ describe("reconcileFleetToTick — delivery aircraft", () => {
     // targetTick == cycleStartTick, code does `if (targetTick <= cycleStartTick) return idle`
     const { fleet: result } = reconcileFleetToTick([aircraft], [route], 5000);
     expect(result[0].status).toBe("idle");
+  });
+});
+
+describe("reconcileFleetToTick — destination-aware stagger", () => {
+  it("idle aircraft at destination gets inbound-start cycle via routeAssignedAtIata", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-stag1",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-origin", "ac-dest"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Aircraft A at origin (JFK) — standard outbound-first cycle
+    const acOrigin = makeAircraft({
+      id: "ac-origin",
+      assignedRouteId: "route-stag1",
+      status: "idle",
+      baseAirportIata: "JFK",
+      flight: null,
+      routeAssignedAtTick: 1000,
+      routeAssignedAtIata: "JFK",
+    });
+
+    // Aircraft B at destination (LAX) — should start with inbound leg
+    const acDest = makeAircraft({
+      id: "ac-dest",
+      assignedRouteId: "route-stag1",
+      status: "idle",
+      baseAirportIata: "LAX",
+      flight: null,
+      routeAssignedAtTick: 1000,
+      routeAssignedAtIata: "LAX",
+    });
+
+    // At any target tick, the two aircraft should be ~halfTrip apart in the cycle
+    const targetTick = 1000 + roundTrip * 7 + 1;
+    const { fleet: result } = reconcileFleetToTick([acOrigin, acDest], [route], targetTick);
+
+    // Verify they ended up at different phases (roughly half a round trip apart)
+    expect(result[0].status).not.toBe("idle");
+    expect(result[1].status).not.toBe("idle");
+
+    // The flight directions should differ — one outbound, one inbound (or similar offset)
+    expect(result[0].flight?.direction).not.toBe(result[1].flight?.direction);
+  });
+
+  it("stale enroute state is overridden when routeAssignedAtTick > departureTick", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-stag2",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-stale"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Aircraft has stale enroute flight state from tick 500, but was reassigned at tick 2000
+    const aircraft = makeAircraft({
+      id: "ac-stale",
+      assignedRouteId: "route-stag2",
+      status: "enroute",
+      baseAirportIata: "LAX",
+      routeAssignedAtTick: 2000,
+      routeAssignedAtIata: "LAX",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 500,
+        arrivalTick: 500 + durationTicks,
+        direction: "outbound",
+      },
+    });
+
+    const targetTick = 2000 + roundTrip * 3 + 1;
+    const { fleet: result } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    // Should NOT use the stale departureTick=500, should use routeAssignedAtTick=2000
+    // With routeAssignedAtIata=LAX (destination), the phase offset puts it
+    // at the inbound-start position, not the outbound-start position.
+    expect(result[0].status).not.toBe("idle");
+    expect(result[0].flight).not.toBeNull();
+
+    // Verify: compute expected position from routeAssignedAtTick with destination offset
+    const elapsed = targetTick - 2000;
+    const halfTrip = durationTicks + turnaroundTicks;
+    const rawPos = ((elapsed % roundTrip) + roundTrip) % roundTrip;
+    const expectedPos = (rawPos + halfTrip) % roundTrip;
+
+    // The phase should match the destination-offset calculation, not the stale one
+    if (expectedPos < durationTicks) {
+      expect(result[0].flight?.direction).toBe("outbound");
+    } else if (expectedPos < durationTicks + turnaroundTicks) {
+      expect(result[0].status).toBe("turnaround");
+    } else if (expectedPos < durationTicks * 2 + turnaroundTicks) {
+      expect(result[0].flight?.direction).toBe("inbound");
+    } else {
+      expect(result[0].status).toBe("turnaround");
+    }
+  });
+
+  it("staggered aircraft maintain separation after reconcileFleetToTick across reload", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-stag3",
+      originIata: "BOG",
+      destinationIata: "CCS",
+      distanceKm: 1000,
+      assignedAircraftIds: ["ac-a", "ac-b"],
+    });
+    const durationTicks = Math.ceil((1000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Simulate: Player assigns A at BOG and B at CCS at different times.
+    // The phase offset from routeAssignedAtIata should preserve the stagger
+    // even though both aircraft are idle when reconciled.
+    const acA = makeAircraft({
+      id: "ac-a",
+      assignedRouteId: "route-stag3",
+      status: "idle",
+      baseAirportIata: "BOG",
+      flight: null,
+      routeAssignedAtTick: 100,
+      routeAssignedAtIata: "BOG",
+    });
+
+    // B assigned later at CCS. The tick offset (500) is arbitrary and NOT
+    // equal to halfTrip, ensuring the test isn't trivially symmetric.
+    const acB = makeAircraft({
+      id: "ac-b",
+      assignedRouteId: "route-stag3",
+      status: "idle",
+      baseAirportIata: "CCS",
+      flight: null,
+      routeAssignedAtTick: 600,
+      routeAssignedAtIata: "CCS",
+    });
+
+    // Simulate "next day" — many round trips later
+    const targetTick = 600 + roundTrip * 20 + Math.floor(durationTicks / 2);
+    const { fleet: result } = reconcileFleetToTick([acA, acB], [route], targetTick);
+
+    // Both should be actively flying
+    expect(result[0].status).not.toBe("idle");
+    expect(result[1].status).not.toBe("idle");
+
+    // They should not be at the same cycle phase — the destination phase
+    // offset ensures B's cycle is shifted relative to A's.
+    const aFlight = result[0].flight!;
+    const bFlight = result[1].flight!;
+    expect(aFlight.direction).not.toBe(bFlight.direction);
   });
 });
