@@ -21,7 +21,7 @@ export function Ticker() {
   if (!homeAirport) return null;
 
   return (
-    <div className="pointer-events-auto flex items-center space-x-6 overflow-x-auto custom-scrollbar bg-background/95 backdrop-blur-sm border-t border-border px-4 py-1.5 text-xs font-mono text-muted-foreground z-50 fixed bottom-0 left-0 right-0 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+    <div className="pointer-events-auto hidden sm:flex items-center space-x-6 overflow-x-auto custom-scrollbar bg-background/95 backdrop-blur-sm border-t border-border px-4 py-1.5 text-xs font-mono text-muted-foreground z-50 fixed bottom-0 left-0 right-0 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
       <div className="flex items-center space-x-2 text-primary w-24 shrink-0">
         <div className="relative h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_5px_currentColor] shrink-0">
           <div className="absolute -inset-1 rounded-full bg-primary/20 animate-ping"></div>

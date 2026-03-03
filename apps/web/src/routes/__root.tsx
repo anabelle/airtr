@@ -38,7 +38,7 @@ export const Route = createRootRoute({
   },
   component: () => (
     <AppInitializer>
-      <div className="relative flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      <div className="relative flex h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
         {/* Layer 0: The WebGL Map (Always rendering in background) */}
         <WorldMap />
 
@@ -66,7 +66,7 @@ export const Route = createRootRoute({
         <Ticker />
 
         <Suspense fallback={null}>
-          <TanStackRouterDevtools position="bottom-right" />
+          <TanStackRouterDevtools position="top-right" />
         </Suspense>
       </div>
     </AppInitializer>
