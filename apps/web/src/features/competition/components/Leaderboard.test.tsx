@@ -47,6 +47,22 @@ vi.mock("@/features/competition/leaderboardMetrics", () => {
   };
 });
 
+vi.mock("@tanstack/react-virtual", () => {
+  return {
+    useVirtualizer: (opts: { count: number }) => ({
+      getTotalSize: () => opts.count * 84,
+      getVirtualItems: () =>
+        Array.from({ length: opts.count }, (_, index) => ({
+          index,
+          key: index,
+          start: index * 84,
+          size: 84,
+        })),
+      measureElement: () => {},
+    }),
+  };
+});
+
 vi.mock("@/shared/hooks/useNostrProfile", () => {
   return {
     useNostrProfile: () => ({
