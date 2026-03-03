@@ -1,8 +1,9 @@
 import type { AircraftInstance, FixedPoint, Route } from "@acars/core";
 import { fpFormat } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDownRight, ArrowUpRight, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   LeaderboardMetric,
   LeaderboardRow as LeaderboardRowData,
@@ -35,6 +36,7 @@ const metricMeta: Record<
     description: "Ranked by total route kilometers",
   },
 };
+const ROW_HEIGHT = 84;
 
 function formatBrandScore(value: number) {
   return `${(value * 10).toFixed(1)}`;
@@ -203,6 +205,14 @@ export function Leaderboard() {
   }, [competitors, airline, aircraftById, routeById, currentTick, metric]);
 
   const ownId = airline?.id ?? null;
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 6,
+  });
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -242,9 +252,11 @@ export function Leaderboard() {
         })}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-        <div className="space-y-2">
-          {rows.map((row, index) => {
+      <div ref={parentRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            if (!row) return null;
             const isOwn = ownId === row.id;
             const value =
               metric === "balance"
@@ -259,15 +271,22 @@ export function Leaderboard() {
                         ? row.fleetValue
                         : row.networkDistance;
             return (
-              <LeaderboardRow
-                key={row.id}
-                row={row}
-                index={index}
-                isOwn={isOwn}
-                metric={metric}
-                value={value}
-                onView={viewAs}
-              />
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                className="absolute left-0 right-0 pb-2"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <LeaderboardRow
+                  row={row}
+                  index={virtualRow.index}
+                  isOwn={isOwn}
+                  metric={metric}
+                  value={value}
+                  onView={viewAs}
+                />
+              </div>
             );
           })}
         </div>
