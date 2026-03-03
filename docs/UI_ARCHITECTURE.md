@@ -25,11 +25,11 @@ ACARS is an idle-management financial MMO. The UI must feel less like a casual m
 
 Instead of maintaining separate Swift/Kotlin code, or fighting the React Native bridge with heavy WebGL mapping libraries, we will use the **"Universal Web"** approach. We write the UI once, and wrap it natively.
 
-| Target                    | Technology       | Why it's the right choice                                                                                                                                                         |
-| :------------------------ | :--------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Web Browser**           | **Vite + PWA**   | Frictionless onboarding via URL. Zero installation required.                                                                                                                      |
-| **Desktop (Mac/Win/Lin)** | **Tauri (Rust)** | Wraps the web bundle in a lightweight OS window. Gives us direct multi-threading for the heavy $O(1)$ math and raw TCP WebSocket speeds for Nostr, bypassing browser limitations. |
-| **Mobile (iOS/Android)**  | **Capacitor**    | Wraps the web bundle for the App Stores. Allows access to native Haptics (vibrating when buying a plane or receiving a Zap) and Push Notifications for when a dividend is issued. |
+| Target                    | Technology       | Why it's the right choice                                                                                                                                                                                                                                                                   |
+| :------------------------ | :--------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Web Browser**           | **Vite + PWA**   | Frictionless onboarding via URL. Zero installation required.                                                                                                                                                                                                                                |
+| **Desktop (Mac/Win/Lin)** | **Tauri (Rust)** | Wraps the web bundle in a lightweight OS window. Gives us direct multi-threading for the heavy $O(1)$ math and raw TCP WebSocket speeds for Nostr, bypassing browser limitations.                                                                                                           |
+| **Mobile (iOS/Android)**  | **Capacitor**    | Wraps the web bundle for the App Stores. Allows access to native Haptics (vibrating when buying a plane or receiving a Zap) and Push Notifications for when a dividend is issued. Development workflow uses `pnpm build && npx cap sync android` to push Vite output to the native project. |
 
 Since ACARS relies entirely on purely deterministic client-side mathematics and Nostr WebSockets, wrapping a highly optimized React/Vite/WebGL bundle is the most predictable and performant path.
 
