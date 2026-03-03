@@ -907,6 +907,46 @@ export function reconcileFleetToTick(
     let refPhaseOffset: number; // offset within the round-trip cycle
 
     if (ac.status === "enroute" && ac.flight) {
+      // If the aircraft was reassigned after its current flight started, the
+      // flight state is stale (from before the reassignment). Treat it like
+      // an idle aircraft and use routeAssignedAtTick as the new cycle anchor.
+      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick >= ac.flight.departureTick) {
+        const cycleStartTick = ac.routeAssignedAtTick;
+        if (targetTick <= cycleStartTick) return ac;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
+        const stalePhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
+        const elapsed = targetTick - cycleStartTick;
+        const rawPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+        const positionInCycle = (rawPos + stalePhaseOffset) % roundTripTicks;
+        const updated = { ...ac };
+        applyCyclePhase(
+          updated,
+          route,
+          targetTick,
+          positionInCycle,
+          durationTicks,
+          turnaroundTicks,
+        );
+        updated.lastTickProcessed = targetTick;
+        const referenceTick =
+          typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
+        let landings = countLandingsBetween(
+          cycleStartTick,
+          referenceTick,
+          targetTick,
+          durationTicks,
+          turnaroundTicks,
+        );
+        const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+        landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
+        applyFlightHours(updated, landings * hoursPerLeg);
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+        );
+        return updated;
+      }
       // Aircraft was mid-flight. Its cycle started at departureTick.
       refTick = ac.flight.departureTick;
       if (ac.flight.direction === "outbound") {
@@ -916,6 +956,45 @@ export function reconcileFleetToTick(
         refPhaseOffset = durationTicks + turnaroundTicks;
       }
     } else if (ac.status === "turnaround" && ac.flight) {
+      // If the aircraft was reassigned after its current flight started,
+      // use routeAssignedAtTick as the new cycle anchor (same logic as enroute).
+      if (ac.routeAssignedAtTick != null && ac.routeAssignedAtTick >= ac.flight.departureTick) {
+        const cycleStartTick = ac.routeAssignedAtTick;
+        if (targetTick <= cycleStartTick) return ac;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
+        const stalePhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
+        const elapsed = targetTick - cycleStartTick;
+        const rawPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+        const positionInCycle = (rawPos + stalePhaseOffset) % roundTripTicks;
+        const updated = { ...ac };
+        applyCyclePhase(
+          updated,
+          route,
+          targetTick,
+          positionInCycle,
+          durationTicks,
+          turnaroundTicks,
+        );
+        updated.lastTickProcessed = targetTick;
+        const referenceTick =
+          typeof ac.lastTickProcessed === "number" ? ac.lastTickProcessed : cycleStartTick;
+        let landings = countLandingsBetween(
+          cycleStartTick,
+          referenceTick,
+          targetTick,
+          durationTicks,
+          turnaroundTicks,
+        );
+        const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
+        landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
+        applyFlightHours(updated, landings * hoursPerLeg);
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+        );
+        return updated;
+      }
       // Aircraft was in turnaround. Turnaround started at arrivalTick.
       const arrivalTick = ac.flight.arrivalTick;
       if (ac.flight.direction === "outbound") {
@@ -936,8 +1015,16 @@ export function reconcileFleetToTick(
       const cycleStartTick = ac.routeAssignedAtTick ?? ac.purchasedAtTick;
       if (targetTick <= cycleStartTick) return ac;
 
+      // If the aircraft was at the destination when assigned, its first leg
+      // is inbound (not outbound). Offset by half a round-trip so the cycle
+      // model places it correctly.
+      const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+      const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
+      const phaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
+
       const elapsed = targetTick - cycleStartTick;
-      const positionInCycle = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+      const rawPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+      const positionInCycle = (rawPos + phaseOffset) % roundTripTicks;
 
       const updated = { ...ac };
       applyCyclePhase(updated, route, targetTick, positionInCycle, durationTicks, turnaroundTicks);
@@ -975,7 +1062,11 @@ export function reconcileFleetToTick(
         }
 
         const elapsed = targetTick - cycleStartTick;
-        const positionInCycle = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+        const startedAtIata = ac.routeAssignedAtIata ?? ac.baseAirportIata ?? null;
+        const startedAtDest = startedAtIata != null && startedAtIata === route.destinationIata;
+        const delPhaseOffset = startedAtDest ? durationTicks + turnaroundTicks : 0;
+        const rawDelPos = ((elapsed % roundTripTicks) + roundTripTicks) % roundTripTicks;
+        const positionInCycle = (rawDelPos + delPhaseOffset) % roundTripTicks;
         const updated = { ...ac };
         applyCyclePhase(
           updated,

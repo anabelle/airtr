@@ -158,6 +158,7 @@ export interface AircraftInstance {
   deliveryAtTick?: number; // When it arrives at truth
   listingPrice?: FixedPoint | null; // If set, the aircraft is listed on the used marketplace
   routeAssignedAtTick?: number; // When this aircraft was assigned to its current route (cycle anchor)
+  routeAssignedAtIata?: string; // Which airport the aircraft was at when assigned (for cycle direction)
 
   // Flight state
   flight: FlightState | null;
