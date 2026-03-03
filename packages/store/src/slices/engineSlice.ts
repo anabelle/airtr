@@ -196,7 +196,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       const timelineEventIds = new Set(currentTimeline.map((event) => event.id));
       const initialAirlineStatus = airline.status;
       let hasNewTimelineEvents = false;
-      let anyChanges = false;
       let consumedDeletedFleetIds = new Set<string>();
 
       const ticksPerMonth = TICKS_PER_MONTH;
@@ -242,7 +241,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             };
             currentTimeline = [newEvent, ...currentTimeline].slice(0, 1000);
             hasNewTimelineEvents = true;
-            anyChanges = true;
           }
         }
 
@@ -254,6 +252,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           lastTick: targetTick,
           timeline: currentTimeline,
         };
+        const tickUpdateTick = updatedAirline.lastTick ?? targetTick;
         set({
           fleet: currentFleet,
           airline: updatedAirline,
@@ -263,7 +262,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           fleetDeletedDuringCatchup: [],
         });
         const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
-        const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
+        const nextCheckpointTick = Math.floor(tickUpdateTick / CHECKPOINT_INTERVAL);
         if (nextCheckpointTick > previousCheckpointTick) {
           void (async () => {
             const checkpointState = get();
@@ -279,7 +278,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             void _omitTimeline;
             const checkpoint = {
               schemaVersion: 1,
-              tick: checkpointAirline.lastTick ?? targetTick,
+              tick: checkpointAirline.lastTick ?? tickUpdateTick,
               createdAt: Date.now(),
               actionChainHash: checkpointState.actionChainHash,
               stateHash,
@@ -295,20 +294,19 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         const hasMaterialTickUpdate =
           hasNewTimelineEvents || updatedAirline.status !== initialAirlineStatus;
         if (
-          anyChanges &&
           shouldPublishTickUpdate({
             airlineId: updatedAirline.id,
-            tick: targetTick,
+            tick: tickUpdateTick,
             hasMaterialChange: hasMaterialTickUpdate,
           })
         ) {
-          markTickUpdatePublished(updatedAirline.id, targetTick);
+          markTickUpdatePublished(updatedAirline.id, tickUpdateTick);
           publishActionWithChain({
             action: {
               schemaVersion: 2,
               action: "TICK_UPDATE",
               payload: {
-                tick: targetTick,
+                tick: tickUpdateTick,
                 timeline: currentTimeline.slice(0, TICK_UPDATE_TIMELINE_EVENTS),
               },
             },
@@ -364,7 +362,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           const pwEvents = result.events.filter((e) => e.type === "price_war");
           if (pwEvents.length > 0) {
             currentBrandScore = Math.max(0.1, currentBrandScore - 0.005 * pwEvents.length);
-            anyChanges = true;
           }
 
           // Deduplicate events by ID before merging into the timeline
@@ -377,8 +374,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             hasNewTimelineEvents = true;
           }
         }
-
-        if (result.hasChanges) anyChanges = true;
 
         // Monthly hub OPEX
         if (t % ticksPerMonth === 0 && currentHubs.length > 0) {
@@ -403,7 +398,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             timelineEventIds.clear();
             for (const event of currentTimeline) timelineEventIds.add(event.id);
             hasNewTimelineEvents = true;
-            anyChanges = true;
           }
         }
 
@@ -527,7 +521,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           );
 
           ac.lastKnownLoadFactor = landingResult.revenue.loadFactor;
-          anyChanges = true;
 
           recoveryEvents.push({
             id: eventId,
@@ -567,7 +560,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         if (ac.status !== "delivery") continue;
         if (ac.deliveryAtTick == null || ac.deliveryAtTick > targetTick) continue;
         ac.status = "idle";
-        anyChanges = true;
         const deliveryTick = ac.deliveryAtTick;
         deliveryEvents.push({
           id: `evt-delivery-${ac.id}-${deliveryTick}`,
@@ -656,7 +648,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             ac.arrivalTickProcessed = undefined;
             ac.turnaroundEndTick = undefined;
           }
-          anyChanges = true;
           if (ac.status === "enroute" && ac.flight) {
             recoveryEvents.push({
               id: `evt-recovery-takeoff-${ac.id}-${ac.flight.departureTick}`,
@@ -708,7 +699,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           ac.baseAirportIata = ac.flight.destinationIata;
           ac.arrivalTickProcessed = ac.flight.arrivalTick;
           ac.turnaroundEndTick = ac.flight.arrivalTick + turnaroundTicks;
-          anyChanges = true;
 
           if (landingResult) {
             // Full financial breakdown using recovery helper
@@ -775,7 +765,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               arrivalTick: actualDeparture + Math.max(1, durationTicks),
               direction: isReturning ? "inbound" : "outbound",
             };
-            anyChanges = true;
             recoveryEvents.push({
               id: `evt-recovery-takeoff-rtn-${ac.id}-${actualDeparture}`,
               tick: actualDeparture,
@@ -791,7 +780,6 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           } else {
             ac.status = "idle";
             ac.flight = null;
-            anyChanges = true;
             recoveryEvents.push({
               id: `evt-recovery-idle-${ac.id}-${targetTick}`,
               tick: targetTick,
@@ -832,8 +820,9 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           (id) => !consumedDeletedFleetIds.has(id),
         ),
       });
+      const tickUpdateTick = updatedAirline.lastTick ?? lastProcessedTick;
       const previousCheckpointTick = Math.floor(lastTick / CHECKPOINT_INTERVAL);
-      const nextCheckpointTick = Math.floor(targetTick / CHECKPOINT_INTERVAL);
+      const nextCheckpointTick = Math.floor(tickUpdateTick / CHECKPOINT_INTERVAL);
       if (nextCheckpointTick > previousCheckpointTick) {
         void (async () => {
           const checkpointState = get();
@@ -849,7 +838,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           void _omitTimeline;
           const checkpoint = {
             schemaVersion: 1,
-            tick: checkpointAirline.lastTick ?? targetTick,
+            tick: checkpointAirline.lastTick ?? tickUpdateTick,
             createdAt: Date.now(),
             actionChainHash: checkpointState.actionChainHash,
             stateHash,
@@ -863,18 +852,17 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         })().catch((e) => console.error("Checkpoint publish failed", e));
       }
 
-      // 4. Sync to Nostr only if significant events happened
+      // 4. Sync to Nostr on material changes or heartbeat cadence
       const hasMaterialTickUpdate =
         hasNewTimelineEvents || updatedAirline.status !== initialAirlineStatus;
       if (
-        anyChanges &&
         shouldPublishTickUpdate({
           airlineId: updatedAirline.id,
-          tick: targetTick,
+          tick: tickUpdateTick,
           hasMaterialChange: hasMaterialTickUpdate,
         })
       ) {
-        markTickUpdatePublished(updatedAirline.id, targetTick);
+        markTickUpdatePublished(updatedAirline.id, tickUpdateTick);
         // Re-read current state at publish time to avoid overwriting
         // concurrent changes (e.g. hub modifications during tick processing).
         // We merge the tick's computed values with the fresh airline identity.
@@ -883,7 +871,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             schemaVersion: 2,
             action: "TICK_UPDATE",
             payload: {
-              tick: targetTick,
+              tick: tickUpdateTick,
               timeline: currentTimeline.slice(0, TICK_UPDATE_TIMELINE_EVENTS),
             },
           },
