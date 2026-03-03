@@ -12,7 +12,7 @@ vi.mock("@acars/core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@acars/core")>();
   return {
     ...actual,
-    // Return the checkpoint's stateHash so verification passes in tests
+    // Return a fixed state hash ("state") so verification passes in tests.
     computeCheckpointStateHash: vi.fn(() => Promise.resolve("state")),
   };
 });
