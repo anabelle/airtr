@@ -170,6 +170,12 @@ export async function replayActionLog(params: {
   let allowActionTimeline = timeline.length === 0;
   let actionChainHash = checkpoint?.actionChainHash ?? "";
 
+  // Track the most recent authoritative fleet/route IDs from TICK_UPDATE.
+  // These override locally-derived IDs at the end of replay, fixing
+  // count divergence when action events are missing from relay delivery.
+  let authoritativeFleetIds: string[] | null = null;
+  let authoritativeRouteIds: string[] | null = null;
+
   if (checkpoint?.fleet) {
     for (const aircraft of checkpoint.fleet) {
       fleetById.set(aircraft.id, { ...aircraft });
@@ -456,6 +462,15 @@ export async function replayActionLog(params: {
           airline = { ...airline, status: status as AirlineEntity["status"] };
         }
 
+        // Track authoritative fleet/route IDs from the TICK_UPDATE payload.
+        // The publishing client includes these from its local state, so they
+        // reflect the true set of aircraft and routes regardless of whether
+        // the viewer received every individual action event.
+        const payloadFleetIds = asStringArray(payload.fleetIds);
+        const payloadRouteIds = asStringArray(payload.routeIds);
+        if (payloadFleetIds.length > 0) authoritativeFleetIds = payloadFleetIds;
+        if (payloadRouteIds.length > 0) authoritativeRouteIds = payloadRouteIds;
+
         if (airline.status === "chapter11" || airline.status === "liquidated") {
           const groundedFleet = Array.from(fleetById.values()).map((aircraft) => {
             if (aircraft.status === "enroute") {
@@ -518,6 +533,22 @@ export async function replayActionLog(params: {
           fleetById.clear();
           for (const aircraft of reconciledFleet) {
             fleetById.set(aircraft.id, aircraft);
+          }
+        }
+
+        // Prune aircraft/routes that the authoritative TICK_UPDATE says no
+        // longer exist (e.g. sold aircraft, closed routes).  This prevents
+        // ghost entries from lingering in the viewer's reconstruction.
+        if (authoritativeFleetIds) {
+          const validFleetSet = new Set(authoritativeFleetIds);
+          for (const id of fleetById.keys()) {
+            if (!validFleetSet.has(id)) fleetById.delete(id);
+          }
+        }
+        if (authoritativeRouteIds) {
+          const validRouteSet = new Set(authoritativeRouteIds);
+          for (const id of routesById.keys()) {
+            if (!validRouteSet.has(id)) routesById.delete(id);
           }
         }
 
@@ -1195,10 +1226,15 @@ export async function replayActionLog(params: {
 
   fleet = Array.from(fleetById.values());
   if (airline) {
+    // Use authoritative fleet/route IDs from the most recent TICK_UPDATE
+    // when available.  This ensures counts match what the airline owner
+    // published, even if the viewer is missing some action events from
+    // relay delivery.  Fall back to locally-derived IDs for old events
+    // that predate this field.
     airline = {
       ...airline,
-      fleetIds: fleet.map((aircraft) => aircraft.id),
-      routeIds: routes.map((route) => route.id),
+      fleetIds: authoritativeFleetIds ?? fleet.map((aircraft) => aircraft.id),
+      routeIds: authoritativeRouteIds ?? routes.map((route) => route.id),
       timeline,
     };
   }

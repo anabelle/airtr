@@ -279,32 +279,58 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
           const resolvedRoutes = replayed.routes;
 
           // Merge strategy: always use the replayed airline entity (it has the
-          // latest name, hubs, balance, etc.) but protect against partial relay
-          // responses that return fewer actions than expected, which can produce
-          // an empty fleet even though the competitor actually has aircraft.
+          // latest name, hubs, balance, etc.) and use authoritative fleet/route
+          // IDs from TICK_UPDATE to guide object reconciliation.
           //
-          // The previous staleness guard compared existingCompetitor.lastTick
-          // (inflated to currentTick by local projection every 3s) against
-          // replayed.lastTick and discarded the replay whenever projection had
-          // run.  This caused newly purchased aircraft to never appear for
-          // competitors because the locally-projected stale fleet always "won."
-          //
-          // New approach: if the replay produced strictly fewer aircraft than
-          // we already know about, keep the existing fleet/routes (partial relay
-          // protection).  Otherwise, take the fresh replay (new aircraft appear).
+          // airline.fleetIds/routeIds now carry authoritative counts from the
+          // most recent TICK_UPDATE, so the leaderboard always shows correct
+          // counts.  For the actual fleet/route objects, we merge replayed and
+          // existing data: replayed objects are preferred (freshest state), but
+          // existing objects fill gaps for IDs the replay missed due to relay
+          // delivery issues.
           const existingCompetitorFleet = existingState.fleetByOwner.get(authorPubkey) || [];
           const existingCompetitorRoutes = existingState.routesByOwner.get(authorPubkey) || [];
 
-          if (
+          const authoritativeFleetSet = new Set(airline.fleetIds);
+          const authoritativeRouteSet = new Set(airline.routeIds);
+
+          if (authoritativeFleetSet.size > 0) {
+            // Merge: start with replayed fleet, fill gaps from existing state,
+            // keep only IDs in the authoritative set.
+            const mergedFleetById = new Map<string, AircraftInstance>();
+            for (const ac of existingCompetitorFleet) {
+              if (authoritativeFleetSet.has(ac.id)) mergedFleetById.set(ac.id, ac);
+            }
+            // Replayed objects overwrite existing (they have fresher state).
+            for (const ac of resolvedFleet) {
+              if (authoritativeFleetSet.has(ac.id)) mergedFleetById.set(ac.id, ac);
+            }
+            resolvedFleet = Array.from(mergedFleetById.values());
+          } else if (
             existingCompetitorFleet.length > 0 &&
             resolvedFleet.length < existingCompetitorFleet.length
           ) {
+            // Fallback for old TICK_UPDATEs without authoritative IDs:
+            // keep existing fleet if replay produced fewer objects.
             resolvedFleet = existingCompetitorFleet;
           }
-          const finalRoutes =
-            existingCompetitorRoutes.length > resolvedRoutes.length
-              ? existingCompetitorRoutes
-              : resolvedRoutes;
+
+          let finalRoutes = resolvedRoutes;
+          if (authoritativeRouteSet.size > 0) {
+            const mergedRoutesById = new Map<string, Route>();
+            for (const r of existingCompetitorRoutes) {
+              if (authoritativeRouteSet.has(r.id)) mergedRoutesById.set(r.id, r);
+            }
+            for (const r of resolvedRoutes) {
+              if (authoritativeRouteSet.has(r.id)) mergedRoutesById.set(r.id, r);
+            }
+            finalRoutes = Array.from(mergedRoutesById.values());
+          } else {
+            finalRoutes =
+              existingCompetitorRoutes.length > resolvedRoutes.length
+                ? existingCompetitorRoutes
+                : resolvedRoutes;
+          }
 
           // Reconcile fleet positions to lastTick — same fix as player identity.
           // Without this, checkpoint fleet has stale arrivalTick/turnaroundEndTick
