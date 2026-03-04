@@ -1,0 +1,318 @@
+# @acars/core — Public API Contract
+
+## Version: 1.0.0
+
+## Status: STABLE
+
+### Exported Types
+
+```typescript
+// Fixed-Point Financial Type (ADR-002)
+type FixedPoint = number & { readonly __brand: "FixedPoint" };
+
+// Geography
+interface Airport {
+  id: string;
+  name: string;
+  iata: string;
+  icao: string;
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  timezone: string;
+  country: string;
+  city: string;
+  population: number;
+  gdpPerCapita: number;
+  tags: AirportTag[];
+}
+type AirportTag = "beach" | "ski" | "business" | "general";
+
+// Hubs
+type HubTier = "regional" | "national" | "international" | "global";
+interface HubState {
+  hubIata: string;
+  spokeCount: number;
+  weeklyFrequency: number;
+  avgFrequency: number;
+}
+
+// Season
+type Season = "spring" | "summer" | "autumn" | "winter";
+
+// Demand
+interface DemandResult {
+  origin: string;
+  destination: string;
+  economy: number;
+  business: number;
+  first: number;
+}
+interface BidirectionalDemandResult {
+  outbound: DemandResult;
+  inbound: DemandResult;
+}
+
+// Aircraft
+interface AircraftModel { /* see types.ts */ }
+interface AircraftInstance { /* see types.ts */ }
+interface FlightState { /* see types.ts */ }
+
+// Airline
+interface AirlineEntity {
+  id: string;
+  foundedBy: string;
+  status: "private" | "public" | "chapter11" | "liquidated";
+  ceoPubkey: string;
+  sharesOutstanding: number;
+  shareholders: Record<string, number>;
+  name: string;
+  icaoCode: string;
+  callsign: string;
+  hubs: string[];
+  livery: { primary: string; secondary: string; accent: string };
+  brandScore: number;
+  tier: number;
+  corporateBalance: FixedPoint;
+  stockPrice: FixedPoint;
+  fleetIds: string[];
+  routeIds: string[];
+  lastTick?: number;
+  timeline?: TimelineEvent[];
+}
+
+// Route
+interface Route { /* see types.ts */ }
+
+// QSI
+interface FlightOffer { /* see types.ts */ }
+type PassengerClass = "economy" | "business" | "first";
+
+// Tick Results
+interface TickResult { /* see types.ts */ }
+interface AirlineTickResult { /* see types.ts */ }
+interface RouteTickResult { /* see types.ts */ }
+
+// Timeline
+type TimelineEventType = "takeoff" | "landing" | "purchase" | /* ... */;
+interface TimelineEvent { /* see types.ts */ }
+
+// Checkpoints
+interface Checkpoint { /* see types.ts */ }
+
+// Game Actions
+type GameActionType = "AIRLINE_CREATE" | "TICK_UPDATE" | /* ... */;
+type GameActionPayload = Record<string, unknown>;
+interface GameActionEnvelope {
+  schemaVersion: number;
+  action: GameActionType;
+  payload: GameActionPayload;
+}
+
+// Solar
+interface NightOverlayFeatureCollection { /* see types.ts */ }
+interface TerminatorLineCollection { /* see types.ts */ }
+
+// Cycle
+type CyclePhase = "outbound" | "inbound" | "turnaround" | "idle";
+```
+
+### Exported Constants
+
+```typescript
+// Time constants
+const GENESIS_TIME = 1740333600000;
+const TICK_DURATION = 3000;
+const TICKS_PER_HOUR = 1200;
+const TICKS_PER_DAY = 28800;
+const TICKS_PER_MONTH = 864000;
+const CHAPTER11_BALANCE_THRESHOLD_USD = -10000000;
+
+// Fixed-point
+const FP_SCALE = 10000;
+const FP_ZERO = 0 as FixedPoint;
+
+// Demand
+const PLAYER_MARKET_CEILING = 0.14;
+const MIN_ADDRESSABLE_WEEKLY = 360;
+const NATURAL_LF_CEILING = 0.88;
+const PRICE_ELASTICITY_ECONOMY = -1.5;
+const PRICE_ELASTICITY_BUSINESS = -0.5;
+const PRICE_ELASTICITY_FIRST = -0.2;
+const MAX_PRICE_ELASTICITY_MULTIPLIER = 1.5;
+const MIN_PRICE_ELASTICITY_MULTIPLIER = 0.01;
+
+// Finance
+const ROUTE_SLOT_FEE = 50000;
+```
+
+### Exported Functions
+
+```typescript
+// Fixed-Point Arithmetic
+function fp(value: number): FixedPoint;
+function fpRaw(value: unknown): FixedPoint;
+function fpToNumber(value: FixedPoint): number;
+function fpAdd(a: FixedPoint, b: FixedPoint): FixedPoint;
+function fpSub(a: FixedPoint, b: FixedPoint): FixedPoint;
+function fpMul(a: FixedPoint, b: FixedPoint): FixedPoint;
+function fpDiv(a: FixedPoint, b: FixedPoint): FixedPoint;
+function fpScale(a: FixedPoint, scalar: number): FixedPoint;
+function fpNeg(a: FixedPoint): FixedPoint;
+function fpSum(values: FixedPoint[]): FixedPoint;
+function fpFormat(value: FixedPoint, decimals?: number): string;
+
+// Demand (Gravity Model)
+function calculateDemand(
+  origin: Airport,
+  destination: Airport,
+  season: Season,
+  prosperityIndex?: number,
+  hubModifier?: number,
+): DemandResult;
+function calculateBidirectionalDemand(
+  origin: Airport,
+  destination: Airport,
+  season: Season,
+  prosperityIndex?: number,
+  outboundHubModifier?: number,
+  inboundHubModifier?: number,
+): BidirectionalDemandResult;
+function getHubDemandModifier(
+  originTier: HubTier | null,
+  destTier: HubTier | null,
+  originState: HubState | null,
+  destState: HubState | null,
+): number;
+function getHubCongestionModifier(
+  baseCapacityPerHour: number,
+  hourlyFlights: number,
+): number;
+function getProsperityIndex(tick: number, ticksPerCycle?: number): number;
+function scaleToAddressableMarket(demand: DemandResult): DemandResult;
+function calculateSupplyPressure(
+  totalWeeklySeats: number,
+  weeklyDemand: number,
+): number;
+function calculatePriceElasticity(
+  actualFare: FixedPoint,
+  referenceFare: FixedPoint,
+  elasticity: number,
+): number;
+
+// QSI (Quality Service Index)
+function calculateShares(
+  offers: FlightOffer[],
+): Record<PassengerClass, Map<string, number>>;
+function allocatePassengers(
+  offers: FlightOffer[],
+  demand: DemandResult,
+): Map<string, { economy: number; business: number; first: number }>;
+
+// Geography
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number;
+
+// Season
+function getSeason(date: Date): Season;
+function getSeasonalMultiplier(tag: AirportTag, season: Season): number;
+
+// Solar
+function getSolarDeclination(dayOfYear: number): number;
+function getSubsolarPoint(date: Date): { lat: number; lon: number };
+function computeTerminatorLine(date: Date): TerminatorLineCollection;
+function computeNightOverlay(date: Date): NightOverlayFeatureCollection;
+
+// Fleet
+function calculateBookValue(
+  model: AircraftModel,
+  flightHoursTotal: number,
+  condition: number,
+  purchasedAtTick: number,
+  currentTick: number,
+): FixedPoint;
+
+// Hubs
+function buildHubState(
+  hubIata: string,
+  routes: Route[],
+  airports: Airport[],
+): HubState | null;
+function getAirportTraffic(
+  iata: string,
+  routes: Route[],
+  airports: Airport[],
+): number;
+
+// Finance
+function calculateFlightRevenue(
+  route: Route,
+  aircraft: AircraftInstance,
+  model: AircraftModel,
+  passengers: { economy: number; business: number; first: number },
+): FixedPoint;
+function calculateFlightCost(
+  route: Route,
+  aircraft: AircraftInstance,
+  model: AircraftModel,
+  airports: Airport[],
+): FixedPoint;
+function calculateHubLandingFee(
+  airport: Airport,
+  model: AircraftModel,
+): FixedPoint;
+function detectPriceWar(route: Route, competitors: FlightOffer[]): boolean;
+function getSuggestedFares(
+  demand: DemandResult,
+  model: AircraftModel,
+  distanceKm: number,
+): { economy: FixedPoint; business: FixedPoint; first: FixedPoint };
+
+// Cycle
+function getCyclePhase(
+  aircraft: AircraftInstance,
+  currentTick: number,
+): CyclePhase;
+function countLandingsBetween(
+  aircraft: AircraftInstance,
+  startTick: number,
+  endTick: number,
+): number;
+
+// PRNG (Deterministic Random)
+function createPRNG(seed: number): () => number;
+function createTickPRNG(tick: number): () => number;
+
+// Checkpoints
+function canonicalize(obj: unknown): string;
+function computeActionChainHash(actions: GameActionEnvelope[]): string;
+function computeCheckpointStateHash(checkpoint: Checkpoint): string;
+function verifyCheckpoint(checkpoint: Checkpoint): boolean;
+
+// Logging
+function createLogger(namespace: string): {
+  info: (msg: string, data?: unknown) => void;
+  warn: (msg: string, data?: unknown) => void;
+  error: (msg: string, data?: unknown) => void;
+};
+```
+
+### Contract Rules
+
+1. All exports listed above are FROZEN until a major version bump.
+2. New exports may be ADDED without a version bump.
+3. Existing exports may NOT be modified or removed without:
+   a. A deprecation notice in this file
+   b. A migration guide
+   c. A major version bump (1.x → 2.0)
+   d. Human operator approval
+
+### Dependencies
+
+- **None** — @acars/core has zero external runtime dependencies.
+- All financial math uses fixed-point arithmetic (ADR-002).
+- All randomness uses seeded PRNG for determinism.
