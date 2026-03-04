@@ -60,6 +60,9 @@ function loginWithNsec(nsec: string): Promise<void>;
 function attachSigner(event: NDKEvent): Promise<void>;
 
 // Action Log (kind 30078)
+// Note: Events with future schemaVersion values are accepted with clamping to
+// the max supported version. Older schemaVersion values are accepted for
+// backward compatibility.
 function loadActionLog(pubkey: string): Promise<ActionLogEntry[]>;
 function publishAction(envelope: ActionEnvelope): Promise<void>;
 function subscribeActions(options: {
