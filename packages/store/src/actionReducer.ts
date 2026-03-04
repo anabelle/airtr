@@ -37,6 +37,8 @@ export interface ActionReplayResult {
   routes: Route[];
   timeline: TimelineEvent[];
   actionChainHash: string;
+  /** True when the action log ends with AIRLINE_DISSOLVE — the airline was intentionally removed. */
+  dissolved: boolean;
 }
 
 const MAX_TIMELINE_EVENTS = 1000;
@@ -163,6 +165,7 @@ export async function replayActionLog(params: {
   const { pubkey, actions, checkpoint, rejectedEventIds } = params;
 
   let airline: AirlineEntity | null = checkpoint?.airline ?? null;
+  let dissolved = false;
   const fleetById = new Map<string, AircraftInstance>();
   const routesById = new Map<string, Route>();
   const timeline: TimelineEvent[] = checkpoint?.timeline ? [...checkpoint.timeline] : [];
@@ -348,6 +351,78 @@ export async function replayActionLog(params: {
   const latestActionTick = actionTicks.length ? Math.max(...actionTicks) : 0;
   const backfillStartTick = Math.max(0, latestActionTick - BACKFILL_TICK_WINDOW);
   const backfillTickSet = new Set<number>();
+  let bootstrapTick: number | null = null;
+
+  // Bootstrap: If no checkpoint and no AIRLINE_CREATE in the action log,
+  // use the latest TICK_UPDATE to create a synthetic airline entity.
+  // This prevents competitors from being invisible when their AIRLINE_CREATE
+  // event is missing from relay responses (relay pruning, different relays, etc.).
+  if (!airline) {
+    const hasAirlineCreate = sortedActions.some(
+      (record) => record.action.action === "AIRLINE_CREATE",
+    );
+    if (!hasAirlineCreate) {
+      // Find the latest TICK_UPDATE (last in sorted order since it's the most recent).
+      for (let i = sortedActions.length - 1; i >= 0; i--) {
+        const record = sortedActions[i];
+        if (record.action.action === "TICK_UPDATE") {
+          const payload = record.action.payload;
+          const tick = clampInt(payload.tick, 0, Number.MAX_SAFE_INTEGER) ?? 0;
+          const corporateBalance =
+            clampFixedPoint(payload.corporateBalance, MIN_BALANCE, MAX_BALANCE) ?? fp(100000000);
+          const name = clampString(payload.airlineName, MAX_NAME_LENGTH) ?? "Unknown Airline";
+          const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
+          const callsign = clampString(payload.callsign, MAX_CODE_LENGTH) ?? "";
+          const hubs = asStringArray(payload.hubs)
+            .map((hub) => sanitizeIata(hub))
+            .filter((hub): hub is string => Boolean(hub))
+            .slice(0, MAX_HUBS);
+          const liveryPayload = asRecord(payload.livery);
+          const livery = liveryPayload
+            ? {
+                primary: asString(liveryPayload.primary) ?? DEFAULT_LIVERY.primary,
+                secondary: asString(liveryPayload.secondary) ?? DEFAULT_LIVERY.secondary,
+                accent: asString(liveryPayload.accent) ?? DEFAULT_LIVERY.accent,
+              }
+            : { ...DEFAULT_LIVERY };
+          const status =
+            typeof payload.status === "string" &&
+            VALID_STATUSES.includes(payload.status as AirlineEntity["status"])
+              ? (payload.status as AirlineEntity["status"])
+              : "private";
+          const tier = clampInt(payload.tier, 1, 10) ?? 1;
+          const payloadFleetIds = asStringArray(payload.fleetIds);
+          const payloadRouteIds = asStringArray(payload.routeIds);
+          if (payloadFleetIds.length > 0) authoritativeFleetIds = payloadFleetIds;
+          if (payloadRouteIds.length > 0) authoritativeRouteIds = payloadRouteIds;
+
+          dissolved = false;
+          bootstrapTick = tick;
+          airline = {
+            id: `bootstrap:${record.eventId}`,
+            foundedBy: pubkey,
+            status,
+            ceoPubkey: pubkey,
+            sharesOutstanding: 10000000,
+            shareholders: { [pubkey]: 10000000 },
+            name,
+            icaoCode,
+            callsign,
+            hubs,
+            livery,
+            brandScore: 0.5,
+            tier,
+            corporateBalance,
+            stockPrice: fp(10),
+            fleetIds: payloadFleetIds,
+            routeIds: payloadRouteIds,
+            lastTick: tick,
+          };
+          break;
+        }
+      }
+    }
+  }
 
   for (const record of sortedActions) {
     const { action } = record;
@@ -365,6 +440,7 @@ export async function replayActionLog(params: {
         ? Math.floor((record.createdAt * 1000 - GENESIS_TIME) / TICK_DURATION) + TICKS_PER_HOUR
         : Number.MAX_SAFE_INTEGER;
     const actionTick = Math.min(rawActionTick, maxTickFromTimestamp);
+    if (bootstrapTick != null && actionTick <= bootstrapTick) continue;
     const eventTimestamp = resolveEventTimestamp(actionTick, record.createdAt);
     actionChainHash = await computeActionChainHash(actionChainHash, {
       id: record.eventId,
@@ -402,6 +478,7 @@ export async function replayActionLog(params: {
         clampFixedPoint(payload.corporateBalance ?? fp(100000000), MIN_BALANCE, MAX_BALANCE) ??
         fp(100000000);
 
+      dissolved = false;
       airline = {
         id: `action:${record.eventId}`,
         foundedBy: pubkey,
@@ -429,6 +506,7 @@ export async function replayActionLog(params: {
       // Dissolution wipes the owned airline state so IdentityGate can re-open
       // airline creation on reload before a fresh AIRLINE_CREATE event.
       airline = null;
+      dissolved = true;
       fleetById.clear();
       routesById.clear();
       routePairs.clear();
@@ -1239,5 +1317,5 @@ export async function replayActionLog(params: {
     };
   }
 
-  return { airline, fleet, routes, timeline, actionChainHash };
+  return { airline, fleet, routes, timeline, actionChainHash, dissolved };
 }

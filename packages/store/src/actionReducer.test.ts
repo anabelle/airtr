@@ -665,4 +665,105 @@ describe("replayActionLog", () => {
     expect(result.airline?.corporateBalance).toBe(initialBalance);
     expect(result.airline?.lastTick).toBe(100);
   });
+
+  it("bootstraps missing corporateBalance from TICK_UPDATE to default starting balance", async () => {
+    const pubkey = "pubkey-bootstrap-default-balance";
+    const actions = [
+      {
+        eventId: "evt-tick-only",
+        authorPubkey: pubkey,
+        createdAt: 100,
+        action: {
+          schemaVersion: 2 as const,
+          action: "TICK_UPDATE" as const,
+          payload: {
+            tick: 100,
+            fleetIds: [],
+            routeIds: [],
+          },
+        },
+      },
+    ];
+
+    const result = await replayActionLog({ pubkey, actions });
+    expect(result.airline).toBeTruthy();
+    expect(result.airline?.corporateBalance).toBe(fp(100000000));
+  });
+
+  it("does not replay actions at or before bootstrap TICK_UPDATE tick", async () => {
+    const pubkey = "pubkey-bootstrap-skip-history";
+    const actions = [
+      {
+        eventId: "evt-old-purchase",
+        authorPubkey: pubkey,
+        createdAt: 1,
+        action: {
+          schemaVersion: 2 as const,
+          action: "AIRCRAFT_PURCHASE" as const,
+          payload: {
+            tick: 10,
+            instanceId: "ac-old",
+            modelId: "atr72-600",
+            name: "Old Plane",
+            purchaseType: "buy" as const,
+            price: fp(50000000),
+            baseAirportIata: "JFK",
+          },
+        },
+      },
+      {
+        eventId: "evt-bootstrap-tick",
+        authorPubkey: pubkey,
+        createdAt: 2,
+        action: {
+          schemaVersion: 2 as const,
+          action: "TICK_UPDATE" as const,
+          payload: {
+            tick: 100,
+            corporateBalance: fp(100000000),
+            fleetIds: [],
+            routeIds: [],
+          },
+        },
+      },
+    ];
+
+    const result = await replayActionLog({ pubkey, actions });
+    expect(result.airline?.corporateBalance).toBe(fp(100000000));
+    expect(result.fleet).toHaveLength(0);
+  });
+
+  it("resets dissolved flag after a later AIRLINE_CREATE", async () => {
+    const pubkey = "pubkey-dissolve-recreate";
+    const actions = [
+      {
+        eventId: "evt-dissolve",
+        authorPubkey: pubkey,
+        createdAt: 1,
+        action: {
+          schemaVersion: 2 as const,
+          action: "AIRLINE_DISSOLVE" as const,
+          payload: { tick: 1 },
+        },
+      },
+      {
+        eventId: "evt-create",
+        authorPubkey: pubkey,
+        createdAt: 2,
+        action: {
+          schemaVersion: 2 as const,
+          action: "AIRLINE_CREATE" as const,
+          payload: {
+            name: "Recreated Air",
+            hubs: ["JFK"],
+            tick: 2,
+          },
+        },
+      },
+    ];
+
+    const result = await replayActionLog({ pubkey, actions });
+    expect(result.airline?.name).toBe("Recreated Air");
+    expect(result.dissolved).toBe(false);
+  });
 });

@@ -117,6 +117,15 @@ function parseActionContent(data: unknown): ActionEnvelope | null {
   };
 }
 
+function isTransientPublishError(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (name === "NDKPublishError") return true;
+  return /(not enough relays|timeout|timed out|network|websocket|relay|fetch failed|econn|enotfound|connection)/i.test(
+    message,
+  );
+}
+
 export function buildActionDTag(action: ActionEnvelope, seq?: number): string {
   const base = `${ACTION_D_PREFIX}${action.action.toLowerCase()}`;
   if (action.action === "AIRLINE_CREATE" || action.action === "TICK_UPDATE") {
@@ -194,8 +203,25 @@ export async function publishCheckpoint(checkpoint: Checkpoint): Promise<NDKEven
   ];
   event.content = JSON.stringify(checkpoint);
 
-  await event.publish();
-  return event;
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await event.publish();
+      return event;
+    } catch (err) {
+      const shouldRetry = isTransientPublishError(err);
+      if (!shouldRetry || attempt >= maxRetries) {
+        throw err;
+      }
+      const delay = 1000 * 2 ** attempt; // 1s, 2s
+      console.warn(
+        `Checkpoint publish attempt ${attempt + 1} failed, retrying in ${delay}ms...`,
+        err,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  return event; // unreachable, satisfies TypeScript
 }
 
 /**

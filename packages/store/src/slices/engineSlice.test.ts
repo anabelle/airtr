@@ -1,4 +1,10 @@
-import type { AircraftInstance, AirlineEntity, FixedPoint, Route } from "@acars/core";
+import {
+  fp,
+  type AircraftInstance,
+  type AirlineEntity,
+  type FixedPoint,
+  type Route,
+} from "@acars/core";
 import { publishAction } from "@acars/nostr";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
@@ -913,6 +919,35 @@ describe("TICK_UPDATE publish cadence", () => {
     await state.processTick(1001);
 
     expect(vi.mocked(publishAction)).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes identity fields in bankruptcy TICK_UPDATE payload", async () => {
+    const bankruptAirline = {
+      ...makeAirline(999),
+      corporateBalance: fp(-100000000),
+      name: "Bankrupt Air",
+      icaoCode: "BNKR",
+      callsign: "BROKE",
+      hubs: ["BOG"],
+      tier: 3,
+    };
+    const { state } = createSliceState({
+      airline: bankruptAirline,
+      fleet: [makeAircraft("ac-1")],
+      routes: [makeRoute("rt-1", 400)],
+    });
+
+    await state.processTick(1000);
+    expect(vi.mocked(publishAction)).toHaveBeenCalledTimes(1);
+
+    const publishedAction = vi.mocked(publishAction).mock.calls[0][0];
+    expect(publishedAction.action).toBe("TICK_UPDATE");
+    expect(publishedAction.payload.status).toBe("chapter11");
+    expect(publishedAction.payload.airlineName).toBe("Bankrupt Air");
+    expect(publishedAction.payload.icaoCode).toBe("BNKR");
+    expect(publishedAction.payload.callsign).toBe("BROKE");
+    expect(publishedAction.payload.hubs).toEqual(["BOG"]);
+    expect(publishedAction.payload.tier).toBe(3);
   });
 
   it("throttles retry attempts when publish fails", async () => {
