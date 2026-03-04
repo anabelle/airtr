@@ -8,7 +8,7 @@ set -e
 
 echo "🔍 Gate 4: Contract Check"
 
-PACKAGES=("packages/core" "packages/data" "packages/nostr" "packages/store" "packages/map")
+PACKAGES=("packages/core" "packages/data" "packages/nostr" "packages/store" "packages/map" "apps/web")
 
 for pkg in "${PACKAGES[@]}"; do
   CONTRACT_FILE="$pkg/CONTRACT.md"

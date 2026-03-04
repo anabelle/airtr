@@ -18,8 +18,8 @@ Instead, it provides:
    - `/` — Home/Dashboard
    - `/network` — Route management
    - `/fleet` — Fleet management
-   - `/identity` — Airline identity
-   - `/competition` — Leaderboard
+   - `/corporate` — Corporate management
+   - `/leaderboard` — Competition leaderboard
 
 2. **Feature Modules** (Feature-Sliced Design):
    - `features/identity/` — Nostr login, NIP-07

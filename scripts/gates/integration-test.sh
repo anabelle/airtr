@@ -8,8 +8,9 @@ set -e
 
 echo "🔍 Gate 6: Integration Tests"
 
-# Run integration tests (if they exist)
-if pnpm test:integration 2>/dev/null; then
+# Check if test:integration script exists in package.json
+if grep -q '"test:integration"' package.json; then
+  pnpm test:integration
   echo "✅ Gate 6 passed: Integration tests complete"
 else
   echo "  ℹ️  No integration tests configured (skipping)"

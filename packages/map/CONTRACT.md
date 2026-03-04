@@ -18,7 +18,7 @@ function Globe(props: {
 
 ```typescript
 // Aircraft family icon map (12 families × 2 layers = 24 icons)
-const FAMILY_ICONS: Map<string, { body: string; accent: string }>;
+const FAMILY_ICONS: Record<string, { body: string; accent: string }>;
 
 // Supported aircraft families
 type AircraftFamilyId =
