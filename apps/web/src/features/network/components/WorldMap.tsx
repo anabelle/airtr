@@ -14,6 +14,7 @@ export function WorldMap() {
   const tick = useEngineStore((s) => s.tick);
   const tickProgress = useEngineStore((s) => s.tickProgress);
   const permalinkAirportIata = useEngineStore((s) => s.permalinkAirportIata);
+  const permalinkAircraftId = useEngineStore((s) => s.permalinkAircraftId);
   const { airline, fleet, fleetByOwner, routesByOwner, competitors, routes, pubkey } =
     useAirlineStore();
   const [inspectedAirport, setInspectedAirport] = useState<Airport | null>(null);
@@ -98,6 +99,22 @@ export function WorldMap() {
     return result;
   }, [pubkey, fleetByOwner]);
 
+  // Permalink deep-link: when permalinkAircraftId is set (e.g. /aircraft/abc123),
+  // automatically inspect that aircraft on the map.
+  useEffect(() => {
+    if (!permalinkAircraftId) return;
+    const ac =
+      fleet.find((a) => a.id === permalinkAircraftId) ??
+      competitorFleet.find((a) => a.id === permalinkAircraftId) ??
+      null;
+    if (ac) {
+      setInspectedAircraft(ac);
+      setInspectedAirport(null);
+      setFocusedAirport(null);
+    }
+    // Re-run whenever fleet data updates (aircraft load asynchronously from Nostr)
+  }, [permalinkAircraftId, fleet, competitorFleet]);
+
   const competitorRoutes = useMemo(() => {
     const playerPubkey = pubkey ?? null;
     const result: Route[] = [];
@@ -117,10 +134,15 @@ export function WorldMap() {
       setInspectedAircraft(ac);
       setInspectedAirport(null);
       setFocusedAirport(null);
-      window.history.replaceState(null, "", "/");
+      window.history.replaceState(null, "", `/aircraft/${aircraftId}`);
     },
     [fleet, competitorFleet],
   );
+
+  const clearAircraftFocus = () => {
+    setInspectedAircraft(null);
+    window.history.replaceState(null, "", "/");
+  };
 
   const { presence: groundPresence } = useMemo(
     () => buildGroundPresenceByAirport(fleet, competitorFleet, airline ?? null, competitors),
@@ -160,12 +182,7 @@ export function WorldMap() {
         <AirportInfoPanel airport={inspectedAirport} onClose={clearAirportFocus} />
       ) : null}
       {inspectedAircraft ? (
-        <AircraftInfoPanel
-          aircraft={inspectedAircraft}
-          onClose={() => {
-            setInspectedAircraft(null);
-          }}
-        />
+        <AircraftInfoPanel aircraft={inspectedAircraft} onClose={clearAircraftFocus} />
       ) : null}
       {focusedAirport ? (
         <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] uppercase tracking-widest text-muted-foreground">

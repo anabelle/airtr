@@ -97,4 +97,21 @@ describe("engine store", () => {
     useEngineStore.getState().setPermalinkAirport(null);
     expect(useEngineStore.getState().permalinkAirportIata).toBeNull();
   });
+
+  it("permalinkAircraftId defaults to null", () => {
+    expect(useEngineStore.getState().permalinkAircraftId).toBeNull();
+  });
+
+  it("setPermalinkAircraft sets the aircraft id", () => {
+    useEngineStore.getState().setPermalinkAircraft("abc-123");
+    expect(useEngineStore.getState().permalinkAircraftId).toBe("abc-123");
+  });
+
+  it("setPermalinkAircraft can clear back to null", () => {
+    useEngineStore.getState().setPermalinkAircraft("xyz-456");
+    expect(useEngineStore.getState().permalinkAircraftId).toBe("xyz-456");
+
+    useEngineStore.getState().setPermalinkAircraft(null);
+    expect(useEngineStore.getState().permalinkAircraftId).toBeNull();
+  });
 });

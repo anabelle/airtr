@@ -104,12 +104,15 @@ export interface EngineState {
 
   /** IATA of airport focused via permalink (e.g. /airport/JFK) */
   permalinkAirportIata: string | null;
+  /** Aircraft ID focused via permalink (e.g. /aircraft/abc123) */
+  permalinkAircraftId: string | null;
 
   syncTick: () => void;
   setHub: (airport: Airport, loc: UserLocation, method: string) => void;
   startEngine: () => void;
   stopEngine: () => void;
   setPermalinkAirport: (iata: string | null) => void;
+  setPermalinkAircraft: (id: string | null) => void;
 }
 
 let engineProgressInterval: ReturnType<typeof setInterval> | null = null;
@@ -131,8 +134,10 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   isEngineRunning: false,
   catchupProgress: null,
   permalinkAirportIata: null,
+  permalinkAircraftId: null,
 
   setPermalinkAirport: (iata) => set({ permalinkAirportIata: iata }),
+  setPermalinkAircraft: (id) => set({ permalinkAircraftId: id }),
 
   syncTick: () => {
     const now = Date.now();
