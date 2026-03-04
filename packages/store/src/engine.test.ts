@@ -80,4 +80,21 @@ describe("engine store", () => {
       useEngineStore.getState().stopEngine();
     }
   });
+
+  it("permalinkAirportIata defaults to null", () => {
+    expect(useEngineStore.getState().permalinkAirportIata).toBeNull();
+  });
+
+  it("setPermalinkAirport sets the IATA code", () => {
+    useEngineStore.getState().setPermalinkAirport("JFK");
+    expect(useEngineStore.getState().permalinkAirportIata).toBe("JFK");
+  });
+
+  it("setPermalinkAirport can clear back to null", () => {
+    useEngineStore.getState().setPermalinkAirport("LAX");
+    expect(useEngineStore.getState().permalinkAirportIata).toBe("LAX");
+
+    useEngineStore.getState().setPermalinkAirport(null);
+    expect(useEngineStore.getState().permalinkAirportIata).toBeNull();
+  });
 });
