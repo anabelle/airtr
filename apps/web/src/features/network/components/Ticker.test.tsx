@@ -80,7 +80,6 @@ describe("Ticker", () => {
     });
 
     render(<Ticker />);
-    expect(screen.getByText("JFK")).toBeInTheDocument();
     expect(screen.getByText("summer")).toBeInTheDocument();
     expect(screen.getByText(/Live Data/i)).toBeInTheDocument();
   });

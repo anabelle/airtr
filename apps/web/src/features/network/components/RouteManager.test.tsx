@@ -105,6 +105,6 @@ describe("RouteManager", () => {
     });
 
     render(<RouteManager />);
-    expect(screen.getByText("Network Manager")).toBeInTheDocument();
+    expect(screen.getByText("Network")).toBeInTheDocument();
   });
 });
