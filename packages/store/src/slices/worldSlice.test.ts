@@ -674,6 +674,68 @@ describe("syncCompetitor", () => {
     expect(state.fleetByOwner.get(pubkey)?.map((ac) => ac.id)).toContain("ac-live-events");
   });
 
+  it("merges liveEvents with targeted fetch and ignores duplicate event ids", async () => {
+    const { loadActionLog } = await import("@acars/nostr");
+    const pubkey = "comp-merge-live-events";
+
+    (loadActionLog as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([
+        {
+          event: { id: "evt-create-1", author: { pubkey }, created_at: 1 },
+          action: {
+            schemaVersion: 2,
+            action: "AIRLINE_CREATE",
+            payload: {
+              name: "Merge Live Air",
+              hubs: ["JFK"],
+              corporateBalance: 1000000000000,
+              tick: 10,
+            },
+          },
+        },
+      ]) // competitor-targeted
+      .mockResolvedValueOnce([]); // global actions
+
+    const { state } = createSliceState({
+      competitors: new Map(),
+      fleetByOwner: buildFleetIndex([]),
+      routesByOwner: buildRoutesIndex([]),
+    });
+
+    await state.syncCompetitor(pubkey, [
+      {
+        event: { id: "evt-create-1", author: { pubkey }, created_at: 1 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRLINE_CREATE",
+          payload: {
+            name: "Merge Live Air",
+            hubs: ["JFK"],
+            corporateBalance: 1000000000000,
+            tick: 10,
+          },
+        },
+      },
+      {
+        event: { id: "evt-live-purchase-1", author: { pubkey }, created_at: 2 },
+        action: {
+          schemaVersion: 2,
+          action: "AIRCRAFT_PURCHASE",
+          payload: {
+            instanceId: "ac-live-merged",
+            modelId: "atr72-600",
+            price: 1000000,
+            deliveryHubIata: "JFK",
+            tick: 20,
+          },
+        },
+      },
+    ]);
+
+    expect(state.competitors.has(pubkey)).toBe(true);
+    expect(state.fleetByOwner.get(pubkey)?.map((ac) => ac.id)).toContain("ac-live-merged");
+  });
+
   it("retries once when liveEvents exist but replay yields no airline", async () => {
     const { loadActionLog } = await import("@acars/nostr");
     const pubkey = "comp-retry-live-events";
@@ -686,21 +748,29 @@ describe("syncCompetitor", () => {
       routesByOwner: buildRoutesIndex([]),
     });
 
-    await state.syncCompetitor(pubkey, [
-      {
-        event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
-        action: {
-          schemaVersion: 2,
-          action: "TICK_UPDATE",
-          payload: { tick: 123 },
+    vi.useFakeTimers();
+    try {
+      const syncPromise = state.syncCompetitor(pubkey, [
+        {
+          event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
+          action: {
+            schemaVersion: 2,
+            action: "TICK_UPDATE",
+            payload: { tick: 123 },
+          },
         },
-      },
-    ]);
+      ]);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(3000);
+      await syncPromise;
+    } finally {
+      vi.useRealTimers();
+    }
 
     const competitorTargetCalls = loadActionLogMock.mock.calls.filter(
       (call) => call[0]?.authors?.[0] === pubkey,
     );
     expect(competitorTargetCalls).toHaveLength(2);
     expect(state.competitors.has(pubkey)).toBe(false);
-  }, 10000);
+  });
 });

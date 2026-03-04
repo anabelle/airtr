@@ -165,7 +165,12 @@ function flushPendingCompetitorSyncs() {
 
 function queueCompetitorSync(pubkey: string, entry?: ActionLogEntry) {
   const existing = pendingCompetitorSyncs.get(pubkey) || [];
-  if (entry) existing.push(entry);
+  if (entry) {
+    const eventId = entry.event.id;
+    if (!eventId || !existing.some((e) => e.event.id === eventId)) {
+      existing.push(entry);
+    }
+  }
   pendingCompetitorSyncs.set(pubkey, existing);
   if (!batchFlushTimer) {
     batchFlushTimer = setTimeout(flushPendingCompetitorSyncs, LIVE_SYNC_BATCH_MS);
