@@ -288,7 +288,20 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
             rejectedEventIds: rejectedBuyEventIds,
           });
 
-          if (!replayed.airline) continue;
+          if (!replayed.airline) {
+            if (replayed.dissolved) {
+              competitors.delete(authorPubkey);
+              worldLogger.info(
+                `Competitor ${authorPubkey.slice(0, 8)}... dissolved — removed from world state`,
+              );
+            } else {
+              worldLogger.warn(
+                `Replay produced no airline for ${authorPubkey.slice(0, 8)}... ` +
+                  `(${scopedEntries.length} scoped actions, checkpoint: ${checkpoint ? "yes" : "no"})`,
+              );
+            }
+            continue;
+          }
 
           const airline = replayed.airline;
           let resolvedFleet = replayed.fleet;
@@ -725,9 +738,29 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         });
 
         if (!replayed.airline) {
+          if (replayed.dissolved) {
+            // Competitor dissolved their airline — remove from state
+            const freshState = get();
+            const updatedCompetitors = new Map(freshState.competitors);
+            updatedCompetitors.delete(competitorPubkey);
+            const updatedFleetByOwner = new Map(freshState.fleetByOwner);
+            updatedFleetByOwner.delete(competitorPubkey);
+            const updatedRoutesByOwner = new Map(freshState.routesByOwner);
+            updatedRoutesByOwner.delete(competitorPubkey);
+            set({
+              competitors: updatedCompetitors,
+              fleetByOwner: updatedFleetByOwner,
+              routesByOwner: updatedRoutesByOwner,
+            });
+            worldLogger.info(
+              `Competitor ${competitorPubkey.slice(0, 8)}... dissolved — removed from world state`,
+            );
+            return;
+          }
           worldLogger.warn(
             `Replay produced no airline for ${competitorPubkey.slice(0, 8)}... ` +
-              `(${scopedEntries.length} scoped actions, checkpoint: ${checkpoint ? "yes" : "no"})`,
+              `(${scopedEntries.length} scoped actions, checkpoint: ${checkpoint ? "yes" : "no"})` +
+              ` — existing competitor data preserved if available`,
           );
           continue; // retry if attempts remain
         }

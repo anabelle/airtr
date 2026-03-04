@@ -194,8 +194,22 @@ export async function publishCheckpoint(checkpoint: Checkpoint): Promise<NDKEven
   ];
   event.content = JSON.stringify(checkpoint);
 
-  await event.publish();
-  return event;
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await event.publish();
+      return event;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        const delay = 1000 * 2 ** attempt; // 1s, 2s
+        console.warn(`Checkpoint publish attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  return event; // unreachable, satisfies TypeScript
 }
 
 /**

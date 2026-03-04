@@ -834,7 +834,7 @@ describe("syncCompetitor", () => {
   });
 
   it(
-    "retries once when liveEvents exist but replay yields no airline",
+    "bootstraps competitor from TICK_UPDATE when AIRLINE_CREATE is missing",
     { timeout: 15000 },
     async () => {
       const { loadActionLog } = await import("@acars/nostr");
@@ -848,30 +848,27 @@ describe("syncCompetitor", () => {
         routesByOwner: buildRoutesIndex([]),
       });
 
-      vi.useFakeTimers();
-      try {
-        const syncPromise = state.syncCompetitor(pubkey, [
-          {
-            event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
-            action: {
-              schemaVersion: 2,
-              action: "TICK_UPDATE",
-              payload: { tick: 123 },
-            },
+      await state.syncCompetitor(pubkey, [
+        {
+          event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
+          action: {
+            schemaVersion: 2,
+            action: "TICK_UPDATE",
+            payload: { tick: 123, corporateBalance: 5000000 },
           },
-        ]);
-        await vi.advanceTimersByTimeAsync(0);
-        await vi.advanceTimersByTimeAsync(3000);
-        await syncPromise;
-      } finally {
-        vi.useRealTimers();
-      }
+        },
+      ]);
 
+      // With the bootstrap fix, TICK_UPDATE now creates a synthetic airline.
+      // No retry needed — the competitor is visible on the first attempt.
       const competitorTargetCalls = loadActionLogMock.mock.calls.filter(
         (call) => call[0]?.authors?.[0] === pubkey,
       );
-      expect(competitorTargetCalls).toHaveLength(2);
-      expect(state.competitors.has(pubkey)).toBe(false);
+      expect(competitorTargetCalls).toHaveLength(1);
+      expect(state.competitors.has(pubkey)).toBe(true);
+      const competitor = state.competitors.get(pubkey);
+      expect(competitor?.name).toBe("Unknown Airline");
+      expect(competitor?.corporateBalance).toBe(5000000);
     },
   );
 });
