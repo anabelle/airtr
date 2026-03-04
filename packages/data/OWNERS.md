@@ -38,10 +38,7 @@ packages/data/
 
 - @acars/core (types: Airport, AircraftModel, HubTier, FixedPoint)
 
-## Dependents (zones that import from this zone)
-
 - @acars/store
-- @acars/nostr
 - apps/web
 
 ## Special Notes

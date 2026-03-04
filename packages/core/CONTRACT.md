@@ -114,7 +114,17 @@ interface NightOverlayFeatureCollection { /* see types.ts */ }
 interface TerminatorLineCollection { /* see types.ts */ }
 
 // Cycle
-type CyclePhase = "outbound" | "inbound" | "turnaround" | "idle";
+interface CyclePhase {
+  status: "enroute" | "turnaround";
+  direction: "outbound" | "inbound";
+  positionInCycle: number;
+  departureTick: number;
+  arrivalTick: number;
+  turnaroundEndTick: number | null;
+  baseAirportIata: string;
+  originIata: string;
+  destinationIata: string;
+}
 ```
 
 ### Exported Constants
@@ -143,7 +153,7 @@ const MAX_PRICE_ELASTICITY_MULTIPLIER = 1.5;
 const MIN_PRICE_ELASTICITY_MULTIPLIER = 0.01;
 
 // Finance
-const ROUTE_SLOT_FEE = 50000;
+const ROUTE_SLOT_FEE: FixedPoint; // fp(100000)
 ```
 
 ### Exported Functions
@@ -218,12 +228,12 @@ function haversineDistance(
 ): number;
 
 // Season
-function getSeason(date: Date): Season;
+function getSeason(latitude: number, date: Date): Season;
 function getSeasonalMultiplier(tag: AirportTag, season: Season): number;
 
 // Solar
 function getSolarDeclination(dayOfYear: number): number;
-function getSubsolarPoint(date: Date): { lat: number; lon: number };
+function getSubsolarPoint(date: Date): { lat: number; lng: number };
 function computeTerminatorLine(date: Date): TerminatorLineCollection;
 function computeNightOverlay(date: Date): NightOverlayFeatureCollection;
 
@@ -232,55 +242,91 @@ function calculateBookValue(
   model: AircraftModel,
   flightHoursTotal: number,
   condition: number,
-  purchasedAtTick: number,
+  manufactureTick: number,
   currentTick: number,
 ): FixedPoint;
 
 // Hubs
-function buildHubState(
-  hubIata: string,
-  routes: Route[],
-  airports: Airport[],
-): HubState | null;
-function getAirportTraffic(
-  iata: string,
-  routes: Route[],
-  airports: Airport[],
-): number;
+function buildHubState(hubIata: string, routes: Route[]): HubState;
+function getAirportTraffic(iata: string, routes: Route[]): number;
 
 // Finance
+interface FlightRevenueParams {
+  passengersEconomy: number;
+  passengersBusiness: number;
+  passengersFirst: number;
+  fareEconomy: FixedPoint;
+  fareBusiness: FixedPoint;
+  fareFirst: FixedPoint;
+  seatsOffered: number;
+}
+interface FlightRevenueResult {
+  revenueTicket: FixedPoint;
+  revenueEconomy: FixedPoint;
+  revenueBusiness: FixedPoint;
+  revenueFirst: FixedPoint;
+  revenueAncillary: FixedPoint;
+  revenueTotal: FixedPoint;
+  actualPassengers: number;
+  actualEconomy: number;
+  actualBusiness: number;
+  actualFirst: number;
+  seatsOffered: number;
+  loadFactor: number;
+  spilledPassengers: number;
+}
 function calculateFlightRevenue(
-  route: Route,
-  aircraft: AircraftInstance,
-  model: AircraftModel,
-  passengers: { economy: number; business: number; first: number },
-): FixedPoint;
-function calculateFlightCost(
-  route: Route,
-  aircraft: AircraftInstance,
-  model: AircraftModel,
-  airports: Airport[],
-): FixedPoint;
+  params: FlightRevenueParams,
+): FlightRevenueResult;
+
+interface FlightCostParams {
+  distanceKm: number;
+  aircraft: AircraftModel;
+  actualPassengers: number;
+  blockHours: number;
+  airportFeesMultiplier?: number;
+}
+interface FlightCostResult {
+  costFuel: FixedPoint;
+  costCrew: FixedPoint;
+  costMaintenance: FixedPoint;
+  costAirport: FixedPoint;
+  costNavigation: FixedPoint;
+  costLeasing: FixedPoint;
+  costOverhead: FixedPoint;
+  costTotal: FixedPoint;
+}
+function calculateFlightCost(params: FlightCostParams): FlightCostResult;
+
 function calculateHubLandingFee(
-  airport: Airport,
-  model: AircraftModel,
+  baseLandingFee: FixedPoint,
+  baseCapacityPerHour: number,
+  hourlyFlights: number,
 ): FixedPoint;
-function detectPriceWar(route: Route, competitors: FlightOffer[]): boolean;
-function getSuggestedFares(
-  demand: DemandResult,
-  model: AircraftModel,
-  distanceKm: number,
-): { economy: FixedPoint; business: FixedPoint; first: FixedPoint };
+function detectPriceWar(offers: FlightOffer[]): {
+  isPriceWar: boolean;
+  lowPricedAirlines: string[];
+};
+function getSuggestedFares(distanceKm: number): {
+  economy: FixedPoint;
+  business: FixedPoint;
+  first: FixedPoint;
+};
 
 // Cycle
 function getCyclePhase(
-  aircraft: AircraftInstance,
-  currentTick: number,
+  cycleStartTick: number,
+  targetTick: number,
+  durationTicks: number,
+  turnaroundTicks: number,
+  route: Route,
 ): CyclePhase;
 function countLandingsBetween(
-  aircraft: AircraftInstance,
-  startTick: number,
-  endTick: number,
+  cycleStartTick: number,
+  fromTick: number,
+  toTick: number,
+  durationTicks: number,
+  turnaroundTicks: number,
 ): number;
 
 // PRNG (Deterministic Random)
