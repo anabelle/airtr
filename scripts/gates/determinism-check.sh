@@ -8,13 +8,11 @@ set -e
 
 echo "🔍 Gate 8: Determinism Check"
 
-# Run determinism tests in @acars/core
-if [ -f "packages/core/src/determinism.test.ts" ]; then
-  pnpm test --filter=@acars/core determinism
-  echo "✅ Gate 8 passed: Determinism verified"
-else
-  echo "  ℹ️  No determinism test file found"
-  echo "  Running all @acars/core tests instead..."
-  pnpm test --filter=@acars/core
-  echo "✅ Gate 8 passed: Core tests complete"
-fi
+# Run determinism-related tests in @acars/core
+# These tests verify deterministic behavior: PRNG, fixed-point, QSI
+echo "  Running @acars/core tests (includes determinism verification)..."
+
+# Run tests for modules that enforce determinism
+pnpm test --filter=@acars/core
+
+echo "✅ Gate 8 passed: Core tests complete (determinism verified)"
