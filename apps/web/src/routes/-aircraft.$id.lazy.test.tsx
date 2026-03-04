@@ -15,7 +15,7 @@ vi.mock("@acars/store", () => ({
     },
 }));
 
-let mockIdParam: string = "abc-123";
+let mockIdParam = "abc-123";
 
 vi.mock("@tanstack/react-router", () => ({
     useParams: () => ({ id: mockIdParam }),

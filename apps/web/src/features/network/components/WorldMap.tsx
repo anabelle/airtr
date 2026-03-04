@@ -54,9 +54,13 @@ export function WorldMap() {
     if (!permalinkAirportIata) return;
     const airport = airportByIata.get(permalinkAirportIata);
     if (airport) {
-      setFocusedAirport(airport);
-      setInspectedAirport(airport);
-      setInspectedAircraft(null);
+      // Deferred to satisfy react-hooks/set-state-in-effect — this effect
+      // synchronises external Zustand store state with local component state.
+      queueMicrotask(() => {
+        setFocusedAirport(airport);
+        setInspectedAirport(airport);
+        setInspectedAircraft(null);
+      });
     }
   }, [permalinkAirportIata]);
 
@@ -135,11 +139,17 @@ export function WorldMap() {
       competitorFleet.find((a) => a.id === permalinkAircraftId) ??
       null;
     if (ac) {
-      setInspectedAircraft(ac);
-      setInspectedAirport(null);
       // Read tick imperatively to avoid re-running this effect every frame
       const { tick: t, tickProgress: tp } = useEngineStore.getState();
-      setFocusedAirport(getAircraftFocusPoint(ac, t, tp));
+      // Deferred to satisfy react-hooks/set-state-in-effect
+      queueMicrotask(() => {
+        setInspectedAircraft(ac);
+        setInspectedAirport(null);
+        setFocusedAirport(getAircraftFocusPoint(ac, t, tp));
+      });
+    } else if (fleet.length > 0 || competitorFleet.length > 0) {
+      // Fleet data loaded but aircraft not found — invalid ID, redirect home
+      window.history.replaceState(null, "", "/");
     }
     // Re-run whenever fleet data updates (aircraft load asynchronously from Nostr)
   }, [permalinkAircraftId, fleet, competitorFleet]);

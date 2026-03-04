@@ -73,11 +73,16 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   };
 
   useEffect(() => {
+    let armed = false;
+    const timer = setTimeout(() => { armed = true; }, 300);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && armed) onClose();
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [onClose]);
 
   useEffect(() => {

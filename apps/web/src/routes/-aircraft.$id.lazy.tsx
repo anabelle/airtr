@@ -25,7 +25,7 @@ export default function AircraftPermalinkPage() {
         return () => {
             setPermalinkAircraft(null);
         };
-    }, [id, setPermalinkAircraft, navigate]);
+    }, [id, navigate, setPermalinkAircraft]);
 
     return null;
 }

@@ -146,11 +146,16 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
   };
 
   useEffect(() => {
+    let armed = false;
+    const timer = setTimeout(() => { armed = true; }, 300);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && armed) onClose();
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [onClose]);
 
   useEffect(() => {
@@ -602,8 +607,8 @@ function RouteTab({ route, siblings }: { route: Route | null; siblings: Aircraft
           </div>
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold ${route.status === "active"
-                ? "bg-emerald-500/20 text-emerald-200"
-                : "bg-muted text-muted-foreground"
+              ? "bg-emerald-500/20 text-emerald-200"
+              : "bg-muted text-muted-foreground"
               }`}
           >
             {route.status}
