@@ -3,6 +3,7 @@ import { useAirlineStore, useEngineStore } from "@acars/store";
 import { PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { useMemo } from "react";
 import { buildFlightBoardRows, type FlightRow } from "@/features/network/utils/flightBoard";
+import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNavigation";
 
 type FlightBoardProps = {
   airportIata: string;
@@ -31,9 +32,21 @@ function FidsRow({ flight }: { flight: FlightRow }) {
           style={{ backgroundColor: flight.airlineColor }}
           aria-hidden="true"
         />
-        <span className="text-slate-100 font-semibold truncate">{flight.flightLabel}</span>
+        <button
+          type="button"
+          onClick={() => navigateToAircraft(flight.aircraftId)}
+          className="text-slate-100 font-semibold truncate hover:text-sky-300 transition-colors cursor-pointer"
+        >
+          {flight.flightLabel}
+        </button>
       </span>
-      <span className="text-yellow-300 font-bold tracking-wide">{flight.otherIata}</span>
+      <button
+        type="button"
+        onClick={() => navigateToAirport(flight.otherIata, { airportTab: "flights" })}
+        className="text-yellow-300 font-bold tracking-wide hover:text-yellow-100 transition-colors cursor-pointer text-left"
+      >
+        {flight.otherIata}
+      </button>
       <span className="text-slate-400 text-[10px]">{flight.aircraft}</span>
       <span className="text-slate-100 font-semibold text-right tabular-nums">
         {flight.timeLabel}

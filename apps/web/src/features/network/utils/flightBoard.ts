@@ -12,6 +12,7 @@ export type FlightBoardMode = "departures" | "arrivals";
 
 export type FlightRow = {
   key: string;
+  aircraftId: string;
   status: string;
   statusTone: "emerald" | "amber" | "sky" | "slate";
   flightLabel: string;
@@ -220,6 +221,7 @@ export function buildFlightBoardRows({
 
     rows.push({
       key: `${aircraft.id}-${mode}`,
+      aircraftId: aircraft.id,
       status,
       statusTone: getStatusTone(status),
       flightLabel,

@@ -7,6 +7,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plane, Route as RouteIcon, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { getAircraftTimer } from "@/features/fleet/utils/aircraftTimers";
+import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNavigation";
 
 type AircraftInfoPanelProps = {
   aircraft: AircraftInstance;
@@ -90,13 +91,13 @@ function FlightStrip({
     <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-mono font-bold text-foreground">{flight.originIata}</span>
+          <span className="text-sm font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => navigateToAirport(flight.originIata)}>{flight.originIata}</span>
           <div className="flex-1 flex items-center gap-1 text-muted-foreground">
             <div className="h-px flex-1 bg-sky-500/40" />
             <Plane className="h-3 w-3 text-sky-300" />
             <div className="h-px flex-1 bg-sky-500/40" />
           </div>
-          <span className="text-sm font-mono font-bold text-foreground">
+          <span className="text-sm font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => navigateToAirport(flight.destinationIata)}>
             {flight.destinationIata}
           </span>
         </div>
@@ -488,7 +489,11 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     Base
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
-                    {aircraft.baseAirportIata || "—"}
+                    {aircraft.baseAirportIata ? (
+                      <button type="button" onClick={() => navigateToAirport(aircraft.baseAirportIata)} className="hover:text-primary transition-colors cursor-pointer">
+                        {aircraft.baseAirportIata}
+                      </button>
+                    ) : "—"}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
@@ -497,7 +502,11 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {assignedRoute
-                      ? `${assignedRoute.originIata} — ${assignedRoute.destinationIata}`
+                      ? <>
+                        <button type="button" onClick={() => navigateToAirport(assignedRoute.originIata)} className="hover:text-primary transition-colors cursor-pointer">{assignedRoute.originIata}</button>
+                        {" — "}
+                        <button type="button" onClick={() => navigateToAirport(assignedRoute.destinationIata)} className="hover:text-primary transition-colors cursor-pointer">{assignedRoute.destinationIata}</button>
+                      </>
                       : "Unassigned"}
                   </p>
                 </div>
@@ -556,7 +565,7 @@ function RouteTab({ route, siblings }: { route: Route | null; siblings: Aircraft
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="text-center min-w-0">
-              <span className="text-lg font-mono font-bold text-foreground">
+              <span className="text-lg font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => navigateToAirport(route.originIata)}>
                 {route.originIata}
               </span>
               {originAirport ? (
@@ -576,7 +585,7 @@ function RouteTab({ route, siblings }: { route: Route | null; siblings: Aircraft
               <div className="h-px w-4 bg-border" />
             </div>
             <div className="text-center min-w-0">
-              <span className="text-lg font-mono font-bold text-foreground">
+              <span className="text-lg font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer" onClick={() => navigateToAirport(route.destinationIata)}>
                 {route.destinationIata}
               </span>
               {destAirport ? (
@@ -592,11 +601,10 @@ function RouteTab({ route, siblings }: { route: Route | null; siblings: Aircraft
             </div>
           </div>
           <span
-            className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold ${
-              route.status === "active"
+            className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold ${route.status === "active"
                 ? "bg-emerald-500/20 text-emerald-200"
                 : "bg-muted text-muted-foreground"
-            }`}
+              }`}
           >
             {route.status}
           </span>
@@ -661,7 +669,8 @@ function RouteTab({ route, siblings }: { route: Route | null; siblings: Aircraft
               return (
                 <div
                   key={ac.id}
-                  className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-xs"
+                  className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-xs hover:border-primary/40 transition-colors cursor-pointer"
+                  onClick={() => navigateToAircraft(ac.id)}
                 >
                   <span className="font-semibold text-foreground">{ac.name}</span>
                   <span className="text-muted-foreground">

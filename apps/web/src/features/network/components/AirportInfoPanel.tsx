@@ -18,6 +18,7 @@ import { FlightBoard } from "@/features/network/components/FlightBoard";
 import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
 import { buildGroundTraffic } from "@/features/network/utils/groundTraffic";
 import { useConfirm } from "@/shared/lib/useConfirm";
+import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 
 type AirportInfoPanelProps = {
   airport: Airport;
@@ -107,23 +108,23 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const activeHubAirport = playerHubs[0] ? airportIndex.get(playerHubs[0]) : null;
   const distanceKm = originHubAirport
     ? Math.round(
-        haversineDistance(
-          originHubAirport.latitude,
-          originHubAirport.longitude,
-          airport.latitude,
-          airport.longitude,
-        ),
-      )
+      haversineDistance(
+        originHubAirport.latitude,
+        originHubAirport.longitude,
+        airport.latitude,
+        airport.longitude,
+      ),
+    )
     : null;
   const hqDistanceKm = activeHubAirport
     ? Math.round(
-        haversineDistance(
-          activeHubAirport.latitude,
-          activeHubAirport.longitude,
-          airport.latitude,
-          airport.longitude,
-        ),
-      )
+      haversineDistance(
+        activeHubAirport.latitude,
+        activeHubAirport.longitude,
+        airport.latitude,
+        airport.longitude,
+      ),
+    )
     : null;
 
   const routesTouching = useMemo(
@@ -399,14 +400,19 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                 </div>
                 {routesTouching.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {routesTouching.slice(0, 5).map((route) => (
-                      <span
-                        key={route.id}
-                        className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground"
-                      >
-                        {routeLabel(route)}
-                      </span>
-                    ))}
+                    {routesTouching.slice(0, 5).map((route) => {
+                      const otherIata = route.originIata === airport.iata ? route.destinationIata : route.originIata;
+                      return (
+                        <button
+                          key={route.id}
+                          type="button"
+                          onClick={() => navigateToAirport(otherIata)}
+                          className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          {routeLabel(route)}
+                        </button>
+                      );
+                    })}
                     {routesTouching.length > 5 ? (
                       <span className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
                         +{routesTouching.length - 5} more
@@ -582,13 +588,19 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               {distanceKm && originHubAirport ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
-                  Distance from {originHubAirport.iata}: {distanceKm.toLocaleString()} km
+                  Distance from{" "}
+                  <button type="button" onClick={() => navigateToAirport(originHubAirport.iata)} className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer">
+                    {originHubAirport.iata}
+                  </button>: {distanceKm.toLocaleString()} km
                 </div>
               ) : null}
               {!originHubAirport && hqDistanceKm && activeHubAirport ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
-                  Distance from HQ {activeHubAirport.iata}: {hqDistanceKm.toLocaleString()} km
+                  Distance from HQ{" "}
+                  <button type="button" onClick={() => navigateToAirport(activeHubAirport.iata)} className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer">
+                    {activeHubAirport.iata}
+                  </button>: {hqDistanceKm.toLocaleString()} km
                 </div>
               ) : null}
             </div>
