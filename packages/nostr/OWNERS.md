@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 packages/nostr/
 ├── src/
 │   ├── identity.ts      ← NIP-07, key management

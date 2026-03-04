@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 apps/web/
 ├── src/
 │   ├── app/              ← Global app setup

@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 packages/map/
 ├── src/
 │   ├── Globe.tsx        ← Main MapLibre globe component

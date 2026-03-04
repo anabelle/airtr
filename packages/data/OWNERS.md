@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 packages/data/
 ├── src/
 │   ├── airports.ts      ← OpenFlights airport data (auto-generated)

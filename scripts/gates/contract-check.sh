@@ -1,7 +1,8 @@
 #!/bin/bash
 # ============================================================
 # Gate 4: Contract Check
-# Verify exports match CONTRACT.md
+# Verify CONTRACT.md exists in all packages
+# (Export verification planned for future iteration)
 # ============================================================
 
 set -e

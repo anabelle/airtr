@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 packages/store/
 ├── src/
 │   ├── slices/

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # Gate 5: Boundary Check
-# Verify agent only modified owned zone
+# List changed files (enforcement planned — requires OWNERS.md parsing)
 # ============================================================
 
 set -e

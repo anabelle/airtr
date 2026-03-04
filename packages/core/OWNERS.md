@@ -20,7 +20,7 @@ Reading never requires ownership.
 
 ## Zone Boundaries
 
-```
+```text
 packages/core/
 ├── src/
 │   ├── checkpoint.ts
