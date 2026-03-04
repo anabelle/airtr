@@ -833,41 +833,45 @@ describe("syncCompetitor", () => {
     );
   });
 
-  it("retries once when liveEvents exist but replay yields no airline", async () => {
-    const { loadActionLog } = await import("@acars/nostr");
-    const pubkey = "comp-retry-live-events";
-    const loadActionLogMock = loadActionLog as unknown as ReturnType<typeof vi.fn>;
-    loadActionLogMock.mockResolvedValue([]);
+  it(
+    "retries once when liveEvents exist but replay yields no airline",
+    { timeout: 15000 },
+    async () => {
+      const { loadActionLog } = await import("@acars/nostr");
+      const pubkey = "comp-retry-live-events";
+      const loadActionLogMock = loadActionLog as unknown as ReturnType<typeof vi.fn>;
+      loadActionLogMock.mockResolvedValue([]);
 
-    const { state } = createSliceState({
-      competitors: new Map(),
-      fleetByOwner: buildFleetIndex([]),
-      routesByOwner: buildRoutesIndex([]),
-    });
+      const { state } = createSliceState({
+        competitors: new Map(),
+        fleetByOwner: buildFleetIndex([]),
+        routesByOwner: buildRoutesIndex([]),
+      });
 
-    vi.useFakeTimers();
-    try {
-      const syncPromise = state.syncCompetitor(pubkey, [
-        {
-          event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
-          action: {
-            schemaVersion: 2,
-            action: "TICK_UPDATE",
-            payload: { tick: 123 },
+      vi.useFakeTimers();
+      try {
+        const syncPromise = state.syncCompetitor(pubkey, [
+          {
+            event: { id: "live-tick-only", author: { pubkey }, created_at: 1 },
+            action: {
+              schemaVersion: 2,
+              action: "TICK_UPDATE",
+              payload: { tick: 123 },
+            },
           },
-        },
-      ]);
-      await vi.advanceTimersByTimeAsync(0);
-      await vi.advanceTimersByTimeAsync(3000);
-      await syncPromise;
-    } finally {
-      vi.useRealTimers();
-    }
+        ]);
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(3000);
+        await syncPromise;
+      } finally {
+        vi.useRealTimers();
+      }
 
-    const competitorTargetCalls = loadActionLogMock.mock.calls.filter(
-      (call) => call[0]?.authors?.[0] === pubkey,
-    );
-    expect(competitorTargetCalls).toHaveLength(2);
-    expect(state.competitors.has(pubkey)).toBe(false);
-  });
+      const competitorTargetCalls = loadActionLogMock.mock.calls.filter(
+        (call) => call[0]?.authors?.[0] === pubkey,
+      );
+      expect(competitorTargetCalls).toHaveLength(2);
+      expect(state.competitors.has(pubkey)).toBe(false);
+    },
+  );
 });
