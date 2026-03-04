@@ -18,8 +18,8 @@ interface HubClassification {
 }
 
 interface HubPricing {
-  openFee: number;
-  monthlyOpex: number;
+  openFee: number; // Raw number — wrap with fp() before financial calculations
+  monthlyOpex: number; // Raw number — wrap with fp() before financial calculations
   tier: HubTier;
 }
 ```
