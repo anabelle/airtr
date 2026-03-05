@@ -3,6 +3,7 @@ import { airports } from "@acars/data";
 
 // Model candidates sent to the server proxy (tries in order)
 const MODEL_CANDIDATES = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
+const GENERATE_TIMEOUT_MS = 20_000;
 
 /** Convert a hex color to a human-readable color name for image prompts. */
 function hexToColorName(hex: string): string {
@@ -140,11 +141,25 @@ export async function computePromptHash(
  * Returns the raw image data as a Blob.
  */
 export async function generateLiveryImage(prompt: string): Promise<Blob> {
-  const res = await fetch("/api/generate-livery", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, models: MODEL_CANDIDATES }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS);
+  let res: Response;
+
+  try {
+    res = await fetch("/api/generate-livery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ prompt, models: MODEL_CANDIDATES }),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Livery generation request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));

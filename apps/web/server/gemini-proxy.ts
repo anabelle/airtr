@@ -8,6 +8,9 @@ import type { Plugin, ViteDevServer } from "vite";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const DEFAULT_MODELS = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
+const ALLOWED_MODELS = new Set(DEFAULT_MODELS);
+const MAX_MODELS = 3;
+const GEMINI_TIMEOUT_MS = 15_000;
 interface Prediction {
   bytesBase64Encoded?: string;
   mimeType?: string;
@@ -56,22 +59,30 @@ export default function geminiProxy(): Plugin {
             return;
           }
 
-          if (!body.prompt) {
+          if (typeof body.prompt !== "string" || !body.prompt.trim()) {
             res.writeHead(400);
             res.end(JSON.stringify({ error: "Missing prompt" }));
             return;
           }
 
-          const models = body.models?.length ? body.models : DEFAULT_MODELS;
+          const models =
+            Array.isArray(body.models) && body.models.every((m) => typeof m === "string")
+              ? body.models.filter((m) => ALLOWED_MODELS.has(m)).slice(0, MAX_MODELS)
+              : DEFAULT_MODELS;
+
+          const modelsToTry = models.length > 0 ? models : DEFAULT_MODELS;
           let lastError = "";
 
-          for (const model of models) {
+          for (const model of modelsToTry) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
 
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
             try {
               const apiRes = await fetch(url, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                signal: controller.signal,
                 body: JSON.stringify({
                   instances: [{ prompt: body.prompt }],
                   parameters: {
@@ -117,7 +128,13 @@ export default function geminiProxy(): Plugin {
               );
               return;
             } catch (err) {
+              if (err instanceof Error && err.name === "AbortError") {
+                lastError = "Upstream image request timed out";
+                continue;
+              }
               lastError = err instanceof Error ? err.message : "Unknown error";
+            } finally {
+              clearTimeout(timeout);
             }
           }
 

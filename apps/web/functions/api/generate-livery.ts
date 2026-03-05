@@ -23,6 +23,9 @@ interface PredictionResponse {
 }
 
 const DEFAULT_MODELS = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
+const ALLOWED_MODELS = new Set(DEFAULT_MODELS);
+const MAX_MODELS = 3;
+const GEMINI_TIMEOUT_MS = 15_000;
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const apiKey = context.env.GOOGLE_API;
@@ -37,20 +40,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (!body.prompt || typeof body.prompt !== "string") {
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) {
     return Response.json({ error: "Missing prompt" }, { status: 400 });
   }
 
-  const models = body.models?.length ? body.models : DEFAULT_MODELS;
+  const models =
+    Array.isArray(body.models) && body.models.length > 0
+      ? body.models
+          .filter(
+            (model): model is string => typeof model === "string" && ALLOWED_MODELS.has(model),
+          )
+          .slice(0, MAX_MODELS)
+      : DEFAULT_MODELS;
+
+  const modelsToTry = models.length > 0 ? models : DEFAULT_MODELS;
   let lastError = "";
 
-  for (const model of models) {
+  for (const model of modelsToTry) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           instances: [{ prompt: body.prompt }],
           parameters: {
@@ -91,7 +106,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         mimeType: prediction.mimeType ?? "image/png",
       });
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        lastError = "Upstream image request timed out";
+        continue;
+      }
       lastError = err instanceof Error ? err.message : "Unknown error";
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
