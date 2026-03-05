@@ -4,7 +4,7 @@ import { airports } from "@acars/data";
 // Model candidates sent to the server proxy (tries in order)
 const MODEL_CANDIDATES = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
 const GENERATE_TIMEOUT_MS = 20_000;
-const LIVERY_PROXY_ENDPOINTS = ["/api/generate-livery", "/functions/api/generate-livery"];
+const LIVERY_PROXY_ENDPOINTS = ["/api/generate-livery"];
 
 /** Convert a hex color to a human-readable color name for image prompts. */
 function hexToColorName(hex: string): string {
