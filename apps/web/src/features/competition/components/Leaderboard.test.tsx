@@ -93,7 +93,7 @@ describe("Leaderboard", () => {
     render(<Leaderboard />);
     expect(screen.getByText("Test Air")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Fleet Size/ }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "fleet" } });
     expect(screen.getAllByText("Fleet Size").length).toBeGreaterThan(0);
   });
 });
