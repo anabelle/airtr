@@ -65,6 +65,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       {
         error: "Gemini API secret is not configured",
         hint: "Ensure secrets are set for BOTH Production and Preview environments in the CF Pages dashboard",
+        source: "root",
         branch,
         envKeyCount: envKeys.length,
         envKeys: envKeys.filter((k) => !k.startsWith("__")),
