@@ -18,7 +18,7 @@ export function AircraftLiveryImage({
   isOwner,
   fallback,
 }: AircraftLiveryImageProps) {
-  const { imageUrl, isGenerating } = useAircraftImage(aircraft, airline, model, isOwner);
+  const { imageUrl, isGenerating, error } = useAircraftImage(aircraft, airline, model, isOwner);
 
   if (imageUrl) {
     return (
@@ -40,6 +40,17 @@ export function AircraftLiveryImage({
             Generating livery…
           </span>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/40">
+        {fallback}
+        <span className="absolute bottom-1 text-[9px] text-red-400/70 px-1 truncate max-w-full">
+          {error}
+        </span>
       </div>
     );
   }

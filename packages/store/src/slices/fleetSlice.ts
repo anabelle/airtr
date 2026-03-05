@@ -52,11 +52,7 @@ export interface FleetSlice {
   cancelListing: (aircraftId: string) => Promise<void>;
   performMaintenance: (aircraftId: string) => Promise<void>;
   ferryAircraft: (aircraftId: string, destinationIata: string) => Promise<void>;
-  updateAircraftLivery: (
-    aircraftId: string,
-    imageUrl: string,
-    promptHash: string,
-  ) => Promise<void>;
+  updateAircraftLivery: (aircraftId: string, imageUrl: string, promptHash: string) => Promise<void>;
 }
 
 const logger = createLogger("Fleet");
@@ -1007,6 +1003,8 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
     const { fleet } = get();
     const idx = fleet.findIndex((f) => f.id === aircraftId);
     if (idx === -1) return;
+    const previousLiveryImageUrl = fleet[idx].liveryImageUrl;
+    const previousLiveryPromptHash = fleet[idx].liveryPromptHash;
 
     const updatedFleet = [...fleet];
     updatedFleet[idx] = {
@@ -1032,6 +1030,19 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
         set,
       });
     } catch (e) {
+      set((state) => ({
+        fleet: state.fleet.map((ac) =>
+          ac.id === aircraftId &&
+          ac.liveryImageUrl === imageUrl &&
+          ac.liveryPromptHash === promptHash
+            ? {
+                ...ac,
+                liveryImageUrl: previousLiveryImageUrl,
+                liveryPromptHash: previousLiveryPromptHash,
+              }
+            : ac,
+        ),
+      }));
       console.warn("Failed to sync livery update to Nostr action chain:", e);
     }
   },

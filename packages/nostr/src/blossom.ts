@@ -5,6 +5,16 @@ const logger = createLogger("Blossom");
 
 const DEFAULT_BLOSSOM_SERVER = "https://blossom.primal.net";
 
+let ndkBlossomCtor: typeof import("@nostr-dev-kit/ndk-blossom")["default"] | null = null;
+
+async function getNDKBlossom() {
+  if (!ndkBlossomCtor) {
+    const mod = await import("@nostr-dev-kit/ndk-blossom");
+    ndkBlossomCtor = mod.default;
+  }
+  return ndkBlossomCtor;
+}
+
 /**
  * Uploads a Blob to a Blossom server and returns the content-addressable URL.
  *
@@ -20,14 +30,21 @@ export async function uploadToBlossom(
   filename: string,
   mimeType = "image/png",
 ): Promise<string> {
-  const { default: NDKBlossom } = await import("@nostr-dev-kit/ndk-blossom");
-  const blossom = new NDKBlossom(getNDK());
+  const ndk = getNDK();
+  if (!ndk.signer) {
+    throw new Error("NDK has no signer — cannot authenticate Blossom upload");
+  }
+
+  const NDKBlossom = await getNDKBlossom();
+  const blossom = new NDKBlossom(ndk);
   const file = new File([imageBlob], filename, { type: mimeType });
 
   logger.info(`Uploading ${filename} (${(imageBlob.size / 1024).toFixed(1)}KB) to Blossom...`);
 
   const imeta = await blossom.upload(file, {
-    fallbackServer: DEFAULT_BLOSSOM_SERVER,
+    server: DEFAULT_BLOSSOM_SERVER,
+    maxRetries: 3,
+    retryDelay: 1000,
   });
 
   const url = imeta.url;

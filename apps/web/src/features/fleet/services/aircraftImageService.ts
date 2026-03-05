@@ -1,26 +1,61 @@
-import { GoogleGenAI } from "@google/genai";
 import type { AircraftModel, AirlineEntity } from "@acars/core";
 import { airports } from "@acars/data";
 
-// Vite exposes env vars on import.meta.env at build time
-// biome-ignore lint: Vite-specific global
-const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY as string;
-const MODEL_CANDIDATES = [
-  (import.meta as any).env.VITE_GEMINI_IMAGE_MODEL as string | undefined,
-  "imagen-4.0-generate-001",
-  "imagen-3.0-generate-002",
-].filter((value): value is string => Boolean(value));
+// Model candidates sent to the server proxy (tries in order)
+const MODEL_CANDIDATES = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
+const GENERATE_TIMEOUT_MS = 20_000;
+const LIVERY_PROXY_ENDPOINTS = ["/api/generate-livery"];
 
-let genAI: GoogleGenAI | null = null;
+/** Circuit breaker: once the API reports a missing secret we stop retrying. */
+let apiSecretMissing = false;
+export function isLiveryApiUnavailable(): boolean {
+  return apiSecretMissing;
+}
 
-function getGenAI(): GoogleGenAI {
-  if (!genAI) {
-    if (!GEMINI_API_KEY) {
-      throw new Error("VITE_GEMINI_API_KEY is not set");
-    }
-    genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+/** Convert a hex color to a human-readable color name for image prompts. */
+function hexToColorName(hex: string): string {
+  const h = hex.replace("#", "");
+  const r = Number.parseInt(h.substring(0, 2), 16);
+  const g = Number.parseInt(h.substring(2, 4), 16);
+  const b = Number.parseInt(h.substring(4, 6), 16);
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2 / 255;
+
+  if (max - min < 20) {
+    if (l > 0.9) return "white";
+    if (l < 0.15) return "black";
+    return "gray";
   }
-  return genAI;
+
+  const d = max - min;
+  let hue = 0;
+  if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) hue = ((b - r) / d + 2) * 60;
+  else hue = ((r - g) / d + 4) * 60;
+
+  const sat = d / 255;
+
+  if (sat < 0.15) {
+    if (l > 0.7) return "light gray";
+    if (l < 0.3) return "dark gray";
+    return "gray";
+  }
+
+  const prefix = l > 0.75 ? "light " : l < 0.3 ? "dark " : "";
+
+  if (hue < 15 || hue >= 345) return `${prefix}red`;
+  if (hue < 40) return `${prefix}orange`;
+  if (hue < 70) return `${prefix}yellow`;
+  if (hue < 85) return `${prefix}lime green`;
+  if (hue < 160) return `${prefix}green`;
+  if (hue < 185) return `${prefix}teal`;
+  if (hue < 200) return `${prefix}cyan`;
+  if (hue < 250) return `${prefix}blue`;
+  if (hue < 290) return `${prefix}purple`;
+  if (hue < 330) return `${prefix}magenta`;
+  return `${prefix}pink`;
 }
 
 /** Look up airport display name by IATA code. */
@@ -55,16 +90,22 @@ export function buildLiveryPrompt(
   const hubName = getAirportName(hubIata);
   const typeDesc = describeAircraftType(model.type);
 
+  const primaryHex = airline.livery?.primary ?? "#ffffff";
+  const secondaryHex = airline.livery?.secondary ?? "#1f2937";
+  const accentHex = airline.livery?.accent ?? "#6b7280";
+  const primaryColor = hexToColorName(primaryHex);
+  const secondaryColor = hexToColorName(secondaryHex);
+  const accentColor = hexToColorName(accentHex);
+
   return [
     `Professional aviation photography of a ${model.manufacturer} ${model.name} commercial ${typeDesc} aircraft`,
     `in the livery of ${airline.name} airline (ICAO: ${airline.icaoCode}).`,
-    `The aircraft is parked at a gate at ${hubName} airport, viewed from a 3/4 front angle.`,
-    `The fuselage is painted ${airline.livery.primary} with a ${airline.livery.secondary} tail fin`,
-    `and ${airline.livery.accent} accent striping along the windows.`,
+    `The aircraft is parked at ${hubName} airport`,
+    `The fuselage is painted ${primaryColor} with a ${secondaryColor} tail fin`,
+    `and ${accentColor} accent striping along the windows.`,
     `The airline name "${airline.name}" is displayed prominently on the fuselage in large lettering.`,
     `${model.engineCount}-engine ${typeDesc} aircraft with realistic proportions.`,
-    `Golden hour lighting, subtle tarmac reflections, photorealistic quality,`,
-    `sharp focus, airport terminal and jet bridges visible in the background.`,
+    `subtle tarmac reflections, photorealistic quality,`,
   ].join(" ");
 }
 
@@ -77,12 +118,16 @@ export async function computePromptHash(
   model: AircraftModel,
   hubIata: string,
 ): Promise<string> {
+  const primaryHex = airline.livery?.primary ?? "#ffffff";
+  const secondaryHex = airline.livery?.secondary ?? "#1f2937";
+  const accentHex = airline.livery?.accent ?? "#6b7280";
+
   const inputs = [
     airline.name,
     airline.icaoCode,
-    airline.livery.primary,
-    airline.livery.secondary,
-    airline.livery.accent,
+    primaryHex,
+    secondaryHex,
+    accentHex,
     model.manufacturer,
     model.name,
     model.type,
@@ -98,78 +143,62 @@ export async function computePromptHash(
 }
 
 /**
- * Generates a livery image using Google's Gemini (Nano Banana) image generation.
+ * Generates a livery image by calling the server-side proxy at /api/generate-livery.
+ * The API key never touches the client bundle.
  * Returns the raw image data as a Blob.
  */
 export async function generateLiveryImage(prompt: string): Promise<Blob> {
-  const ai = getGenAI();
-  let lastError: unknown = null;
+  if (apiSecretMissing) {
+    throw new Error("Livery API unavailable (missing server secret)");
+  }
 
-  for (const model of MODEL_CANDIDATES) {
+  let lastError: string | null = null;
+  let data: { imageBase64: string; mimeType: string } | null = null;
+
+  for (const endpoint of LIVERY_PROXY_ENDPOINTS) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS);
     try {
-      const response = await ai.models.generateImages({
-        model,
-        prompt,
-        config: {
-          numberOfImages: 1,
-          aspectRatio: "16:9",
-          outputMimeType: "image/png",
-        },
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ prompt, models: MODEL_CANDIDATES }),
       });
 
-      const sdkImage = response.generatedImages?.[0]?.image;
-      const rawResponse = response as unknown as {
-        predictions?: Array<{
-          bytesBase64Encoded?: string;
-          imageBytes?: string;
-          mimeType?: string;
-          raiFilteredReason?: string;
-          image?: { bytesBase64Encoded?: string; imageBytes?: string; mimeType?: string };
-        }>;
-      };
-      const rawPrediction = rawResponse.predictions?.[0];
-
-      const imageBytes =
-        sdkImage?.imageBytes ??
-        rawPrediction?.bytesBase64Encoded ??
-        rawPrediction?.imageBytes ??
-        rawPrediction?.image?.bytesBase64Encoded ??
-        rawPrediction?.image?.imageBytes;
-      const mimeType = sdkImage?.mimeType ?? rawPrediction?.mimeType ?? rawPrediction?.image?.mimeType;
-
-      if (!imageBytes) {
-        const raiReason =
-          (response.generatedImages?.[0] as { raiFilteredReason?: string } | undefined)
-            ?.raiFilteredReason ?? rawPrediction?.raiFilteredReason;
-        throw new Error(
-          raiReason
-            ? `Model ${model} filtered the image (${raiReason})`
-            : `Model ${model} returned no image bytes`,
-        );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        const error = (body as { error?: string }).error ?? `Proxy error ${res.status}`;
+        if (res.status === 404 || res.status === 405) {
+          lastError = `${error} (${endpoint})`;
+          continue;
+        }
+        if (res.status === 500 && error.includes("secret is not configured")) {
+          apiSecretMissing = true;
+        }
+        throw new Error(error);
       }
 
-      const binaryStr = atob(imageBytes);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-
-      return new Blob([bytes], { type: mimeType ?? "image/png" });
+      data = (await res.json()) as { imageBase64: string; mimeType: string };
+      break;
     } catch (error) {
-      lastError = error;
-      const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
-      const isModelNotFound = errorMessage.includes("not found") || errorMessage.includes("404");
-      if (!isModelNotFound) {
-        throw error;
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Livery generation request timed out");
       }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  if (lastError instanceof Error) {
-    throw new Error(
-      `No supported image model available. Set VITE_GEMINI_IMAGE_MODEL to a valid model for your account. Last error: ${lastError.message}`,
-    );
+  if (!data) {
+    throw new Error(lastError ?? "Livery generation API unavailable");
   }
 
-  throw new Error("No supported image model available");
+  const binaryStr = atob(data.imageBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: data.mimeType ?? "image/png" });
 }

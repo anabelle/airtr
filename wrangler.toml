@@ -1,0 +1,6 @@
+# Cloudflare Pages configuration
+# See https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+name = "acars"
+pages_build_output_dir = "apps/web/dist"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
