@@ -1,11 +1,15 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { AircraftModel, AirlineEntity } from "@acars/core";
 import { airports } from "@acars/data";
 
 // Vite exposes env vars on import.meta.env at build time
 // biome-ignore lint: Vite-specific global
 const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY as string;
-const MODEL_ID = "gemini-2.0-flash-exp";
+const MODEL_CANDIDATES = [
+  (import.meta as any).env.VITE_GEMINI_IMAGE_MODEL as string | undefined,
+  "imagen-4.0-generate-001",
+  "imagen-3.0-generate-002",
+].filter((value): value is string => Boolean(value));
 
 let genAI: GoogleGenAI | null = null;
 
@@ -99,36 +103,47 @@ export async function computePromptHash(
  */
 export async function generateLiveryImage(prompt: string): Promise<Blob> {
   const ai = getGenAI();
+  let lastError: unknown = null;
 
-  const response = await ai.models.generateContent({
-    model: MODEL_ID,
-    contents: prompt,
-    config: {
-      responseModalities: [Modality.IMAGE],
-    },
-  });
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      const response = await ai.models.generateImages({
+        model,
+        prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: "16:9",
+          outputMimeType: "image/png",
+        },
+      });
 
-  const candidates = response.candidates;
-  if (!candidates?.length) {
-    throw new Error("Gemini returned no candidates");
+      const image = response.generatedImages?.[0]?.image;
+      if (!image?.imageBytes) {
+        throw new Error(`Model ${model} returned no image data`);
+      }
+
+      const binaryStr = atob(image.imageBytes);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+
+      return new Blob([bytes], { type: image.mimeType ?? "image/png" });
+    } catch (error) {
+      lastError = error;
+      const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
+      const isModelNotFound = errorMessage.includes("not found") || errorMessage.includes("404");
+      if (!isModelNotFound) {
+        throw error;
+      }
+    }
   }
 
-  const parts = candidates[0].content?.parts;
-  if (!parts?.length) {
-    throw new Error("Gemini returned no content parts");
+  if (lastError instanceof Error) {
+    throw new Error(
+      `No supported image model available. Set VITE_GEMINI_IMAGE_MODEL to a valid model for your account. Last error: ${lastError.message}`,
+    );
   }
 
-  const imagePart = parts.find((p) => p.inlineData?.mimeType?.startsWith("image/"));
-  if (!imagePart?.inlineData?.data) {
-    throw new Error("Gemini returned no image data");
-  }
-
-  const { data, mimeType } = imagePart.inlineData;
-  const binaryStr = atob(data);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  return new Blob([bytes], { type: mimeType ?? "image/png" });
+  throw new Error("No supported image model available");
 }
