@@ -1,27 +1,8 @@
-import { GoogleGenAI } from "@google/genai";
 import type { AircraftModel, AirlineEntity } from "@acars/core";
 import { airports } from "@acars/data";
 
-// Vite exposes env vars on import.meta.env at build time
-// biome-ignore lint: Vite-specific global
-const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY as string;
-const MODEL_CANDIDATES = [
-  (import.meta as any).env.VITE_GEMINI_IMAGE_MODEL as string | undefined,
-  "imagen-4.0-generate-001",
-  "imagen-3.0-generate-002",
-].filter((value): value is string => Boolean(value));
-
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI(): GoogleGenAI {
-  if (!genAI) {
-    if (!GEMINI_API_KEY) {
-      throw new Error("VITE_GEMINI_API_KEY is not set");
-    }
-    genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  }
-  return genAI;
-}
+// Model candidates sent to the server proxy (tries in order)
+const MODEL_CANDIDATES = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
 
 /** Convert a hex color to a human-readable color name for image prompts. */
 function hexToColorName(hex: string): string {
@@ -147,105 +128,28 @@ export async function computePromptHash(
 }
 
 /**
- * Generates a livery image using Google's Gemini (Nano Banana) image generation.
+ * Generates a livery image by calling the server-side proxy at /api/generate-livery.
+ * The API key never touches the client bundle.
  * Returns the raw image data as a Blob.
  */
 export async function generateLiveryImage(prompt: string): Promise<Blob> {
-  const ai = getGenAI();
-  let lastError: unknown = null;
+  const res = await fetch("/api/generate-livery", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, models: MODEL_CANDIDATES }),
+  });
 
-  for (const model of MODEL_CANDIDATES) {
-    try {
-      const response = await ai.models.generateImages({
-        model,
-        prompt,
-        config: {
-          numberOfImages: 1,
-          aspectRatio: "16:9",
-          outputMimeType: "image/png",
-        },
-      });
-
-      console.log(
-        `[Livery] SDK response: generatedImages=${response.generatedImages?.length ?? 0}`,
-      );
-
-      const genImage = response.generatedImages?.[0];
-      const sdkImage = genImage?.image;
-
-      // The SDK's tBytes is an identity transform — imageBytes is a base64 string
-      let imageBytes: string | undefined;
-      let mimeType: string | undefined;
-
-      if (sdkImage?.imageBytes && typeof sdkImage.imageBytes === "string") {
-        imageBytes = sdkImage.imageBytes;
-        mimeType = sdkImage.mimeType;
-      }
-
-      // Fallback: inspect raw predictions if SDK transform didn't populate image
-      if (!imageBytes) {
-        const rawResponse = response as unknown as {
-          predictions?: Array<{
-            bytesBase64Encoded?: string;
-            mimeType?: string;
-            raiFilteredReason?: string;
-          }>;
-        };
-        const rawPrediction = rawResponse.predictions?.[0];
-        imageBytes = rawPrediction?.bytesBase64Encoded;
-        mimeType = mimeType ?? rawPrediction?.mimeType;
-        console.log(`[Livery] Fallback raw prediction: hasBytes=${!!imageBytes}, mime=${mimeType}`);
-      }
-
-      if (!imageBytes) {
-        const raiReason = (genImage as { raiFilteredReason?: string } | undefined)
-          ?.raiFilteredReason;
-        throw new Error(
-          raiReason
-            ? `Model ${model} filtered the image (${raiReason})`
-            : `Model ${model} returned no image bytes (generatedImages count: ${response.generatedImages?.length ?? 0})`,
-        );
-      }
-
-      console.log(`[Livery] Decoding base64 (${imageBytes.length} chars)…`);
-
-      const binaryStr = atob(imageBytes);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      return new Blob([bytes], { type: mimeType ?? "image/png" });
-    } catch (error) {
-      lastError = error;
-      const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
-      const isModelNotFound = errorMessage.includes("not found") || errorMessage.includes("404");
-      const isRateLimited =
-        errorMessage.includes("429") ||
-        errorMessage.includes("rate") ||
-        errorMessage.includes("resource exhausted");
-
-      if (isRateLimited) {
-        console.warn(`[Livery] Rate limited on ${model}, waiting 30s before retry…`);
-        await new Promise((r) => setTimeout(r, 30_000));
-        // Retry same model once after waiting
-        try {
-          return await generateLiveryImage(prompt);
-        } catch {
-          throw error;
-        }
-      }
-
-      if (!isModelNotFound) {
-        throw error;
-      }
-    }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error((body as { error?: string }).error ?? `Proxy error ${res.status}`);
   }
 
-  if (lastError instanceof Error) {
-    throw new Error(
-      `No supported image model available. Set VITE_GEMINI_IMAGE_MODEL to a valid model for your account. Last error: ${lastError.message}`,
-    );
-  }
+  const data = (await res.json()) as { imageBase64: string; mimeType: string };
 
-  throw new Error("No supported image model available");
+  const binaryStr = atob(data.imageBase64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: data.mimeType ?? "image/png" });
 }

@@ -2,10 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import path from "path";
+import geminiProxy from "./server/gemini-proxy";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [TanStackRouterVite(), react()],
+  plugins: [TanStackRouterVite(), react(), geminiProxy()],
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
