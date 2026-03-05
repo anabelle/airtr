@@ -1,4 +1,5 @@
 import { createLogger } from "@acars/core";
+import NDKBlossom from "@nostr-dev-kit/ndk-blossom";
 import { getNDK } from "./ndk.js";
 
 const logger = createLogger("Blossom");
@@ -20,14 +21,18 @@ export async function uploadToBlossom(
   filename: string,
   mimeType = "image/png",
 ): Promise<string> {
-  const { default: NDKBlossom } = await import("@nostr-dev-kit/ndk-blossom");
-  const blossom = new NDKBlossom(getNDK());
+  const ndk = getNDK();
+  if (!ndk.signer) {
+    throw new Error("NDK has no signer — cannot authenticate Blossom upload");
+  }
+
+  const blossom = new NDKBlossom(ndk);
   const file = new File([imageBlob], filename, { type: mimeType });
 
   logger.info(`Uploading ${filename} (${(imageBlob.size / 1024).toFixed(1)}KB) to Blossom...`);
 
   const imeta = await blossom.upload(file, {
-    fallbackServer: DEFAULT_BLOSSOM_SERVER,
+    server: DEFAULT_BLOSSOM_SERVER,
   });
 
   const url = imeta.url;

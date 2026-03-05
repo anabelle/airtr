@@ -337,9 +337,6 @@ export function FleetManager() {
                           {ac.name}
                         </h3>
                       </button>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                        {model.manufacturer} <span className="text-accent">{model.name}</span>
-                      </p>
                     </div>
                   </div>
 
