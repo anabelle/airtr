@@ -43,6 +43,8 @@ export async function uploadToBlossom(
 
   const imeta = await blossom.upload(file, {
     server: DEFAULT_BLOSSOM_SERVER,
+    maxRetries: 3,
+    retryDelay: 1000,
   });
 
   const url = imeta.url;
