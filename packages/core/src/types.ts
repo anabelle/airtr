@@ -186,6 +186,10 @@ export interface AircraftInstance {
 
   // Derived metrics (latest flight outcomes)
   lastKnownLoadFactor?: number; // 0.0 - 1.0
+
+  // AI-generated livery image (Nano Banana via Blossom)
+  liveryImageUrl?: string; // Blossom content-addressable URL
+  liveryPromptHash?: string; // Hash of prompt inputs for cache invalidation
 }
 
 export interface AirlineEntity {

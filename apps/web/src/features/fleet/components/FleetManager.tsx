@@ -34,6 +34,7 @@ import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNav
 import { getAircraftBaseHub } from "../utils/aircraftBaseHub";
 import { getAircraftTimer } from "../utils/aircraftTimers";
 import { AircraftDealer } from "./AircraftDealer";
+import { AircraftLiveryImage } from "./AircraftLiveryImage";
 
 const timerStyleMap = {
   enroute: {
@@ -298,24 +299,33 @@ export function FleetManager() {
                         </span>
                       ) : (
                         <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${ac.status === "idle"
-                            ? ac.assignedRouteId
-                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                              : "bg-primary/20 text-primary border border-primary/30"
-                            : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
-                            }`}
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                            ac.status === "idle"
+                              ? ac.assignedRouteId
+                                ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                : "bg-primary/20 text-primary border border-primary/30"
+                              : "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                          }`}
                         >
                           {ac.status === "idle" && ac.assignedRouteId ? "assigned" : ac.status}
                         </span>
                       )}
                     </div>
 
-                    <div className="absolute -bottom-6 -right-6 text-zinc-800/20 select-none">
-                      <AircraftSilhouette
-                        familyId={model.familyId}
-                        className="h-48 w-48 rotate-12"
-                      />
-                    </div>
+                    <AircraftLiveryImage
+                      aircraft={ac}
+                      airline={airline}
+                      model={model}
+                      isOwner={!isViewingOther}
+                      fallback={
+                        <div className="absolute -bottom-6 -right-6 text-zinc-800/20 select-none">
+                          <AircraftSilhouette
+                            familyId={model.familyId}
+                            className="h-48 w-48 rotate-12"
+                          />
+                        </div>
+                      }
+                    />
 
                     <div className="relative z-10 flex flex-col h-full justify-end">
                       <button
@@ -563,24 +573,26 @@ export function FleetManager() {
                                   Load Factor
                                 </span>
                                 <span
-                                  className={`text-[10px] font-mono font-black ${lf >= 0.85
-                                    ? "text-emerald-400"
-                                    : lf >= 0.6
-                                      ? "text-yellow-400"
-                                      : "text-red-400"
-                                    }`}
+                                  className={`text-[10px] font-mono font-black ${
+                                    lf >= 0.85
+                                      ? "text-emerald-400"
+                                      : lf >= 0.6
+                                        ? "text-yellow-400"
+                                        : "text-red-400"
+                                  }`}
                                 >
                                   {Math.round(lf * 100)}%
                                 </span>
                               </div>
                               <div className="h-1 w-full bg-muted/30 rounded-full overflow-hidden mb-3">
                                 <div
-                                  className={`h-full rounded-full transition-all ${lf >= 0.85
-                                    ? "bg-emerald-500"
-                                    : lf >= 0.6
-                                      ? "bg-yellow-500"
-                                      : "bg-red-500"
-                                    }`}
+                                  className={`h-full rounded-full transition-all ${
+                                    lf >= 0.85
+                                      ? "bg-emerald-500"
+                                      : lf >= 0.6
+                                        ? "bg-yellow-500"
+                                        : "bg-red-500"
+                                  }`}
                                   style={{ width: `${Math.round(lf * 100)}%` }}
                                 />
                               </div>

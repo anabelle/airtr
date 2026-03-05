@@ -52,6 +52,7 @@ export interface FleetSlice {
   cancelListing: (aircraftId: string) => Promise<void>;
   performMaintenance: (aircraftId: string) => Promise<void>;
   ferryAircraft: (aircraftId: string, destinationIata: string) => Promise<void>;
+  updateAircraftLivery: (aircraftId: string, imageUrl: string, promptHash: string) => void;
 }
 
 const logger = createLogger("Fleet");
@@ -996,5 +997,19 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       });
       console.error("Maintenance sync failed:", e);
     }
+  },
+
+  updateAircraftLivery: (aircraftId: string, imageUrl: string, promptHash: string) => {
+    const { fleet } = get();
+    const idx = fleet.findIndex((f) => f.id === aircraftId);
+    if (idx === -1) return;
+
+    const updatedFleet = [...fleet];
+    updatedFleet[idx] = {
+      ...fleet[idx],
+      liveryImageUrl: imageUrl,
+      liveryPromptHash: promptHash,
+    };
+    set({ fleet: updatedFleet });
   },
 });

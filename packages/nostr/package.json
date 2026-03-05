@@ -14,7 +14,8 @@
   "license": "MIT",
   "dependencies": {
     "@acars/core": "workspace:^",
-    "@nostr-dev-kit/ndk": "^2.10.1"
+    "@nostr-dev-kit/ndk": "^2.10.1",
+    "@nostr-dev-kit/ndk-blossom": "^2.0.2"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

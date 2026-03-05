@@ -56,6 +56,7 @@ export interface AirlineState {
   cancelListing: (aircraftId: string) => Promise<void>;
   performMaintenance: (aircraftId: string) => Promise<void>;
   ferryAircraft: (aircraftId: string, destinationIata: string) => Promise<void>;
+  updateAircraftLivery: (aircraftId: string, imageUrl: string, promptHash: string) => void;
   openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
   rebaseRoute: (routeId: string, newOriginIata: string) => Promise<void>;
   closeRoute: (routeId: string) => Promise<void>;
