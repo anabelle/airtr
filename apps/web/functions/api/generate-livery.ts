@@ -30,19 +30,36 @@ const ALLOWED_MODELS = new Set(DEFAULT_MODELS);
 const MAX_MODELS = 3;
 const GEMINI_TIMEOUT_MS = 15_000;
 
+function resolveApiKey(env: Env): string | undefined {
+  const fromBindings = env.GOOGLE_API ?? env.GEMINI_API_KEY ?? env.VITE_GEMINI_API_KEY;
+  if (fromBindings) return fromBindings;
+  try {
+    const p = (globalThis as Record<string, unknown>).process as
+      | { env?: Record<string, string> }
+      | undefined;
+    if (p?.env) {
+      return p.env.GOOGLE_API ?? p.env.GEMINI_API_KEY ?? p.env.VITE_GEMINI_API_KEY;
+    }
+  } catch {
+    /* not available */
+  }
+  return undefined;
+}
+
 export const onRequest: PagesFunction<Env> = async (context) => {
   if (context.request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const env = context.env ?? {};
-  const apiKey = env.GOOGLE_API ?? env.GEMINI_API_KEY ?? env.VITE_GEMINI_API_KEY;
+  const env = context.env ?? ({} as Env);
+  const apiKey = resolveApiKey(env);
   if (!apiKey) {
     const branch = env.CF_PAGES_BRANCH ?? "unknown";
     const envKeys = Object.keys(env);
     return Response.json(
       {
         error: "Gemini API secret is not configured",
+        hint: "Ensure secrets are set for BOTH Production and Preview environments in the CF Pages dashboard",
         branch,
         envKeyCount: envKeys.length,
         envKeys: envKeys.filter((k) => !k.startsWith("__")),

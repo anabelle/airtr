@@ -1,0 +1,4 @@
+# Cloudflare Pages configuration
+# See https://developers.cloudflare.com/pages/functions/wrangler-configuration/
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
