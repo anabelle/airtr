@@ -6,7 +6,9 @@
  */
 
 interface Env {
-  GOOGLE_API: string;
+  GOOGLE_API?: string;
+  GEMINI_API_KEY?: string;
+  CF_PAGES_BRANCH?: string;
 }
 
 interface RequestBody {
@@ -32,9 +34,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const apiKey = context.env.GOOGLE_API;
+  const apiKey = context.env.GOOGLE_API ?? context.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: "GOOGLE_API secret is not configured" }, { status: 500 });
+    const branch = context.env.CF_PAGES_BRANCH ?? "unknown";
+    return Response.json(
+      {
+        error:
+          "Gemini API secret is not configured (expected GOOGLE_API or GEMINI_API_KEY in this Pages environment)",
+        branch,
+      },
+      { status: 500 },
+    );
   }
 
   let body: RequestBody;
