@@ -272,6 +272,9 @@ importers:
       "@acars/nostr":
         specifier: workspace:^
         version: link:../nostr
+      dexie:
+        specifier: ^4.3.0
+        version: 4.3.0
       zustand:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
@@ -2886,6 +2889,12 @@ packages:
     resolution:
       {
         integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==,
+      }
+
+  dexie@4.3.0:
+    resolution:
+      {
+        integrity: sha512-5EeoQpJvMKHe6zWt/FSIIuRa3CWlZeIl6zKXt+Lz7BU6RoRRLgX9dZEynRfXrkLcldKYCBiz7xekTEylnie1Ug==,
       }
 
   didyoumean@1.2.2:
@@ -7279,6 +7288,8 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+
+  dexie@4.3.0: {}
 
   didyoumean@1.2.2: {}
 
