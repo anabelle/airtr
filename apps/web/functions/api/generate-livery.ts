@@ -27,7 +27,11 @@ const ALLOWED_MODELS = new Set(DEFAULT_MODELS);
 const MAX_MODELS = 3;
 const GEMINI_TIMEOUT_MS = 15_000;
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequest: PagesFunction<Env> = async (context) => {
+  if (context.request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
   const apiKey = context.env.GOOGLE_API;
   if (!apiKey) {
     return Response.json({ error: "GOOGLE_API secret is not configured" }, { status: 500 });
