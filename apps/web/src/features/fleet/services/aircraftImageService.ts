@@ -6,6 +6,12 @@ const MODEL_CANDIDATES = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
 const GENERATE_TIMEOUT_MS = 20_000;
 const LIVERY_PROXY_ENDPOINTS = ["/api/generate-livery"];
 
+/** Circuit breaker: once the API reports a missing secret we stop retrying. */
+let apiSecretMissing = false;
+export function isLiveryApiUnavailable(): boolean {
+  return apiSecretMissing;
+}
+
 /** Convert a hex color to a human-readable color name for image prompts. */
 function hexToColorName(hex: string): string {
   const h = hex.replace("#", "");
@@ -142,6 +148,10 @@ export async function computePromptHash(
  * Returns the raw image data as a Blob.
  */
 export async function generateLiveryImage(prompt: string): Promise<Blob> {
+  if (apiSecretMissing) {
+    throw new Error("Livery API unavailable (missing server secret)");
+  }
+
   let lastError: string | null = null;
   let data: { imageBase64: string; mimeType: string } | null = null;
 
@@ -162,6 +172,9 @@ export async function generateLiveryImage(prompt: string): Promise<Blob> {
         if (res.status === 404 || res.status === 405) {
           lastError = `${error} (${endpoint})`;
           continue;
+        }
+        if (res.status === 500 && error.includes("secret is not configured")) {
+          apiSecretMissing = true;
         }
         throw new Error(error);
       }

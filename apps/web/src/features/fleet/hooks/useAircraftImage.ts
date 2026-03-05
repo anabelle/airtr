@@ -5,6 +5,7 @@ import {
   buildLiveryPrompt,
   computePromptHash,
   generateLiveryImage,
+  isLiveryApiUnavailable,
 } from "../services/aircraftImageService";
 import { uploadToBlossom } from "@acars/nostr";
 
@@ -187,6 +188,9 @@ export function useAircraftImage(
         }
         return;
       }
+
+      // Circuit breaker: stop trying once the API reports missing secret
+      if (isLiveryApiUnavailable()) return;
 
       // Mark as active BEFORE enqueueing so re-renders skip this aircraft
       activeGenerations.add(aircraft.id);
