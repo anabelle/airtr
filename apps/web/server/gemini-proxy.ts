@@ -8,6 +8,15 @@ import type { Plugin, ViteDevServer } from "vite";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 const DEFAULT_MODELS = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
+interface Prediction {
+  bytesBase64Encoded?: string;
+  mimeType?: string;
+  safetyAttributes?: { contentType?: string };
+}
+
+interface PredictResponse {
+  predictions?: Prediction[];
+}
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -88,9 +97,9 @@ export default function geminiProxy(): Plugin {
                 continue;
               }
 
-              const data = await apiRes.json();
-              const prediction = (data as any).predictions?.find(
-                (p: any) =>
+              const data = (await apiRes.json()) as PredictResponse;
+              const prediction = data.predictions?.find(
+                (p) =>
                   p.bytesBase64Encoded && p.safetyAttributes?.contentType !== "Positive Prompt",
               );
 
