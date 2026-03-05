@@ -82,9 +82,12 @@ export function buildLiveryPrompt(
   const hubName = getAirportName(hubIata);
   const typeDesc = describeAircraftType(model.type);
 
-  const primaryColor = hexToColorName(airline.livery.primary);
-  const secondaryColor = hexToColorName(airline.livery.secondary);
-  const accentColor = hexToColorName(airline.livery.accent);
+  const primaryHex = airline.livery?.primary ?? "#ffffff";
+  const secondaryHex = airline.livery?.secondary ?? "#1f2937";
+  const accentHex = airline.livery?.accent ?? "#6b7280";
+  const primaryColor = hexToColorName(primaryHex);
+  const secondaryColor = hexToColorName(secondaryHex);
+  const accentColor = hexToColorName(accentHex);
 
   return [
     `Professional aviation photography of a ${model.manufacturer} ${model.name} commercial ${typeDesc} aircraft`,
@@ -107,12 +110,16 @@ export async function computePromptHash(
   model: AircraftModel,
   hubIata: string,
 ): Promise<string> {
+  const primaryHex = airline.livery?.primary ?? "#ffffff";
+  const secondaryHex = airline.livery?.secondary ?? "#1f2937";
+  const accentHex = airline.livery?.accent ?? "#6b7280";
+
   const inputs = [
     airline.name,
     airline.icaoCode,
-    airline.livery.primary,
-    airline.livery.secondary,
-    airline.livery.accent,
+    primaryHex,
+    secondaryHex,
+    accentHex,
     model.manufacturer,
     model.name,
     model.type,
