@@ -1,8 +1,8 @@
-import { type Checkpoint, decompressSnapshotString, fpAdd } from "@acars/core";
+import { type Checkpoint, decompressSnapshotString } from "@acars/core";
 import { loadSnapshot } from "@acars/nostr";
 import { db } from "./db.js";
-import { reconcileFleetToTick } from "./FlightEngine.js";
 import { useEngineStore } from "./engine.js";
+import { reconcileFleetToTick } from "./FlightEngine.js";
 import type { AirlineState } from "./types.js";
 
 const MAX_PLAYER_CATCHUP = 50000;
@@ -95,9 +95,8 @@ export async function hydrateIdentityFromStorage(
 
   // Reconcile to the current engine tick, not the snapshot's lastTick
   if (airline.lastTick != null && fleet.length > 0 && engineTick > airline.lastTick) {
-    const { fleet: reconciled, balanceDelta } = reconcileFleetToTick(fleet, routes, engineTick);
+    const { fleet: reconciled } = reconcileFleetToTick(fleet, routes, engineTick);
     fleet = reconciled;
-    airline.corporateBalance = fpAdd(airline.corporateBalance, balanceDelta);
     airline.lastTick = engineTick;
   }
 

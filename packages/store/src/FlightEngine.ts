@@ -702,8 +702,6 @@ function capLandingsForGrounding(
  *
  * Used by:
  * - `reconcileFleetToTick` for balance-delta estimation during fast-forward
- * - The recovery sweep in `engineSlice.processTick` to produce full-detail
- *   timeline events when a landing was missed during tick-by-tick catch-up
  *
  * Returns the full revenue/cost breakdown so callers can either just grab
  * `.profit` or build a complete `TimelineEvent.details` object.
