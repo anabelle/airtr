@@ -146,6 +146,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       const event = await publishAction(action);
       const currentChainHash = get().actionChainHash || "";
       const pubkey = event.author.pubkey;
+      if (!pubkey) throw new Error("No pubkey after extension ready");
       const nextHash = await computeActionChainHash(currentChainHash, {
         id: event.id,
         createdAt: event.created_at ?? null,
@@ -153,7 +154,6 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         action,
       });
       set({ actionChainHash: nextHash });
-      if (!pubkey) throw new Error("No pubkey after extension ready");
 
       const airline: AirlineEntity = {
         id: `action:${pubkey}:${currentTick}`,
