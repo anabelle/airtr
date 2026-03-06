@@ -60,7 +60,7 @@ export interface ActionLogEntry {
 }
 
 export const ACTION_KIND = 30078;
-export const WORLD_ID = "v5-beta";
+export const WORLD_ID = "v6-beta";
 const ACARS_SCHEMA_VERSION = 1;
 const ACTION_D_PREFIX = `airtr:world:${WORLD_ID}:action:`;
 const CHECKPOINT_D_TAG = `airtr:world:${WORLD_ID}:checkpoint`;
