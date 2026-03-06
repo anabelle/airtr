@@ -26,7 +26,7 @@ describe("tier progression", () => {
   });
 
   it("keeps tier when already above thresholds", () => {
-    const tier = evaluateTier(3, fp(500_000_000), 40);
+    const tier = evaluateTier(4, fp(500_000_000), 40);
     expect(tier).toBe(4);
   });
 

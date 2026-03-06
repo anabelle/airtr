@@ -1,3 +1,4 @@
+import type { FixedPoint } from "@acars/core";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RouteManager } from "./RouteManager";
@@ -89,7 +90,11 @@ describe("RouteManager", () => {
       competitors: new Map(),
     });
     mockUseActiveAirline.mockReturnValue({
-      airline: { hubs: ["JFK"], brandScore: 0.6, cumulativeRevenue: 0 },
+      airline: {
+        hubs: ["JFK"],
+        brandScore: 0.6,
+        cumulativeRevenue: 0 as FixedPoint,
+      },
       routes: [],
       fleet: [],
       isViewingOther: false,

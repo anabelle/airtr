@@ -1,4 +1,4 @@
-import { type Checkpoint, decompressSnapshotString } from "@acars/core";
+import { type Checkpoint, decompressSnapshotString, fpAdd } from "@acars/core";
 import { loadSnapshot } from "@acars/nostr";
 import { db } from "./db.js";
 import { useEngineStore } from "./engine.js";
@@ -96,9 +96,14 @@ export async function hydrateIdentityFromStorage(
   // Reconcile to the current engine tick, not the snapshot's lastTick
   let reconciledTimeline = airline.timeline || [];
   if (airline.lastTick != null && fleet.length > 0 && engineTick > airline.lastTick) {
-    const { fleet: reconciled, events } = reconcileFleetToTick(fleet, routes, engineTick);
+    const {
+      fleet: reconciled,
+      events,
+      balanceDelta,
+    } = reconcileFleetToTick(fleet, routes, engineTick);
     fleet = reconciled;
     airline.lastTick = engineTick;
+    airline.corporateBalance = fpAdd(airline.corporateBalance, balanceDelta);
 
     // Merge synthetic takeoff/landing events into the timeline so the
     // activity log reflects what happened while the client was offline.
@@ -107,6 +112,7 @@ export async function hydrateIdentityFromStorage(
       const newEvents = events.filter((e) => !existingIds.has(e.id));
       if (newEvents.length > 0) {
         reconciledTimeline = [...newEvents, ...reconciledTimeline].slice(0, 1000);
+        airline.timeline = reconciledTimeline;
       }
     }
   }

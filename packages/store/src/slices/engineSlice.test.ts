@@ -75,7 +75,7 @@ const makeAirline = (lastTick: number): AirlineEntity => ({
   livery: { primary: "#000000", secondary: "#ffffff", accent: "#ffffff" },
   brandScore: 0.5,
   tier: 1,
-  cumulativeRevenue: 0 as FixedPoint,
+  cumulativeRevenue: fp(0),
   corporateBalance: 1000000000 as FixedPoint,
   stockPrice: 0 as FixedPoint,
   fleetIds: [],

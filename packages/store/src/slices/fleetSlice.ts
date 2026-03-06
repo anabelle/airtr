@@ -574,6 +574,15 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
     const { airline, pubkey, fleet } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
+    const model = getAircraftById(listing.modelId);
+    if (!model) throw new Error(`Unknown aircraft model ID: ${listing.modelId}`);
+
+    if (model.unlockTier > airline.tier) {
+      throw new Error(
+        `${model.name} requires Airline Tier ${model.unlockTier}. Your airline is Tier ${airline.tier}.`,
+      );
+    }
+
     // Price is already validated as FixedPoint by parseMarketplaceListing
     const price = listing.marketplacePrice;
 

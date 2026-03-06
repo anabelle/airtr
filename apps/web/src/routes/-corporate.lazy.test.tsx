@@ -61,7 +61,7 @@ const mockAirline = {
   status: "private",
   tier: 1,
   brandScore: 0.5,
-  cumulativeRevenue: 0,
+  cumulativeRevenue: fp(0),
 };
 
 const mockTimeline = [

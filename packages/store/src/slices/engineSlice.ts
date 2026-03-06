@@ -328,6 +328,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       // deterministic cycle algebra so the map shows correct positions while
       // the tick-by-tick financial simulation catches up. Without this, the
       // fleet appears stuck at stale arrivalTick positions during catch-up.
+      const shouldSeedSyntheticEvents = targetTick - lastTick > 1 && routes.length === 0;
       if (targetTick - lastTick > 1) {
         const { fleet: projectedFleet, events: reconciledEvents } = reconcileFleetToTick(
           fleet,
@@ -338,7 +339,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
 
         // Merge synthetic timeline events from reconciliation so the activity
         // log is immediately populated even before the tick-by-tick loop runs.
-        if (reconciledEvents.length > 0) {
+        if (shouldSeedSyntheticEvents && reconciledEvents.length > 0) {
           const newEvents = reconciledEvents.filter((e) => !timelineEventIds.has(e.id));
           if (newEvents.length > 0) {
             currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);

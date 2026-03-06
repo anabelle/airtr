@@ -537,11 +537,6 @@ export async function replayActionLog(params: {
           airline = { ...airline, status: status as AirlineEntity["status"] };
         }
 
-        const tier = clampInt(payload.tier, 1, 10);
-        if (tier != null) {
-          airline = { ...airline, tier };
-        }
-
         // Track authoritative fleet/route IDs from the TICK_UPDATE payload.
         // The publishing client includes these from its local state, so they
         // reflect the true set of aircraft and routes regardless of whether
@@ -586,6 +581,10 @@ export async function replayActionLog(params: {
 
         const previousTick = airline.lastTick ?? 0;
         if (actionTick > previousTick) {
+          const tier = clampInt(payload.tier, 1, 10);
+          if (tier != null) {
+            airline = { ...airline, tier };
+          }
           const authoritativeBrandScore = clampNumber(payload.brandScore, 0, 1);
           if (authoritativeBrandScore != null) {
             airline = { ...airline, brandScore: authoritativeBrandScore };

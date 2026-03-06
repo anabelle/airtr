@@ -56,7 +56,7 @@ export function estimateHistoricRevenue(fleet: AircraftInstance[], routes: Route
   if (fleet.length === 0) return fp(0);
   const fleetValue = fpSum(
     fleet.map((aircraft) => {
-      return fp(aircraft.purchasePrice ?? 0);
+      return aircraft.purchasePrice ?? fp(0);
     }),
   );
   const activeRoutes = routes.filter((route) => route.status === "active").length;

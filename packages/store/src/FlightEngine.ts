@@ -1236,6 +1236,7 @@ export function reconcileFleetToTick(
   const events: TimelineEvent[] = [];
   for (const params of eventGenQueue) {
     if (params.cappedLandings <= 0) continue;
+    let remainingLandings = params.cappedLandings;
 
     // For phase-offset routes (aircraft starting at destination), we need to
     // adjust the effective cycle start so that enumerateFlightEvents (which
@@ -1253,10 +1254,12 @@ export function reconcileFleetToTick(
     );
 
     for (const evt of rawEvents) {
+      if (remainingLandings <= 0) break;
       const simulatedTimestamp = GENESIS_TIME + evt.tick * TICK_DURATION;
       const idSuffix = evt.direction === "outbound" ? "" : "-rtn";
 
       if (evt.type === "takeoff") {
+        if (remainingLandings <= 0) break;
         events.push({
           id: `evt-takeoff${idSuffix}-${params.ac.id}-${evt.tick}`,
           tick: evt.tick,
@@ -1273,6 +1276,7 @@ export function reconcileFleetToTick(
               : `${params.ac.name} returning: ${evt.originIata} → ${evt.destinationIata}`,
         });
       } else {
+        remainingLandings -= 1;
         // Landing — include estimated financial details
         const model = getAircraftById(params.ac.modelId);
         const hoursPerLeg = Math.min(24, params.durationTicks / TICKS_PER_HOUR);

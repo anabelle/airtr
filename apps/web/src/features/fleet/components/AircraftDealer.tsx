@@ -3,6 +3,7 @@ import { createLogger, FP_ZERO, fpFormat, fpScale, TICK_DURATION } from "@acars/
 import { aircraftModels, getAircraftById } from "@acars/data";
 import { loadMarketplace, type MarketplaceListing, type SellerFleetIndex } from "@acars/nostr";
 import { useAirlineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowRight,
   Check,
@@ -17,7 +18,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/shared/lib/useConfirm";
 
@@ -37,6 +38,25 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     () => Array.from({ length: 6 }, (_, index) => `skeleton-${index}`),
     [],
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [gridColumns, setGridColumns] = useState(1);
+
+  useEffect(() => {
+    const updateColumns = () => {
+      const width = scrollRef.current?.clientWidth ?? 0;
+      if (width >= 1536) {
+        setGridColumns(3);
+      } else if (width >= 1280) {
+        setGridColumns(2);
+      } else {
+        setGridColumns(1);
+      }
+    };
+
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
 
   const handleBuyUsed = async (listing: MarketplaceListing) => {
     const approved = await confirm({
@@ -132,6 +152,32 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     return list;
   }, [search, usedListings, selectedTier, fleet]);
 
+  const displayMode =
+    mode === "factory"
+      ? "factory"
+      : isLoadingUsed
+        ? "used-loading"
+        : filteredUsed.length > 0
+          ? "used"
+          : "used-empty";
+
+  const listItems =
+    displayMode === "factory"
+      ? filteredFactory
+      : displayMode === "used-loading"
+        ? skeletonKeys
+        : displayMode === "used"
+          ? filteredUsed
+          : [];
+  const rowCount = Math.ceil(listItems.length / gridColumns);
+  const rowHeight = displayMode === "factory" ? 360 : displayMode === "used-loading" ? 260 : 320;
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 2,
+  });
+
   return (
     <div className="flex flex-col h-full space-y-6">
       {/* Mode Switcher */}
@@ -216,43 +262,70 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
-        {mode === "factory" ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {filteredFactory.map((aircraft) => (
-              <AircraftCard
-                key={aircraft.id}
-                aircraft={aircraft}
-                airlineTier={airlineTier}
-                onSelect={() => setSelectedModel(aircraft)}
-              />
-            ))}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
+        {displayMode === "used-empty" ? (
+          <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
+            <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+            <p className="text-muted-foreground">
+              No used aircraft currently listed on the Marketplace.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {isLoadingUsed ? (
-              skeletonKeys.map((key) => (
+          <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualizer.getVirtualItems().map((row) => {
+              const startIndex = row.index * gridColumns;
+              const rowItems = listItems.slice(startIndex, startIndex + gridColumns);
+
+              return (
                 <div
-                  key={key}
-                  className="h-64 rounded-2xl bg-card animate-pulse border border-border/40"
-                />
-              ))
-            ) : filteredUsed.length > 0 ? (
-              filteredUsed.map((listing) => (
-                <UsedAircraftCard
-                  key={listing.id}
-                  listing={listing}
-                  onBuy={() => handleBuyUsed(listing)}
-                />
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
-                <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-                <p className="text-muted-foreground">
-                  No used aircraft currently listed on the Marketplace.
-                </p>
-              </div>
-            )}
+                  key={row.key}
+                  className="grid gap-6"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${row.size}px`,
+                    transform: `translateY(${row.start}px)`,
+                    gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {rowItems.map((item) => {
+                    if (displayMode === "factory") {
+                      const aircraft = item as AircraftModel;
+                      return (
+                        <AircraftCard
+                          key={aircraft.id}
+                          aircraft={aircraft}
+                          airlineTier={airlineTier}
+                          onSelect={() => setSelectedModel(aircraft)}
+                        />
+                      );
+                    }
+
+                    if (displayMode === "used-loading") {
+                      const key = item as string;
+                      return (
+                        <div
+                          key={key}
+                          className="h-64 rounded-2xl bg-card animate-pulse border border-border/40"
+                        />
+                      );
+                    }
+
+                    const listing = item as MarketplaceListing;
+                    return (
+                      <UsedAircraftCard
+                        key={listing.id}
+                        listing={listing}
+                        airlineTier={airlineTier}
+                        onBuy={() => handleBuyUsed(listing)}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -391,12 +464,14 @@ function AircraftCard({
 // ...
 type UsedListingCardProps = {
   listing: MarketplaceListing;
+  airlineTier: number;
   onBuy: () => void;
 };
 
-function UsedAircraftCard({ listing, onBuy }: UsedListingCardProps) {
+function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps) {
   const model = getAircraftById(listing.modelId);
   if (!model) return null;
+  const isLocked = model.unlockTier > airlineTier;
 
   const bgGradient = "from-orange-500/10 via-orange-900/5 to-transparent";
 
@@ -470,9 +545,14 @@ function UsedAircraftCard({ listing, onBuy }: UsedListingCardProps) {
           <button
             type="button"
             onClick={onBuy}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 transition-all hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+            disabled={isLocked}
+            className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+              isLocked
+                ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
+                : "bg-orange-500 text-white hover:bg-orange-600 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+            }`}
           >
-            Purchase
+            {isLocked ? `Requires Tier ${model.unlockTier}` : "Purchase"}
           </button>
         </div>
       </div>

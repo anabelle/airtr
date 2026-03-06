@@ -226,13 +226,11 @@ export function enumerateFlightEvents(
         originIata: t.originIata,
         destinationIata: t.destinationIata,
       });
-      if (events.length >= maxEvents) break;
     }
-    if (events.length >= maxEvents) break;
   }
 
   // Sort by tick ascending (transitions are interleaved across types)
   events.sort((a, b) => a.tick - b.tick);
 
-  return events;
+  return events.slice(0, maxEvents);
 }

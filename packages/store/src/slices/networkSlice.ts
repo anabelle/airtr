@@ -71,6 +71,14 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
       }
       case "switch": {
         if (currentHubs[0] === action.iata) return; // Already active
+        if (!currentHubs.includes(action.iata)) {
+          const maxHubs = getMaxHubs(airline.tier);
+          if (currentHubs.length >= maxHubs) {
+            throw new Error(
+              `Tier ${airline.tier} airlines can operate a maximum of ${maxHubs} hub(s). Upgrade your tier to expand.`,
+            );
+          }
+        }
         newHubs = [action.iata, ...currentHubs.filter((h) => h !== action.iata)];
         hubFee = fpScale(getHubTierCost(action.iata), 0.25);
         description = `Transferred main operations hub to ${action.iata}. Relocation fee: ${fpFormat(hubFee, 0)}.`;
