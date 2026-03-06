@@ -5,7 +5,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
-import { fpAdd } from "@acars/core";
+import { fp, fpAdd } from "@acars/core";
 import { describe, expect, it, vi } from "vitest";
 import type { StateCreator } from "zustand";
 import type { AirlineState } from "../types";
@@ -110,6 +110,7 @@ const makeAirline = (
   livery: { primary: "#000000", secondary: "#ffffff", accent: "#ffffff" },
   brandScore: 0.5,
   tier: 1,
+  cumulativeRevenue: fp(0),
   corporateBalance: balance,
   stockPrice: 0 as FixedPoint,
   fleetIds: [],

@@ -1,11 +1,15 @@
 import {
   CHAPTER11_BALANCE_THRESHOLD_USD,
+  estimateHistoricRevenue,
+  evaluateTier,
   fp,
   fpAdd,
   fpScale,
   fpSub,
   GENESIS_TIME,
+  getMaxRouteDistanceKm,
   TICK_DURATION,
+  TICKS_PER_HOUR,
   TICKS_PER_MONTH,
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
@@ -57,6 +61,9 @@ export function _resetTickLockDiagnostics(): void {
   tickMutex.reset();
 }
 
+/**
+ * Engine slice handles tick processing, tier progression, and sync cadence.
+ */
 export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> = (set, get) => ({
   processTick: async (tick: number) => {
     if (!tickMutex.tryLock()) {
@@ -149,6 +156,8 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               callsign: updatedAirline.callsign,
               hubs: updatedAirline.hubs,
               livery: updatedAirline.livery,
+              brandScore: updatedAirline.brandScore,
+              cumulativeRevenue: updatedAirline.cumulativeRevenue,
               tier: updatedAirline.tier,
             },
           },
@@ -194,10 +203,19 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       let currentFleet = [...fleet];
       let currentBalance = airline.corporateBalance;
       let currentBrandScore = airline.brandScore || 0.5;
+      let currentCumulativeRevenue = airline.cumulativeRevenue ?? fp(0);
       const currentHubs = airline.hubs || [];
       let currentTimeline = [...get().timeline];
       const timelineEventIds = new Set(currentTimeline.map((event) => event.id));
       const initialAirlineStatus = airline.status;
+      let evaluatedTier = airline.tier;
+      const distanceLimitKm = getMaxRouteDistanceKm(airline.tier);
+      const brandScorePerTick = 0.002 / TICKS_PER_HOUR;
+      const brandPenaltyPerTick = 0.003 / TICKS_PER_HOUR;
+
+      if (airline.cumulativeRevenue == null) {
+        currentCumulativeRevenue = estimateHistoricRevenue(currentFleet, routes);
+      }
 
       let consumedDeletedFleetIds = new Set<string>();
 
@@ -251,6 +269,8 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           ...(refreshedAirline ?? airline),
           corporateBalance: currentBalance,
           brandScore: currentBrandScore,
+          cumulativeRevenue: currentCumulativeRevenue,
+          tier: evaluatedTier,
           lastTick: targetTick,
           timeline: currentTimeline,
         };
@@ -284,6 +304,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               payload: {
                 tick: tickUpdateTick,
                 corporateBalance: updatedAirline.corporateBalance,
+                cumulativeRevenue: updatedAirline.cumulativeRevenue,
                 fleetIds: currentFleet.map((ac) => ac.id),
                 routeIds: routes.map((r) => r.id),
                 timeline: currentTimeline.slice(0, TICK_UPDATE_TIMELINE_EVENTS),
@@ -295,6 +316,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
                 livery: updatedAirline.livery,
                 status: updatedAirline.status,
                 tier: updatedAirline.tier,
+                brandScore: currentBrandScore,
               },
             },
             get,
@@ -309,6 +331,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       // deterministic cycle algebra so the map shows correct positions while
       // the tick-by-tick financial simulation catches up. Without this, the
       // fleet appears stuck at stale arrivalTick positions during catch-up.
+      const shouldSeedSyntheticEvents = targetTick - lastTick > 1 && routes.length === 0;
       if (targetTick - lastTick > 1) {
         const { fleet: projectedFleet, events: reconciledEvents } = reconcileFleetToTick(
           fleet,
@@ -319,7 +342,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
 
         // Merge synthetic timeline events from reconciliation so the activity
         // log is immediately populated even before the tick-by-tick loop runs.
-        if (reconciledEvents.length > 0) {
+        if (shouldSeedSyntheticEvents && reconciledEvents.length > 0) {
           const newEvents = reconciledEvents.filter((e) => !timelineEventIds.has(e.id));
           if (newEvents.length > 0) {
             currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
@@ -343,6 +366,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             get().globalRouteRegistry,
             get().pubkey || "",
             currentBrandScore,
+            distanceLimitKm,
           );
         } catch (error) {
           processingError = true;
@@ -358,12 +382,32 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         lastProcessedTick = t;
         currentFleet = result.updatedFleet;
         currentBalance = result.corporateBalance;
+        currentCumulativeRevenue = fpAdd(currentCumulativeRevenue, result.tickRevenue);
 
         if (result.events && result.events.length > 0) {
           // Handle Price War Brand Damage
           const pwEvents = result.events.filter((e) => e.type === "price_war");
           if (pwEvents.length > 0) {
             currentBrandScore = Math.max(0.1, currentBrandScore - 0.005 * pwEvents.length);
+          }
+
+          let landingCount = 0;
+          let landingLoadFactorTotal = 0;
+          for (const event of result.events) {
+            if (event.type !== "landing") continue;
+            const loadFactor = event.details?.loadFactor;
+            if (loadFactor == null) continue;
+            landingCount += 1;
+            landingLoadFactorTotal += loadFactor;
+          }
+          if (landingCount > 0) {
+            const avgLoadFactor = landingLoadFactorTotal / landingCount;
+            if (avgLoadFactor > 0.85) {
+              currentBrandScore += brandScorePerTick;
+            }
+            if (avgLoadFactor < 0.5) {
+              currentBrandScore -= brandPenaltyPerTick;
+            }
           }
 
           // Deduplicate events by ID before merging into the timeline
@@ -375,6 +419,8 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             for (const event of currentTimeline) timelineEventIds.add(event.id);
           }
         }
+
+        currentBrandScore = Math.max(0, Math.min(1, currentBrandScore));
 
         // Monthly hub OPEX
         if (t % ticksPerMonth === 0 && currentHubs.length > 0) {
@@ -411,6 +457,30 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           });
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
+      }
+
+      const activeRouteCount = routes.filter((route) => route.status === "active").length;
+      if (activeRouteCount > 20) {
+        currentBrandScore = Math.min(1, currentBrandScore + 0.001);
+      }
+
+      currentBrandScore = Math.max(0, Math.min(1, currentBrandScore));
+
+      evaluatedTier = evaluateTier(airline.tier, currentCumulativeRevenue, activeRouteCount);
+      let tierUpgradeEvent: (typeof currentTimeline)[number] | null = null;
+      if (evaluatedTier > airline.tier) {
+        currentBrandScore = Math.min(1, currentBrandScore + 0.05);
+        tierUpgradeEvent = {
+          id: `evt-tier-up-${evaluatedTier}-${targetTick}`,
+          tick: targetTick,
+          timestamp: GENESIS_TIME + targetTick * TICK_DURATION,
+          type: "tier_upgrade" as const,
+          description: `Your airline has been promoted to Tier ${evaluatedTier}.`,
+        };
+      }
+
+      if (tierUpgradeEvent && !timelineEventIds.has(tierUpgradeEvent.id)) {
+        currentTimeline = [tierUpgradeEvent, ...currentTimeline].slice(0, 1000);
       }
 
       const latestFleet = get().fleet;
@@ -461,6 +531,8 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
         ...(refreshedAirline ?? airline),
         corporateBalance: currentBalance,
         brandScore: currentBrandScore,
+        cumulativeRevenue: currentCumulativeRevenue,
+        tier: evaluatedTier,
         lastTick: processingError ? lastProcessedTick : targetTick,
         timeline: currentTimeline,
       };
@@ -497,6 +569,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
             payload: {
               tick: tickUpdateTick,
               corporateBalance: currentBalance,
+              cumulativeRevenue: currentCumulativeRevenue,
               fleetIds: currentFleet.map((ac) => ac.id),
               routeIds: routes.map((r) => r.id),
               timeline: currentTimeline.slice(0, TICK_UPDATE_TIMELINE_EVENTS),
@@ -508,6 +581,7 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
               livery: updatedAirline.livery,
               status: updatedAirline.status,
               tier: updatedAirline.tier,
+              brandScore: currentBrandScore,
             },
           },
           get,

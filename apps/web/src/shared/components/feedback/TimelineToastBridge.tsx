@@ -18,6 +18,7 @@ const EVENT_TITLES: Record<TimelineEventType, string> = {
   ferry: "Ferry Flight",
   competitor_hub: "Competitor Alert",
   price_war: "Price War Detected",
+  tier_upgrade: "Tier Upgraded",
   bankruptcy: "⚠️ BANKRUPTCY FILED",
   financial_warning: "Financial Warning",
 };
@@ -35,6 +36,7 @@ const EVENT_TOAST_KIND: Record<TimelineEventType, "success" | "info" | "warning"
   ferry: "info",
   competitor_hub: "warning",
   price_war: "warning",
+  tier_upgrade: "success",
   bankruptcy: "warning",
   financial_warning: "warning",
 };

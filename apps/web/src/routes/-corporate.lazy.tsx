@@ -14,6 +14,7 @@ import {
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   AlertTriangle,
   Building2,
@@ -25,7 +26,6 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
@@ -173,8 +173,8 @@ function FinancialPulse({
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="font-bold uppercase tracking-wider">Billing Cycle</span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              {billingCycle.daysRemaining} day{billingCycle.daysRemaining !== 1 ? "s" : ""}{" "}
-              remaining
+              {billingCycle.daysRemaining} day
+              {billingCycle.daysRemaining !== 1 ? "s" : ""} remaining
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/30">
@@ -320,6 +320,7 @@ function CompanyProfile({
   callsign,
   tier,
   brandScore,
+  cumulativeRevenue,
   status,
   ceoPubkey,
 }: {
@@ -328,6 +329,7 @@ function CompanyProfile({
   callsign: string;
   tier: number;
   brandScore: number;
+  cumulativeRevenue: FixedPoint;
   status: string;
   ceoPubkey?: string | null;
 }) {
@@ -438,6 +440,9 @@ function CompanyProfile({
 
       {/* Tier label */}
       <p className="mt-2 text-[10px] text-muted-foreground">{tierLabels[tier] ?? `Tier ${tier}`}</p>
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        Cumulative revenue: {fpFormat(cumulativeRevenue, 0)}
+      </p>
     </section>
   );
 }
@@ -1048,7 +1053,9 @@ export default function CorporateDashboard() {
             <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
               <div
                 className="relative w-full"
-                style={{ height: `${routePerformanceVirtualizer.getTotalSize()}px` }}
+                style={{
+                  height: `${routePerformanceVirtualizer.getTotalSize()}px`,
+                }}
               >
                 {routePerformanceVirtualizer.getVirtualItems().map((virtualItem) => {
                   const route = sortedRoutePerformance[virtualItem.index];
@@ -1093,6 +1100,7 @@ export default function CorporateDashboard() {
           callsign={airline.callsign}
           tier={airline.tier}
           brandScore={airline.brandScore}
+          cumulativeRevenue={airline.cumulativeRevenue}
           status={airline.status}
           ceoPubkey={airline.ceoPubkey}
         />

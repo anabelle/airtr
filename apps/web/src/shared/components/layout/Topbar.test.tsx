@@ -60,6 +60,7 @@ describe("Topbar", () => {
       livery: { primary: "#111111", secondary: "#222222", accent: "#333333" },
       brandScore: 0.7,
       tier: 2,
+      cumulativeRevenue: fp(0),
       corporateBalance: fp(1000000),
       stockPrice: fp(12),
       fleetIds: [],

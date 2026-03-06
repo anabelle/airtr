@@ -214,6 +214,7 @@ export interface AirlineEntity {
   };
   brandScore: number;
   tier: number;
+  cumulativeRevenue: FixedPoint;
 
   // Financials
   corporateBalance: FixedPoint;
@@ -330,6 +331,7 @@ export type TimelineEventType =
   | "ferry"
   | "competitor_hub"
   | "price_war"
+  | "tier_upgrade"
   | "bankruptcy"
   | "financial_warning";
 

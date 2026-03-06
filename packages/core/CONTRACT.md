@@ -73,6 +73,7 @@ interface AirlineEntity {
   livery: { primary: string; secondary: string; accent: string };
   brandScore: number;
   tier: number;
+  cumulativeRevenue: FixedPoint;
   corporateBalance: FixedPoint;
   stockPrice: FixedPoint;
   fleetIds: string[];
@@ -94,7 +95,7 @@ interface AirlineTickResult { /* see types.ts */ }
 interface RouteTickResult { /* see types.ts */ }
 
 // Timeline
-type TimelineEventType = "takeoff" | "landing" | "purchase" | /* ... */;
+type TimelineEventType = "takeoff" | "landing" | "purchase" | "tier_upgrade" | /* ... */;
 interface TimelineEvent { /* see types.ts */ }
 
 // Checkpoints

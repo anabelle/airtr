@@ -75,6 +75,7 @@ const makeAirline = (lastTick: number): AirlineEntity => ({
   livery: { primary: "#000000", secondary: "#ffffff", accent: "#ffffff" },
   brandScore: 0.5,
   tier: 1,
+  cumulativeRevenue: fp(0),
   corporateBalance: 1000000000 as FixedPoint,
   stockPrice: 0 as FixedPoint,
   fleetIds: [],
@@ -214,6 +215,7 @@ describe("engineSlice fast-path", () => {
           corporateBalance,
           events: [],
           hasChanges: false,
+          tickRevenue: fp(0),
         };
       },
     );
@@ -256,6 +258,7 @@ describe("engineSlice lock diagnostics", () => {
         corporateBalance,
         events: [],
         hasChanges: false,
+        tickRevenue: fp(0),
       }),
     );
 
@@ -316,6 +319,7 @@ describe("immediate visual reconciliation during catch-up", () => {
       corporateBalance: 1000000000 as FixedPoint,
       events: [],
       hasChanges: true,
+      tickRevenue: fp(0),
     });
 
     const route = makeRoute("rt-1", 4000);
@@ -350,6 +354,7 @@ describe("immediate visual reconciliation during catch-up", () => {
       corporateBalance: 1000000000 as FixedPoint,
       events: [],
       hasChanges: false,
+      tickRevenue: fp(0),
     });
 
     const route = makeRoute("rt-1", 400);
@@ -388,6 +393,7 @@ describe("TICK_UPDATE publish cadence", () => {
         corporateBalance,
         events: [],
         hasChanges: true,
+        tickRevenue: fp(0),
       }),
     );
 
@@ -427,6 +433,7 @@ describe("TICK_UPDATE publish cadence", () => {
               ]
             : [],
         hasChanges: true,
+        tickRevenue: fp(0),
       }),
     );
 
@@ -470,6 +477,7 @@ describe("TICK_UPDATE publish cadence", () => {
           corporateBalance,
           events: [],
           hasChanges: true,
+          tickRevenue: fp(0),
         };
       },
     );
@@ -489,6 +497,7 @@ describe("TICK_UPDATE publish cadence", () => {
       callsign: "BROKE",
       hubs: ["BOG"],
       tier: 3,
+      cumulativeRevenue: fp(50000000),
     };
     const { state } = createSliceState({
       airline: bankruptAirline,
@@ -507,6 +516,8 @@ describe("TICK_UPDATE publish cadence", () => {
     expect(publishedAction.payload.callsign).toBe("BROKE");
     expect(publishedAction.payload.hubs).toEqual(["BOG"]);
     expect(publishedAction.payload.tier).toBe(3);
+    expect(publishedAction.payload.cumulativeRevenue).toBe(bankruptAirline.cumulativeRevenue);
+    expect(publishedAction.payload.brandScore).toBe(bankruptAirline.brandScore);
   });
 
   it("throttles retry attempts when publish fails", async () => {
@@ -517,6 +528,7 @@ describe("TICK_UPDATE publish cadence", () => {
         corporateBalance,
         events: [],
         hasChanges: true,
+        tickRevenue: fp(0),
       }),
     );
     vi.mocked(publishAction).mockRejectedValue(new Error("Not enough relays received the event"));
@@ -551,6 +563,7 @@ describe("TICK_UPDATE publish cadence", () => {
       corporateBalance: updatedBalance,
       events: [],
       hasChanges: true,
+      tickRevenue: fp(0),
     }));
 
     const route = makeRoute("rt-1", 400);

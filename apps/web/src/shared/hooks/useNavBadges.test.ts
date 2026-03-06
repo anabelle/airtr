@@ -1,7 +1,7 @@
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import type { AircraftInstance, AirlineEntity, Route } from "@acars/core";
 import { fp } from "@acars/core";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { useNavBadges } from "./useNavBadges";
 
 // Minimal factory helpers
@@ -59,6 +59,7 @@ const makeAirline = (overrides: Partial<AirlineEntity> = {}): AirlineEntity =>
     corporateBalance: fp(1000000),
     brandScore: 5,
     tier: 1,
+    cumulativeRevenue: fp(0),
     stockPrice: fp(10),
     livery: { primary: "#000", secondary: "#fff", accent: "#0f0" },
     status: "public",
@@ -79,7 +80,12 @@ vi.mock("@acars/store", () => ({
 
 describe("useNavBadges", () => {
   it("returns all zeros when no airline is loaded", () => {
-    mockState = { airline: null, fleet: [], routes: [], competitors: new Map() };
+    mockState = {
+      airline: null,
+      fleet: [],
+      routes: [],
+      competitors: new Map(),
+    };
     const { result } = renderHook(() => useNavBadges());
     expect(result.current).toEqual({
       fleetTotal: 0,
@@ -97,7 +103,11 @@ describe("useNavBadges", () => {
       fleet: [
         makeAircraft({ id: "ac-1", status: "idle", assignedRouteId: null }),
         makeAircraft({ id: "ac-2", status: "idle", assignedRouteId: "rt-1" }),
-        makeAircraft({ id: "ac-3", status: "enroute", assignedRouteId: "rt-1" }),
+        makeAircraft({
+          id: "ac-3",
+          status: "enroute",
+          assignedRouteId: "rt-1",
+        }),
       ],
       routes: [],
       competitors: new Map(),
@@ -114,7 +124,11 @@ describe("useNavBadges", () => {
       fleet: [],
       routes: [
         makeRoute({ id: "rt-1", status: "active", assignedAircraftIds: [] }),
-        makeRoute({ id: "rt-2", status: "active", assignedAircraftIds: ["ac-1"] }),
+        makeRoute({
+          id: "rt-2",
+          status: "active",
+          assignedAircraftIds: ["ac-1"],
+        }),
         makeRoute({ id: "rt-3", status: "suspended", assignedAircraftIds: [] }),
       ],
       competitors: new Map(),
@@ -126,8 +140,16 @@ describe("useNavBadges", () => {
 
   it("computes leaderboard rank correctly", () => {
     const airline = makeAirline({ id: "al-own", corporateBalance: fp(500000) });
-    const comp1 = makeAirline({ id: "al-comp1", ceoPubkey: "pk2", corporateBalance: fp(2000000) });
-    const comp2 = makeAirline({ id: "al-comp2", ceoPubkey: "pk3", corporateBalance: fp(100000) });
+    const comp1 = makeAirline({
+      id: "al-comp1",
+      ceoPubkey: "pk2",
+      corporateBalance: fp(2000000),
+    });
+    const comp2 = makeAirline({
+      id: "al-comp2",
+      ceoPubkey: "pk3",
+      corporateBalance: fp(100000),
+    });
     mockState = {
       airline,
       fleet: [],
@@ -143,8 +165,15 @@ describe("useNavBadges", () => {
   });
 
   it("returns rank 1 when airline is top by balance", () => {
-    const airline = makeAirline({ id: "al-own", corporateBalance: fp(9999999) });
-    const comp = makeAirline({ id: "al-comp", ceoPubkey: "pk2", corporateBalance: fp(100) });
+    const airline = makeAirline({
+      id: "al-own",
+      corporateBalance: fp(9999999),
+    });
+    const comp = makeAirline({
+      id: "al-comp",
+      ceoPubkey: "pk2",
+      corporateBalance: fp(100),
+    });
     mockState = {
       airline,
       fleet: [],

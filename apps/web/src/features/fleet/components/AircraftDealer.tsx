@@ -3,6 +3,7 @@ import { createLogger, FP_ZERO, fpFormat, fpScale, TICK_DURATION } from "@acars/
 import { aircraftModels, getAircraftById } from "@acars/data";
 import { loadMarketplace, type MarketplaceListing, type SellerFleetIndex } from "@acars/nostr";
 import { useAirlineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowRight,
   Check,
@@ -17,10 +18,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/shared/lib/useConfirm";
 
+/**
+ * Renders the aircraft dealer with factory and marketplace listings.
+ */
 export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () => void }) {
   const logger = useMemo(() => createLogger("AircraftDealer"), []);
   const [mode, setMode] = useState<"factory" | "marketplace">("factory");
@@ -31,7 +35,31 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
   const [isLoadingUsed, setIsLoadingUsed] = useState(false);
   const purchaseUsed = useAirlineStore((state) => state.purchaseUsedAircraft);
   const fleet = useAirlineStore((state) => state.fleet);
+  const airlineTier = useAirlineStore((state) => state.airline?.tier ?? 1);
   const confirm = useConfirm();
+  const skeletonKeys = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => `skeleton-${index}`),
+    [],
+  );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [gridColumns, setGridColumns] = useState(1);
+
+  useEffect(() => {
+    const updateColumns = () => {
+      const width = scrollRef.current?.clientWidth ?? 0;
+      if (width >= 1536) {
+        setGridColumns(3);
+      } else if (width >= 1280) {
+        setGridColumns(2);
+      } else {
+        setGridColumns(1);
+      }
+    };
+
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
 
   const handleBuyUsed = async (listing: MarketplaceListing) => {
     const approved = await confirm({
@@ -127,11 +155,38 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
     return list;
   }, [search, usedListings, selectedTier, fleet]);
 
+  const displayMode =
+    mode === "factory"
+      ? "factory"
+      : isLoadingUsed
+        ? "used-loading"
+        : filteredUsed.length > 0
+          ? "used"
+          : "used-empty";
+
+  const listItems =
+    displayMode === "factory"
+      ? filteredFactory
+      : displayMode === "used-loading"
+        ? skeletonKeys
+        : displayMode === "used"
+          ? filteredUsed
+          : [];
+  const rowCount = Math.ceil(listItems.length / gridColumns);
+  const rowHeight = displayMode === "factory" ? 360 : displayMode === "used-loading" ? 260 : 320;
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 2,
+  });
+
   return (
     <div className="flex flex-col h-full space-y-6">
       {/* Mode Switcher */}
       <div className="flex items-center gap-2 border-b border-border/40 pb-4">
         <button
+          type="button"
           onClick={() => setMode("factory")}
           className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${mode === "factory" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent/40"}`}
         >
@@ -139,6 +194,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
           Factory New
         </button>
         <button
+          type="button"
           onClick={() => {
             setMode("marketplace");
             fetchUsed();
@@ -166,6 +222,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
           </div>
           {mode === "marketplace" && (
             <button
+              type="button"
               onClick={fetchUsed}
               disabled={isLoadingUsed}
               className="h-10 px-4 rounded-xl border border-orange-500/20 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all font-bold text-xs flex items-center gap-2 disabled:opacity-50"
@@ -179,6 +236,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
         {mode === "factory" && (
           <div className="flex items-center space-x-2 bg-background p-1 rounded-xl border border-border/50">
             <button
+              type="button"
               onClick={() => setSelectedTier("all")}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 selectedTier === "all"
@@ -191,6 +249,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
             {[1, 2, 3, 4].map((tier) => (
               <button
                 key={tier}
+                type="button"
                 onClick={() => setSelectedTier(tier)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                   selectedTier === tier
@@ -206,42 +265,70 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
-        {mode === "factory" ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {filteredFactory.map((aircraft) => (
-              <AircraftCard
-                key={aircraft.id}
-                aircraft={aircraft}
-                onSelect={() => setSelectedModel(aircraft)}
-              />
-            ))}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
+        {displayMode === "used-empty" ? (
+          <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
+            <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+            <p className="text-muted-foreground">
+              No used aircraft currently listed on the Marketplace.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
-            {isLoadingUsed ? (
-              Array.from({ length: 6 }).map((_, i) => (
+          <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualizer.getVirtualItems().map((row) => {
+              const startIndex = row.index * gridColumns;
+              const rowItems = listItems.slice(startIndex, startIndex + gridColumns);
+
+              return (
                 <div
-                  key={i}
-                  className="h-64 rounded-2xl bg-card animate-pulse border border-border/40"
-                />
-              ))
-            ) : filteredUsed.length > 0 ? (
-              filteredUsed.map((listing) => (
-                <UsedAircraftCard
-                  key={listing.id}
-                  listing={listing}
-                  onBuy={() => handleBuyUsed(listing)}
-                />
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
-                <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-                <p className="text-muted-foreground">
-                  No used aircraft currently listed on the Marketplace.
-                </p>
-              </div>
-            )}
+                  key={row.key}
+                  className="grid gap-6"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: `${row.size}px`,
+                    transform: `translateY(${row.start}px)`,
+                    gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {rowItems.map((item) => {
+                    if (displayMode === "factory") {
+                      const aircraft = item as AircraftModel;
+                      return (
+                        <AircraftCard
+                          key={aircraft.id}
+                          aircraft={aircraft}
+                          airlineTier={airlineTier}
+                          onSelect={() => setSelectedModel(aircraft)}
+                        />
+                      );
+                    }
+
+                    if (displayMode === "used-loading") {
+                      const key = item as string;
+                      return (
+                        <div
+                          key={key}
+                          className="h-64 rounded-2xl bg-card animate-pulse border border-border/40"
+                        />
+                      );
+                    }
+
+                    const listing = item as MarketplaceListing;
+                    return (
+                      <UsedAircraftCard
+                        key={listing.id}
+                        listing={listing}
+                        airlineTier={airlineTier}
+                        onBuy={() => handleBuyUsed(listing)}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -258,7 +345,18 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
   );
 }
 
-function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel; onSelect: () => void }) {
+/**
+ * Shows a factory aircraft card with tier gating.
+ */
+function AircraftCard({
+  aircraft,
+  airlineTier,
+  onSelect,
+}: {
+  aircraft: AircraftModel;
+  airlineTier: number;
+  onSelect: () => void;
+}) {
   const gradientMap: Record<string, string> = {
     Airbus: "from-blue-500/20 via-blue-900/10 to-transparent",
     Boeing: "from-indigo-500/20 via-purple-900/10 to-transparent",
@@ -270,9 +368,14 @@ function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel; onSelec
     gradientMap[aircraft.manufacturer] || "from-zinc-500/20 via-zinc-900/10 to-transparent";
   const totalCapacity =
     aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first;
+  const isLocked = aircraft.unlockTier > airlineTier;
 
   return (
-    <div className="group relative flex flex-col rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:border-border/80">
+    <div
+      className={`group relative flex flex-col rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:border-border/80 ${
+        isLocked ? "opacity-60" : ""
+      }`}
+    >
       {/* Top Image Splash */}
       <div
         className={`h-32 w-full bg-gradient-to-br ${bgGradient} relative flex items-center justify-center border-b border-border/30`}
@@ -345,10 +448,18 @@ function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel; onSelec
           </div>
 
           <button
+            type="button"
             onClick={onSelect}
-            className="relative overflow-hidden rounded-xl bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+            disabled={isLocked}
+            className={`relative overflow-hidden rounded-xl px-4 py-2 text-sm font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background ${
+              isLocked
+                ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
+                : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus:ring-primary"
+            }`}
           >
-            <span className="relative flex items-center gap-2">Configure & Buy</span>
+            <span className="relative flex items-center gap-2">
+              {isLocked ? `Requires Tier ${aircraft.unlockTier}` : "Configure & Buy"}
+            </span>
           </button>
         </div>
       </div>
@@ -359,12 +470,17 @@ function AircraftCard({ aircraft, onSelect }: { aircraft: AircraftModel; onSelec
 // ...
 type UsedListingCardProps = {
   listing: MarketplaceListing;
+  airlineTier: number;
   onBuy: () => void;
 };
 
-function UsedAircraftCard({ listing, onBuy }: UsedListingCardProps) {
+/**
+ * Shows a used aircraft listing with tier gating.
+ */
+function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps) {
   const model = getAircraftById(listing.modelId);
   if (!model) return null;
+  const isLocked = model.unlockTier > airlineTier;
 
   const bgGradient = "from-orange-500/10 via-orange-900/5 to-transparent";
 
@@ -436,10 +552,16 @@ function UsedAircraftCard({ listing, onBuy }: UsedListingCardProps) {
           </div>
 
           <button
+            type="button"
             onClick={onBuy}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-600 transition-all hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+            disabled={isLocked}
+            className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+              isLocked
+                ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
+                : "bg-orange-500 text-white hover:bg-orange-600 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+            }`}
           >
-            Purchase
+            {isLocked ? `Requires Tier ${model.unlockTier}` : "Purchase"}
           </button>
         </div>
       </div>
@@ -447,6 +569,9 @@ function UsedAircraftCard({ listing, onBuy }: UsedListingCardProps) {
   );
 }
 
+/**
+ * Captures configuration and confirms aircraft purchase.
+ */
 function PurchaseModal({
   aircraft,
   onClose,
@@ -467,6 +592,11 @@ function PurchaseModal({
 
   const [busSeats, setBusSeats] = useState(aircraft.capacity.business);
   const [firstSeats, setFirstSeats] = useState(aircraft.capacity.first);
+  const modalKey = aircraft.id.replace(/[^a-zA-Z0-9-_]/g, "");
+  const nameInputId = `aircraft-name-${modalKey}`;
+  const hubSelectId = `aircraft-hub-${modalKey}`;
+  const firstSliderId = `aircraft-first-${modalKey}`;
+  const businessSliderId = `aircraft-business-${modalKey}`;
 
   // Calculate space dynamics based on fleet manager plan
   const baseEconSpace =
@@ -536,6 +666,7 @@ function PurchaseModal({
           <Plane className="h-24 w-24 text-foreground/10 rotate-[-15deg] absolute right-6 top-4" />
 
           <button
+            type="button"
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-background/20 hover:bg-background/40 backdrop-blur-md transition-colors z-20"
           >
@@ -552,10 +683,14 @@ function PurchaseModal({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase block">
+                <label
+                  htmlFor={nameInputId}
+                  className="text-[10px] font-semibold text-muted-foreground uppercase block"
+                >
                   Registration / Name (Optional)
                 </label>
                 <input
+                  id={nameInputId}
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
@@ -566,10 +701,14 @@ function PurchaseModal({
 
               {hubs.length > 0 && (
                 <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase block flex items-center gap-1">
+                  <label
+                    htmlFor={hubSelectId}
+                    className="text-[10px] font-semibold text-muted-foreground uppercase block flex items-center gap-1"
+                  >
                     <MapPin className="h-3 w-3" /> Delivery Hub
                   </label>
                   <select
+                    id={hubSelectId}
                     value={selectedHub}
                     onChange={(e) => setSelectedHub(e.target.value)}
                     className="w-full bg-transparent text-sm font-medium outline-none cursor-pointer"
@@ -593,6 +732,7 @@ function PurchaseModal({
             </h4>
             <div className="flex p-1 bg-background/50 border border-border/50 rounded-xl w-full">
               <button
+                type="button"
                 onClick={() => setPurchaseType("buy")}
                 className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
                   purchaseType === "buy"
@@ -603,6 +743,7 @@ function PurchaseModal({
                 Cash Purchase
               </button>
               <button
+                type="button"
                 onClick={() => setPurchaseType("lease")}
                 className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
                   purchaseType === "lease"
@@ -632,11 +773,15 @@ function PurchaseModal({
 
             <div className="border border-border/50 rounded-xl p-5 bg-background/50 space-y-6">
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between">
+                <label
+                  htmlFor={firstSliderId}
+                  className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between"
+                >
                   <span>First Class (4x space)</span>
                   <span className={firstSeats > 0 ? "text-primary" : ""}>{firstSeats} seats</span>
                 </label>
                 <input
+                  id={firstSliderId}
                   type="range"
                   min="0"
                   max={maxFirstClass}
@@ -656,11 +801,15 @@ function PurchaseModal({
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between">
+                <label
+                  htmlFor={businessSliderId}
+                  className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between"
+                >
                   <span>Business Class (2.5x space)</span>
                   <span className={busSeats > 0 ? "text-primary" : ""}>{busSeats} seats</span>
                 </label>
                 <input
+                  id={businessSliderId}
                   type="range"
                   min="0"
                   max={maxBusinessClass}
@@ -731,6 +880,7 @@ function PurchaseModal({
           </div>
 
           <button
+            type="button"
             onClick={handlePurchase}
             disabled={isPurchasing || !canAfford || (hubs.length > 0 && !selectedHub)}
             className={`relative overflow-hidden rounded-xl px-8 py-3 text-base font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${

@@ -1,4 +1,3 @@
-import { computeActionChainHash, fp, fpSub } from "@acars/core";
 import type {
   AircraftInstance,
   AirlineEntity,
@@ -6,6 +5,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
+import { computeActionChainHash, fp, fpSub } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import {
   attachSigner,
@@ -18,8 +18,8 @@ import {
 import type { StateCreator } from "zustand";
 import { publishActionWithChain } from "../actionChain";
 import { useEngineStore } from "../engine";
-import type { AirlineState } from "../types";
 import { hydrateIdentityFromStorage } from "../localLoader";
+import type { AirlineState } from "../types";
 
 export interface IdentitySlice {
   pubkey: string | null;
@@ -114,7 +114,11 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       await hydrateIdentityFromStorage(pubkey, set);
     } catch (error) {
       console.warn("[IdentitySlice] nsec login failed", error);
-      set({ error: "Invalid nsec key.", identityStatus: "ready", isLoading: false });
+      set({
+        error: "Invalid nsec key.",
+        identityStatus: "ready",
+        isLoading: false,
+      });
     }
   },
 
@@ -169,6 +173,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         shareholders: { [pubkey]: 10000000 },
         brandScore: 0.5,
         tier: 1,
+        cumulativeRevenue: fp(0),
         corporateBalance: postHubBalance,
         stockPrice: fp(10),
         fleetIds: [],

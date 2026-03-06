@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeActionChainHash, computeCheckpointStateHash } from "./checkpoint.js";
+import { fp } from "./fixed-point.js";
 
 describe("checkpoint hashing", () => {
   it("computes stable action chain hashes", async () => {
@@ -29,6 +30,7 @@ describe("checkpoint hashing", () => {
       livery: { primary: "#000000", secondary: "#111111", accent: "#222222" },
       brandScore: 0.5,
       tier: 1,
+      cumulativeRevenue: fp(0),
       corporateBalance: 100000000,
       stockPrice: 100000,
       fleetIds: [],

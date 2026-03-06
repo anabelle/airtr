@@ -71,6 +71,7 @@ const TIMELINE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set([
   "ferry",
   "competitor_hub",
   "price_war",
+  "tier_upgrade",
   "bankruptcy",
   "financial_warning",
 ]);
@@ -155,6 +156,9 @@ export async function buildActionChainHashFromRecords(
   return hash;
 }
 
+/**
+ * Replays the action log to rebuild airline state.
+ */
 export async function replayActionLog(params: {
   pubkey: string;
   actions: ActionRecord[];
@@ -384,6 +388,9 @@ export async function replayActionLog(params: {
               ? (payload.status as AirlineEntity["status"])
               : "private";
           const tier = clampInt(payload.tier, 1, 10) ?? 1;
+          const brandScore = clampNumber(payload.brandScore, 0, 1) ?? 0.5;
+          const cumulativeRevenue =
+            clampFixedPoint(payload.cumulativeRevenue, fp(0), MAX_BALANCE) ?? fp(0);
           const payloadFleetIds = asStringArray(payload.fleetIds);
           const payloadRouteIds = asStringArray(payload.routeIds);
           if (payloadFleetIds.length > 0) authoritativeFleetIds = payloadFleetIds;
@@ -403,8 +410,9 @@ export async function replayActionLog(params: {
             callsign,
             hubs,
             livery,
-            brandScore: 0.5,
+            brandScore,
             tier,
+            cumulativeRevenue,
             corporateBalance,
             stockPrice: fp(10),
             fleetIds: payloadFleetIds,
@@ -485,6 +493,7 @@ export async function replayActionLog(params: {
         livery,
         brandScore: 0.5,
         tier: 1,
+        cumulativeRevenue: fp(0),
         corporateBalance,
         stockPrice: fp(10),
         fleetIds: [],
@@ -575,6 +584,25 @@ export async function replayActionLog(params: {
 
         const previousTick = airline.lastTick ?? 0;
         if (actionTick > previousTick) {
+          const tier = clampInt(payload.tier, 1, 10);
+          if (tier != null) {
+            airline = { ...airline, tier };
+          }
+          const authoritativeBrandScore = clampNumber(payload.brandScore, 0, 1);
+          if (authoritativeBrandScore != null) {
+            airline = { ...airline, brandScore: authoritativeBrandScore };
+          }
+          const authoritativeCumulativeRevenue = clampFixedPoint(
+            payload.cumulativeRevenue,
+            fp(0),
+            MAX_BALANCE,
+          );
+          if (authoritativeCumulativeRevenue != null) {
+            airline = {
+              ...airline,
+              cumulativeRevenue: authoritativeCumulativeRevenue,
+            };
+          }
           const { fleet: reconciledFleet, balanceDelta } = reconcileFleetToTick(
             Array.from(fleetById.values()),
             Array.from(routesById.values()),

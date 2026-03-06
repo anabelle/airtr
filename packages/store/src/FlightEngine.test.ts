@@ -111,6 +111,7 @@ const runTick = (
     options.globalRouteRegistry ?? new Map(),
     options.playerPubkey ?? PLAYER_PUBKEY,
     options.brandScore ?? 0.5,
+    Number.POSITIVE_INFINITY,
   );
 
   return {

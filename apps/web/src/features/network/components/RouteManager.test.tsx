@@ -1,3 +1,4 @@
+import type { FixedPoint } from "@acars/core";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RouteManager } from "./RouteManager";
@@ -38,7 +39,9 @@ vi.mock("@acars/data", () => {
         population: 1,
       },
     ],
-    HUB_CLASSIFICATIONS: { JFK: { baseCapacityPerHour: 100, slotControlled: false } },
+    HUB_CLASSIFICATIONS: {
+      JFK: { baseCapacityPerHour: 100, slotControlled: false },
+    },
   };
 });
 
@@ -87,7 +90,11 @@ describe("RouteManager", () => {
       competitors: new Map(),
     });
     mockUseActiveAirline.mockReturnValue({
-      airline: { hubs: ["JFK"], brandScore: 0.6 },
+      airline: {
+        hubs: ["JFK"],
+        brandScore: 0.6,
+        cumulativeRevenue: 0 as FixedPoint,
+      },
       routes: [],
       fleet: [],
       isViewingOther: false,

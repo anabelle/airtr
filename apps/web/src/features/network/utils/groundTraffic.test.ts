@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import type { AircraftInstance, AirlineEntity } from "@acars/core";
 import { fp } from "@acars/core";
-import type { AirlineEntity, AircraftInstance } from "@acars/core";
+import { describe, expect, it } from "vitest";
 import { buildGroundPresenceByAirport, buildGroundTraffic, isGrounded } from "./groundTraffic";
 
 const makeAirline = (overrides: Partial<AirlineEntity> = {}): AirlineEntity => ({
@@ -17,6 +17,7 @@ const makeAirline = (overrides: Partial<AirlineEntity> = {}): AirlineEntity => (
   livery: { primary: "#111111", secondary: "#222222", accent: "#333333" },
   brandScore: 0.7,
   tier: 1,
+  cumulativeRevenue: fp(0),
   corporateBalance: fp(1000000),
   stockPrice: fp(0),
   fleetIds: [],
@@ -53,20 +54,41 @@ describe("buildGroundTraffic", () => {
     expect(isGrounded(makeAircraft({ status: "delivery" }))).toBe(false);
   });
   it("counts grounded aircraft for player and competitors", () => {
-    const airline = makeAirline({ ceoPubkey: "player", name: "Skyline Air", icaoCode: "SKY" });
+    const airline = makeAirline({
+      ceoPubkey: "player",
+      name: "Skyline Air",
+      icaoCode: "SKY",
+    });
     const competitors = new Map([
-      ["comp-1", makeAirline({ ceoPubkey: "comp-1", name: "NorthWind", icaoCode: "NWD" })],
+      [
+        "comp-1",
+        makeAirline({
+          ceoPubkey: "comp-1",
+          name: "NorthWind",
+          icaoCode: "NWD",
+        }),
+      ],
     ]);
 
     const fleet = [
-      makeAircraft({ id: "p1", ownerPubkey: "player", baseAirportIata: "JFK", status: "idle" }),
+      makeAircraft({
+        id: "p1",
+        ownerPubkey: "player",
+        baseAirportIata: "JFK",
+        status: "idle",
+      }),
       makeAircraft({
         id: "p2",
         ownerPubkey: "player",
         baseAirportIata: "JFK",
         status: "turnaround",
       }),
-      makeAircraft({ id: "p3", ownerPubkey: "player", baseAirportIata: "LAX", status: "idle" }),
+      makeAircraft({
+        id: "p3",
+        ownerPubkey: "player",
+        baseAirportIata: "LAX",
+        status: "idle",
+      }),
     ];
 
     const globalFleet = [
@@ -76,7 +98,12 @@ describe("buildGroundTraffic", () => {
         baseAirportIata: "JFK",
         status: "maintenance",
       }),
-      makeAircraft({ id: "c2", ownerPubkey: "comp-1", baseAirportIata: "JFK", status: "enroute" }),
+      makeAircraft({
+        id: "c2",
+        ownerPubkey: "comp-1",
+        baseAirportIata: "JFK",
+        status: "enroute",
+      }),
     ];
 
     const result = buildGroundTraffic("JFK", fleet, globalFleet, airline, competitors);
@@ -91,19 +118,38 @@ describe("buildGroundTraffic", () => {
   });
 
   it("sorts competitors by count and name after player", () => {
-    const airline = makeAirline({ ceoPubkey: "player", name: "Skyline Air", icaoCode: "SKY" });
+    const airline = makeAirline({
+      ceoPubkey: "player",
+      name: "Skyline Air",
+      icaoCode: "SKY",
+    });
     const competitors = new Map([
       ["alpha", makeAirline({ ceoPubkey: "alpha", name: "Alpha Air", icaoCode: "ALP" })],
       ["beta", makeAirline({ ceoPubkey: "beta", name: "Beta Air", icaoCode: "BET" })],
     ]);
 
     const fleet = [
-      makeAircraft({ id: "p1", ownerPubkey: "player", baseAirportIata: "JFK", status: "idle" }),
+      makeAircraft({
+        id: "p1",
+        ownerPubkey: "player",
+        baseAirportIata: "JFK",
+        status: "idle",
+      }),
     ];
 
     const globalFleet = [
-      makeAircraft({ id: "a1", ownerPubkey: "alpha", baseAirportIata: "JFK", status: "idle" }),
-      makeAircraft({ id: "b1", ownerPubkey: "beta", baseAirportIata: "JFK", status: "idle" }),
+      makeAircraft({
+        id: "a1",
+        ownerPubkey: "alpha",
+        baseAirportIata: "JFK",
+        status: "idle",
+      }),
+      makeAircraft({
+        id: "b1",
+        ownerPubkey: "beta",
+        baseAirportIata: "JFK",
+        status: "idle",
+      }),
       makeAircraft({
         id: "b2",
         ownerPubkey: "beta",
@@ -135,13 +181,22 @@ describe("buildGroundPresenceByAirport", () => {
         makeAirline({
           ceoPubkey: "comp-1",
           name: "NorthWind",
-          livery: { primary: "#ff0000", secondary: "#222222", accent: "#333333" },
+          livery: {
+            primary: "#ff0000",
+            secondary: "#222222",
+            accent: "#333333",
+          },
         }),
       ],
     ]);
 
     const fleet = [
-      makeAircraft({ id: "p1", ownerPubkey: "player", baseAirportIata: "JFK", status: "idle" }),
+      makeAircraft({
+        id: "p1",
+        ownerPubkey: "player",
+        baseAirportIata: "JFK",
+        status: "idle",
+      }),
       makeAircraft({
         id: "p2",
         ownerPubkey: "player",

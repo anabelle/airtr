@@ -3,6 +3,7 @@ import {
   calculateDemand,
   calculatePriceElasticity,
   calculateShares,
+  canonicalRouteKey,
   computeRouteFrequency,
   type FixedPoint,
   type FlightOffer,
@@ -1087,7 +1088,10 @@ export function RouteManager() {
                           })()}
 
                           {(() => {
-                            const routeKey = `${route.originIata}-${route.destinationIata}`;
+                            const routeKey = canonicalRouteKey(
+                              route.originIata,
+                              route.destinationIata,
+                            );
                             const offers = globalRouteRegistry.get(routeKey) || [];
 
                             if (offers.length === 0) {

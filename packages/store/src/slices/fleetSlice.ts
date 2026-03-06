@@ -16,6 +16,7 @@ import { airports, getAircraftById } from "@acars/data";
 
 /** Module-level O(1) airport lookup */
 const airportMap = new Map(airports.map((a) => [a.iata, a]));
+
 import {
   attachSigner,
   ensureConnected,
@@ -62,6 +63,9 @@ const logger = createLogger("Fleet");
 // modelId:purchaseType so the same model can't be bought twice in flight.
 const purchasesInFlight = new Set<string>();
 
+/**
+ * Fleet slice manages aircraft purchases, listings, and maintenance actions.
+ */
 export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = (set, get) => ({
   fleet: [],
   fleetDeletedDuringCatchup: [],
@@ -92,6 +96,12 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
     if (airline.corporateBalance < upfrontCost) {
       const label = purchaseType === "buy" ? "purchase" : "lease deposit";
       throw new Error(`Insufficient corporate balance for ${label} of ${model.name}.`);
+    }
+
+    if (model.unlockTier > airline.tier) {
+      throw new Error(
+        `${model.name} requires Airline Tier ${model.unlockTier}. Your airline is Tier ${airline.tier}.`,
+      );
     }
 
     const engineStore = useEngineStore.getState();
@@ -566,6 +576,15 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
   purchaseUsedAircraft: async (listing: MarketplaceListing) => {
     const { airline, pubkey, fleet } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
+
+    const model = getAircraftById(listing.modelId);
+    if (!model) throw new Error(`Unknown aircraft model ID: ${listing.modelId}`);
+
+    if (model.unlockTier > airline.tier) {
+      throw new Error(
+        `${model.name} requires Airline Tier ${model.unlockTier}. Your airline is Tier ${airline.tier}.`,
+      );
+    }
 
     // Price is already validated as FixedPoint by parseMarketplaceListing
     const price = listing.marketplacePrice;

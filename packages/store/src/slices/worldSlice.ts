@@ -8,6 +8,7 @@ import type {
   TimelineEvent,
 } from "@acars/core";
 import {
+  canonicalRouteKey,
   computeRouteFrequency,
   createLogger,
   fp,
@@ -247,7 +248,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
             for (const route of routes) {
               if (route.status !== "active") continue;
 
-              const key = `${route.originIata}-${route.destinationIata}`;
+              const key = canonicalRouteKey(route.originIata, route.destinationIata);
               const offers = registry.get(key) || [];
 
               let avgSpeed = 800;
