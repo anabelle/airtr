@@ -22,7 +22,7 @@ import {
   TICKS_PER_HOUR,
 } from "@acars/core";
 import { getAircraftById } from "@acars/data";
-import { processFlightEngine, reconcileFleetToTick } from "./FlightEngine";
+import { reconcileFleetToTick } from "./FlightEngine";
 
 export interface ActionRecord {
   action: import("@acars/core").GameActionEnvelope;
@@ -42,7 +42,6 @@ export interface ActionReplayResult {
 }
 
 const MAX_TIMELINE_EVENTS = 1000;
-const BACKFILL_TICK_WINDOW = TICKS_PER_HOUR * 6;
 
 const DEFAULT_LIVERY = {
   primary: "#1f2937",
@@ -345,12 +344,6 @@ export async function replayActionLog(params: {
     if (aTime !== bTime) return aTime - bTime;
     return a.eventId.localeCompare(b.eventId);
   });
-  const actionTicks = sortedActions
-    .map((record) => clampInt(record.action.payload.tick, 0, Number.MAX_SAFE_INTEGER))
-    .filter((tick): tick is number => typeof tick === "number" && Number.isFinite(tick));
-  const latestActionTick = actionTicks.length ? Math.max(...actionTicks) : 0;
-  const backfillStartTick = Math.max(0, latestActionTick - BACKFILL_TICK_WINDOW);
-  const backfillTickSet = new Set<number>();
   let bootstrapTick: number | null = null;
 
   // Bootstrap: If no checkpoint and no AIRLINE_CREATE in the action log,
@@ -458,7 +451,6 @@ export async function replayActionLog(params: {
       routeIdAliases.clear();
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
-      backfillTickSet.clear();
       allowActionTimeline = true;
 
       const name = clampString(payload.name, MAX_NAME_LENGTH) ?? "New Airline";
@@ -514,7 +506,6 @@ export async function replayActionLog(params: {
       routeIdAliases.clear();
       timeline.splice(0, timeline.length);
       timelineEventIds.clear();
-      backfillTickSet.clear();
       allowActionTimeline = true;
       continue;
     }
@@ -578,9 +569,6 @@ export async function replayActionLog(params: {
           }
 
           updateLastTick(actionTick);
-          if (actionTick >= backfillStartTick) {
-            backfillTickSet.add(actionTick);
-          }
           mergeTickTimelineEvents(payload.timeline);
           break;
         }
@@ -631,9 +619,6 @@ export async function replayActionLog(params: {
         }
 
         updateLastTick(actionTick);
-        if (actionTick >= backfillStartTick) {
-          backfillTickSet.add(actionTick);
-        }
         mergeTickTimelineEvents(payload.timeline);
         break;
       }
@@ -1271,48 +1256,8 @@ export async function replayActionLog(params: {
   const routes = Array.from(routesById.values());
 
   const orderedTimeline = sortedTimeline();
-  const backfillTimeline = new Map<string, TimelineEvent>();
-  for (const event of orderedTimeline) backfillTimeline.set(event.id, event);
-  const orderedBackfillTicks = Array.from(backfillTickSet.values()).sort((a, b) => a - b);
-  if (airline && orderedBackfillTicks.length > 0) {
-    let simulatedFleet = fleet.map((ac) => ({ ...ac }));
-    let simulatedBalance = airline.corporateBalance;
-    let lastTick = backfillStartTick - 1;
-    for (const tick of orderedBackfillTicks) {
-      const { updatedFleet, corporateBalance, events } = processFlightEngine(
-        tick,
-        simulatedFleet,
-        routes,
-        simulatedBalance,
-        lastTick,
-        new Map(),
-        pubkey,
-        0.5,
-      );
-      simulatedFleet = updatedFleet;
-      simulatedBalance = corporateBalance;
-      lastTick = tick;
-      for (const event of events) {
-        if (!backfillTimeline.has(event.id)) {
-          backfillTimeline.set(event.id, event);
-        }
-      }
-    }
-    airline = { ...airline, corporateBalance: simulatedBalance };
-    fleetById.clear();
-    for (const aircraft of simulatedFleet) {
-      fleetById.set(aircraft.id, aircraft);
-    }
-    timeline.length = 0;
-    timeline.push(
-      ...Array.from(backfillTimeline.values())
-        .sort((a, b) => (a.tick !== b.tick ? b.tick - a.tick : b.timestamp - a.timestamp))
-        .slice(0, MAX_TIMELINE_EVENTS),
-    );
-  } else {
-    timeline.length = 0;
-    timeline.push(...orderedTimeline.slice(0, MAX_TIMELINE_EVENTS));
-  }
+  timeline.length = 0;
+  timeline.push(...orderedTimeline.slice(0, MAX_TIMELINE_EVENTS));
 
   fleet = Array.from(fleetById.values());
   if (airline) {
