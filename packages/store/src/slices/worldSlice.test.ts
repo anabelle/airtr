@@ -29,7 +29,11 @@ vi.mock("../engine", () => ({
 }));
 
 vi.mock("../FlightEngine", () => ({
-  reconcileFleetToTick: vi.fn((fleet) => ({ fleet, balanceDelta: 0 })),
+  reconcileFleetToTick: vi.fn((fleet) => ({
+    fleet,
+    balanceDelta: 0,
+    events: [],
+  })),
 }));
 
 const createSliceState = (overrides: Partial<AirlineState> = {}) => {
@@ -177,7 +181,10 @@ describe("projectCompetitorFleet", () => {
   it("does not project bankrupt competitors", () => {
     const tick = 200;
     const pubkey = "comp-bankrupt";
-    const airline = { ...makeAirline(pubkey, tick - 50), status: "chapter11" as const };
+    const airline = {
+      ...makeAirline(pubkey, tick - 50),
+      status: "chapter11" as const,
+    };
     const aircraft: AircraftInstance = {
       ...makeAircraft("ac-bankrupt", pubkey),
       status: "enroute",
@@ -241,7 +248,10 @@ describe("syncWorld", () => {
 
   it("ignores bankrupt states", async () => {
     const pubkey = "comp-bankrupt";
-    const bankruptAirline = { ...makeAirline(pubkey, 100), status: "chapter11" };
+    const bankruptAirline = {
+      ...makeAirline(pubkey, 100),
+      status: "chapter11",
+    };
     const mockSnapshot = {
       schemaVersion: 1,
       tick: 120,

@@ -1,5 +1,12 @@
 import type { AircraftInstance, FixedPoint, FlightOffer, Route, TimelineEvent } from "@acars/core";
-import { calculateDemand, fp, fpToNumber, getSuggestedFares, TICKS_PER_HOUR } from "@acars/core";
+import {
+  calculateDemand,
+  countLandingsBetween,
+  fp,
+  fpToNumber,
+  getSuggestedFares,
+  TICKS_PER_HOUR,
+} from "@acars/core";
 import { airports, getAircraftById } from "@acars/data";
 import { describe, expect, it } from "vitest";
 import { processFlightEngine, reconcileFleetToTick } from "./FlightEngine.js";
@@ -330,7 +337,9 @@ describe("FlightEngine — Multiplayer scenarios", () => {
     };
     const registry = new Map<string, FlightOffer[]>([["JFK-LAX", [competitorOffer]]]);
 
-    const competition = simulateSingleLanding(aircraft, route, { globalRouteRegistry: registry });
+    const competition = simulateSingleLanding(aircraft, route, {
+      globalRouteRegistry: registry,
+    });
 
     const monoPax = monopoly.landing.details?.passengers?.total ?? 0;
     const compPax = competition.landing.details?.passengers?.total ?? 0;
@@ -368,7 +377,9 @@ describe("FlightEngine — Multiplayer scenarios", () => {
     };
     const registry = new Map<string, FlightOffer[]>([["JFK-LAX", [competitorOffer]]]);
 
-    const { state } = simulateSingleLanding(aircraft, route, { globalRouteRegistry: registry });
+    const { state } = simulateSingleLanding(aircraft, route, {
+      globalRouteRegistry: registry,
+    });
     const priceWarEvent = state.events.find((e) => e.type === "price_war");
     expect(priceWarEvent).toBeTruthy();
   });
@@ -408,7 +419,9 @@ describe("FlightEngine — Multiplayer scenarios", () => {
     ]);
 
     const baseline = simulateSingleLanding(aircraft, route);
-    const otherRoutes = simulateSingleLanding(aircraft, route, { globalRouteRegistry: registry });
+    const otherRoutes = simulateSingleLanding(aircraft, route, {
+      globalRouteRegistry: registry,
+    });
     const basePax = baseline.landing.details?.passengers?.total ?? 0;
     const otherPax = otherRoutes.landing.details?.passengers?.total ?? 0;
     expect(otherPax).toBe(basePax);
@@ -1531,5 +1544,280 @@ describe("reconcileFleetToTick — destination-aware stagger", () => {
     const aFlight = result[0].flight!;
     const bFlight = result[1].flight!;
     expect(aFlight.direction).not.toBe(bFlight.direction);
+  });
+});
+
+describe("reconcileFleetToTick — synthetic timeline events", () => {
+  it("returns takeoff and landing events for an idle aircraft with assigned route", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt1",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt1"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const aircraft = makeAircraft({
+      id: "ac-evt1",
+      assignedRouteId: "route-evt1",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 1000,
+    });
+
+    // Fast-forward through 3 complete cycles
+    const targetTick = 1000 + roundTrip * 3 + 1;
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    // Should have takeoff and landing events
+    const takeoffs = events.filter((e) => e.type === "takeoff");
+    const landings = events.filter((e) => e.type === "landing");
+
+    expect(takeoffs.length).toBeGreaterThan(0);
+    expect(landings.length).toBeGreaterThan(0);
+
+    // Events should be sorted by tick descending (newest first)
+    for (let i = 1; i < events.length; i++) {
+      expect(events[i].tick).toBeLessThanOrEqual(events[i - 1].tick);
+    }
+  });
+
+  it("events have correct ID format matching processFlightEngine", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt2",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt2"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const aircraft = makeAircraft({
+      id: "ac-evt2",
+      assignedRouteId: "route-evt2",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 0,
+    });
+
+    const targetTick = roundTrip * 2 + 1;
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    for (const evt of events) {
+      if (evt.type === "takeoff") {
+        // Outbound: evt-takeoff-{acId}-{tick}, Inbound: evt-takeoff-rtn-{acId}-{tick}
+        expect(evt.id).toMatch(/^evt-takeoff(-rtn)?-ac-evt2-\d+$/);
+      } else if (evt.type === "landing") {
+        expect(evt.id).toMatch(/^evt-landing-ac-evt2-\d+$/);
+      }
+    }
+  });
+
+  it("landing events include financial details", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt3",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt3"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const aircraft = makeAircraft({
+      id: "ac-evt3",
+      assignedRouteId: "route-evt3",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 0,
+    });
+
+    const targetTick = roundTrip + 1;
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+    const landing = events.find((e) => e.type === "landing");
+
+    expect(landing).toBeDefined();
+    expect(landing!.revenue).toBeDefined();
+    expect(landing!.cost).toBeDefined();
+    expect(landing!.profit).toBeDefined();
+    expect(landing!.details).toBeDefined();
+    expect(landing!.details!.passengers).toBeDefined();
+    expect(landing!.details!.loadFactor).toBeGreaterThan(0);
+  });
+
+  it("returns no events for aircraft without assigned route", () => {
+    const aircraft = makeAircraft({
+      id: "ac-evt4",
+      assignedRouteId: null,
+      status: "idle",
+      flight: null,
+    });
+
+    const { events } = reconcileFleetToTick([aircraft], [], 50000);
+    expect(events.length).toBe(0);
+  });
+
+  it("returns no events when targetTick equals cycleStartTick", () => {
+    const route = makeRoute({
+      id: "route-evt5",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt5"],
+    });
+
+    const aircraft = makeAircraft({
+      id: "ac-evt5",
+      assignedRouteId: "route-evt5",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 5000,
+    });
+
+    const { events } = reconcileFleetToTick([aircraft], [route], 5000);
+    expect(events.length).toBe(0);
+  });
+
+  it("landing event count matches countLandingsBetween for the same parameters", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt6",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt6"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const cycleStartTick = 1000;
+    const aircraft = makeAircraft({
+      id: "ac-evt6",
+      assignedRouteId: "route-evt6",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: cycleStartTick,
+    });
+
+    const targetTick = cycleStartTick + roundTrip * 5 + 1;
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+    const landingCount = events.filter((e) => e.type === "landing").length;
+    const expectedLandings = countLandingsBetween(
+      cycleStartTick,
+      cycleStartTick,
+      targetTick,
+      durationTicks,
+      turnaroundTicks,
+    );
+
+    expect(landingCount).toBe(expectedLandings);
+  });
+
+  it("enroute aircraft past arrival generates events for missed period", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt7",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt7"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    const aircraft = makeAircraft({
+      id: "ac-evt7",
+      assignedRouteId: "route-evt7",
+      status: "enroute",
+      flight: {
+        originIata: "JFK",
+        destinationIata: "LAX",
+        departureTick: 100,
+        arrivalTick: 100 + durationTicks,
+        direction: "outbound",
+      },
+    });
+
+    // Target is 5 cycles later — long offline gap
+    const targetTick = 100 + roundTrip * 5 + Math.floor(durationTicks / 2);
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    expect(events.length).toBeGreaterThan(0);
+    const takeoffs = events.filter((e) => e.type === "takeoff");
+    const landings = events.filter((e) => e.type === "landing");
+    expect(takeoffs.length).toBeGreaterThan(0);
+    expect(landings.length).toBeGreaterThan(0);
+  });
+
+  it("destination-start aircraft generates correctly shifted events", () => {
+    const model = getAircraftById("a320neo")!;
+    const route = makeRoute({
+      id: "route-evt8",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt8"],
+    });
+    const durationTicks = Math.ceil((3000 / model.speedKmh) * TICKS_PER_HOUR);
+    const turnaroundTicks = Math.ceil((model.turnaroundTimeMinutes / 60) * TICKS_PER_HOUR);
+    const roundTrip = durationTicks * 2 + turnaroundTicks * 2;
+
+    // Aircraft starts at destination (LAX)
+    const aircraft = makeAircraft({
+      id: "ac-evt8",
+      assignedRouteId: "route-evt8",
+      status: "idle",
+      baseAirportIata: "LAX",
+      flight: null,
+      routeAssignedAtTick: 1000,
+      routeAssignedAtIata: "LAX",
+    });
+
+    const targetTick = 1000 + roundTrip * 2 + 1;
+    const { events } = reconcileFleetToTick([aircraft], [route], targetTick);
+
+    expect(events.length).toBeGreaterThan(0);
+
+    // All event ticks should be within (1000, targetTick]
+    for (const evt of events) {
+      expect(evt.tick).toBeGreaterThan(1000);
+      expect(evt.tick).toBeLessThanOrEqual(targetTick);
+    }
+  });
+
+  it("grounded aircraft produces no events (cappedLandings = 0)", () => {
+    const route = makeRoute({
+      id: "route-evt9",
+      originIata: "JFK",
+      destinationIata: "LAX",
+      distanceKm: 3000,
+      assignedAircraftIds: ["ac-evt9"],
+    });
+
+    // Aircraft is near grounding (flightHoursSinceCheck at 599, condition barely above 0.2)
+    const aircraft = makeAircraft({
+      id: "ac-evt9",
+      assignedRouteId: "route-evt9",
+      status: "idle",
+      flight: null,
+      routeAssignedAtTick: 0,
+      flightHoursSinceCheck: 599,
+      condition: 1.0,
+    });
+
+    // From the existing test, this should cap landings to 0
+    const { events } = reconcileFleetToTick([aircraft], [route], 50000);
+    expect(events.length).toBe(0);
   });
 });

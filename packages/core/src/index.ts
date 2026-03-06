@@ -10,8 +10,13 @@ export {
   verifyCheckpoint,
 } from "./checkpoint.js";
 export * from "./compression.js";
+export type { CycleFlightEvent } from "./cycle.js";
 // Cycle
-export { countLandingsBetween, getCyclePhase } from "./cycle.js";
+export {
+  countLandingsBetween,
+  enumerateFlightEvents,
+  getCyclePhase,
+} from "./cycle.js";
 // Demand
 export {
   calculateBidirectionalDemand,
@@ -70,7 +75,10 @@ export { createPRNG, createTickPRNG } from "./prng.js";
 export { allocatePassengers, calculateShares } from "./qsi.js";
 // Season
 export { getSeason, getSeasonalMultiplier } from "./season.js";
-export type { NightOverlayFeatureCollection, TerminatorLineCollection } from "./solar.js";
+export type {
+  NightOverlayFeatureCollection,
+  TerminatorLineCollection,
+} from "./solar.js";
 // Solar
 export {
   computeNightOverlay,

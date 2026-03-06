@@ -94,10 +94,21 @@ export async function hydrateIdentityFromStorage(
   }
 
   // Reconcile to the current engine tick, not the snapshot's lastTick
+  let reconciledTimeline = airline.timeline || [];
   if (airline.lastTick != null && fleet.length > 0 && engineTick > airline.lastTick) {
-    const { fleet: reconciled } = reconcileFleetToTick(fleet, routes, engineTick);
+    const { fleet: reconciled, events } = reconcileFleetToTick(fleet, routes, engineTick);
     fleet = reconciled;
     airline.lastTick = engineTick;
+
+    // Merge synthetic takeoff/landing events into the timeline so the
+    // activity log reflects what happened while the client was offline.
+    if (events.length > 0) {
+      const existingIds = new Set(reconciledTimeline.map((e) => e.id));
+      const newEvents = events.filter((e) => !existingIds.has(e.id));
+      if (newEvents.length > 0) {
+        reconciledTimeline = [...newEvents, ...reconciledTimeline].slice(0, 1000);
+      }
+    }
   }
 
   set({
@@ -105,7 +116,7 @@ export async function hydrateIdentityFromStorage(
     airline,
     fleet,
     routes,
-    timeline: airline.timeline || [],
+    timeline: reconciledTimeline,
     actionChainHash: currentActionChainHash,
     actionSeq: currentActionSeq,
     fleetDeletedDuringCatchup: [],

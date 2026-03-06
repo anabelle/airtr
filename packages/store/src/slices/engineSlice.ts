@@ -310,8 +310,23 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
       // the tick-by-tick financial simulation catches up. Without this, the
       // fleet appears stuck at stale arrivalTick positions during catch-up.
       if (targetTick - lastTick > 1) {
-        const { fleet: projectedFleet } = reconcileFleetToTick(fleet, routes, targetTick);
+        const { fleet: projectedFleet, events: reconciledEvents } = reconcileFleetToTick(
+          fleet,
+          routes,
+          targetTick,
+        );
         set({ fleet: projectedFleet });
+
+        // Merge synthetic timeline events from reconciliation so the activity
+        // log is immediately populated even before the tick-by-tick loop runs.
+        if (reconciledEvents.length > 0) {
+          const newEvents = reconciledEvents.filter((e) => !timelineEventIds.has(e.id));
+          if (newEvents.length > 0) {
+            currentTimeline = [...newEvents, ...currentTimeline].slice(0, 1000);
+            timelineEventIds.clear();
+            for (const event of currentTimeline) timelineEventIds.add(event.id);
+          }
+        }
       }
 
       let processingError = false;
