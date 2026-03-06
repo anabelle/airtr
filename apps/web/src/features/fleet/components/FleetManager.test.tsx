@@ -74,6 +74,12 @@ vi.mock("@/features/network/hooks/useRouteDemand", () => {
   };
 });
 
+vi.mock("./AircraftLiveryImage", () => {
+  return {
+    AircraftLiveryImage: () => null,
+  };
+});
+
 describe("FleetManager", () => {
   it("renders empty state when fleet is empty", () => {
     mockUseAirlineStore.mockReturnValue({
@@ -224,9 +230,11 @@ describe("FleetManager", () => {
     const jet2Heading = screen.getByRole("heading", { name: "Test Jet 2" });
     const jet1Row = jet1Heading.closest('[data-testid="fleet-row"]');
     const jet2Row = jet2Heading.closest('[data-testid="fleet-row"]');
+    const rowGrid = jet1Row?.querySelector("div.grid");
 
     expect(jet1Row).toBeTruthy();
     expect(jet2Row).toBeTruthy();
     expect(jet1Row).toBe(jet2Row);
+    expect(rowGrid).toHaveClass("grid-cols-2");
   });
 });

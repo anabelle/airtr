@@ -70,7 +70,7 @@ const timerStyleMap = {
   },
 } as const;
 
-export const FLEET_TWO_COLUMN_BREAKPOINT = 640;
+export const FLEET_TWO_COLUMN_BREAKPOINT = 520;
 
 function AircraftSilhouette({ familyId, className }: { familyId: string; className?: string }) {
   const svg = (FAMILY_ICONS[familyId] || FAMILY_ICONS["a320"]).body;
@@ -312,7 +312,9 @@ export function FleetManager() {
                     isVirtualized ? { transform: `translateY(${virtualRow.start}px)` } : undefined
                   }
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div
+                    className={`grid gap-4 sm:gap-6 ${fleetColumns === 2 ? "grid-cols-2" : "grid-cols-1"}`}
+                  >
                     {rowFleet.map((ac) => {
                       const model = getAircraftById(ac.modelId);
                       if (!model) return null;
