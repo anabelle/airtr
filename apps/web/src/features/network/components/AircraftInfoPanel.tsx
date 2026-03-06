@@ -280,12 +280,13 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
       {/* Livery hero image */}
       {model ? (
-        <div className="relative h-40 w-full overflow-hidden bg-zinc-900/40">
+        <div className="relative w-full overflow-hidden bg-zinc-900/40 h-56">
           <AircraftLiveryImage
             aircraft={aircraft}
             airline={ownerAirline}
             model={model}
             isOwner={isPlayerAircraft}
+            objectFit="object-contain"
             fallback={
               <div className="absolute inset-0 flex items-center justify-center text-zinc-800/20 select-none">
                 <AircraftSilhouette familyId={familyId} className="h-32 w-32 rotate-12" />

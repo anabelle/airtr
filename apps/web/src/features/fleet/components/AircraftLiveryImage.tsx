@@ -9,6 +9,8 @@ interface AircraftLiveryImageProps {
   isOwner: boolean;
   /** Fallback content rendered when no image is available (e.g., SVG silhouette) */
   fallback: React.ReactNode;
+  /** Override the default `object-cover` fit on the <img>. Use `object-contain` to avoid cropping. */
+  objectFit?: "object-cover" | "object-contain";
 }
 
 export function AircraftLiveryImage({
@@ -17,6 +19,7 @@ export function AircraftLiveryImage({
   model,
   isOwner,
   fallback,
+  objectFit = "object-cover",
 }: AircraftLiveryImageProps) {
   const { imageUrl, isGenerating, error } = useAircraftImage(aircraft, airline, model, isOwner);
 
@@ -26,7 +29,7 @@ export function AircraftLiveryImage({
         src={imageUrl}
         alt={`${airline?.name ?? "Airline"} ${model.manufacturer} ${model.name} livery`}
         loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover"
+        className={`absolute inset-0 h-full w-full ${objectFit}`}
       />
     );
   }
