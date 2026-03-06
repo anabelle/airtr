@@ -100,12 +100,12 @@ export function buildLiveryPrompt(
   return [
     `Professional aviation photography of a ${model.manufacturer} ${model.name} commercial ${typeDesc} aircraft`,
     `in the livery of ${airline.name} airline (ICAO: ${airline.icaoCode}).`,
-    `The aircraft is parked at ${hubName} airport`,
+    `The aircraft is parked at ${hubName} airport which is visible in the background`,
     `The fuselage is painted ${primaryColor} with a ${secondaryColor} tail fin`,
-    `and ${accentColor} accent striping along the windows.`,
+    `and ${accentColor} accent striping along the plane.`,
     `The airline name "${airline.name}" is displayed prominently on the fuselage in large lettering.`,
     `${model.engineCount}-engine ${typeDesc} aircraft with realistic proportions.`,
-    `subtle tarmac reflections, photorealistic quality,`,
+    `photorealistic quality`,
   ].join(" ");
 }
 
