@@ -28,6 +28,7 @@ vi.mock("../FlightEngine", () => ({
   reconcileFleetToTick: vi.fn((fleet: AircraftInstance[]) => ({
     fleet,
     balanceDelta: 0,
+    events: [],
   })),
 }));
 
@@ -307,6 +308,7 @@ describe("immediate visual reconciliation during catch-up", () => {
     vi.mocked(reconcileFleetToTick).mockReturnValue({
       fleet: [projectedAircraft],
       balanceDelta: 0 as FixedPoint,
+      events: [],
     });
 
     vi.mocked(processFlightEngine).mockReturnValue({

@@ -10,6 +10,7 @@ import {
   computeRouteFrequency,
   countLandingsBetween,
   detectPriceWar,
+  enumerateFlightEvents,
   fp,
   fpAdd,
   fpScale,
@@ -864,13 +865,36 @@ export function estimateLandingFinancials(
  * Only touches aircraft that are actively flying a route (enroute/turnaround
  * with an assignedRouteId).  Revenue/cost is NOT calculated — this is purely
  * positional reconciliation.
+ *
+ * Returns synthetic timeline events (takeoff/landing) for the reconciled
+ * period so the activity log is populated even when the tick-by-tick engine
+ * loop is skipped (e.g. after an overnight absence).
  */
 export function reconcileFleetToTick(
   fleet: AircraftInstance[],
   routes: Route[],
   targetTick: number,
-): { fleet: AircraftInstance[]; balanceDelta: FixedPoint } {
+): {
+  fleet: AircraftInstance[];
+  balanceDelta: FixedPoint;
+  events: TimelineEvent[];
+} {
   let balanceDelta = fp(0);
+
+  // Collect per-aircraft cycle parameters so we can generate synthetic
+  // timeline events after the positional reconciliation is complete.
+  interface EventGenParams {
+    ac: AircraftInstance;
+    route: Route;
+    cycleStartTick: number;
+    fromTick: number;
+    durationTicks: number;
+    turnaroundTicks: number;
+    phaseOffset: number;
+    cappedLandings: number;
+  }
+  const eventGenQueue: EventGenParams[] = [];
+
   const updatedFleet: AircraftInstance[] = fleet.map((ac): AircraftInstance => {
     // Handle delivery aircraft that have been delivered but have no route —
     // they just need to transition to idle.  This must happen before the
@@ -949,6 +973,16 @@ export function reconcileFleetToTick(
           balanceDelta,
           accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
         );
+        eventGenQueue.push({
+          ac: updated,
+          route,
+          cycleStartTick,
+          fromTick: referenceTick,
+          durationTicks,
+          turnaroundTicks,
+          phaseOffset: stalePhaseOffset,
+          cappedLandings: landings,
+        });
         return updated;
       }
       // Aircraft was mid-flight. Its cycle started at departureTick.
@@ -997,6 +1031,16 @@ export function reconcileFleetToTick(
           balanceDelta,
           accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
         );
+        eventGenQueue.push({
+          ac: updated,
+          route,
+          cycleStartTick,
+          fromTick: referenceTick,
+          durationTicks,
+          turnaroundTicks,
+          phaseOffset: stalePhaseOffset,
+          cappedLandings: landings,
+        });
         return updated;
       }
       // Aircraft was in turnaround. Turnaround started at arrivalTick.
@@ -1049,6 +1093,16 @@ export function reconcileFleetToTick(
         balanceDelta,
         accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
       );
+      eventGenQueue.push({
+        ac: updated,
+        route,
+        cycleStartTick,
+        fromTick: referenceTick,
+        durationTicks,
+        turnaroundTicks,
+        phaseOffset,
+        cappedLandings: landings,
+      });
       return updated;
     } else if (ac.status === "delivery") {
       // Delivery aircraft whose deliveryAtTick is in the past should be
@@ -1097,6 +1151,16 @@ export function reconcileFleetToTick(
           balanceDelta,
           accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
         );
+        eventGenQueue.push({
+          ac: updated,
+          route,
+          cycleStartTick,
+          fromTick: referenceTick,
+          durationTicks,
+          turnaroundTicks,
+          phaseOffset: delPhaseOffset,
+          cappedLandings: landings,
+        });
         return updated;
       }
       // Still in delivery period — skip
@@ -1140,9 +1204,94 @@ export function reconcileFleetToTick(
       balanceDelta,
       accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
     );
+    eventGenQueue.push({
+      ac: updated,
+      route,
+      cycleStartTick,
+      fromTick: referenceTick,
+      durationTicks,
+      turnaroundTicks,
+      phaseOffset: 0,
+      cappedLandings: landings,
+    });
 
     return updated;
   });
 
-  return { fleet: updatedFleet, balanceDelta };
+  // --- Generate synthetic timeline events for the reconciled period ---
+  const events: TimelineEvent[] = [];
+  for (const params of eventGenQueue) {
+    if (params.cappedLandings <= 0) continue;
+
+    // For phase-offset routes (aircraft starting at destination), we need to
+    // adjust the effective cycle start so that enumerateFlightEvents (which
+    // always assumes the cycle starts at outbound takeoff) produces correctly
+    // shifted ticks.
+    const effectiveCycleStart = params.cycleStartTick - params.phaseOffset;
+
+    const rawEvents = enumerateFlightEvents(
+      effectiveCycleStart,
+      params.fromTick,
+      targetTick,
+      params.durationTicks,
+      params.turnaroundTicks,
+      params.route,
+    );
+
+    for (const evt of rawEvents) {
+      const simulatedTimestamp = GENESIS_TIME + evt.tick * TICK_DURATION;
+      const idSuffix = evt.direction === "outbound" ? "" : "-rtn";
+
+      if (evt.type === "takeoff") {
+        events.push({
+          id: `evt-takeoff${idSuffix}-${params.ac.id}-${evt.tick}`,
+          tick: evt.tick,
+          timestamp: simulatedTimestamp,
+          type: "takeoff",
+          aircraftId: params.ac.id,
+          aircraftName: params.ac.name,
+          routeId: params.route.id,
+          originIata: evt.originIata,
+          destinationIata: evt.destinationIata,
+          description:
+            evt.direction === "outbound"
+              ? `${params.ac.name} taking off: ${evt.originIata} → ${evt.destinationIata}`
+              : `${params.ac.name} returning: ${evt.originIata} → ${evt.destinationIata}`,
+        });
+      } else {
+        // Landing — include estimated financial details
+        const model = getAircraftById(params.ac.modelId);
+        const hoursPerLeg = Math.min(24, params.durationTicks / TICKS_PER_HOUR);
+        const financials = estimateLandingFinancials(
+          params.ac,
+          params.route,
+          model,
+          hoursPerLeg,
+          params.ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+        );
+
+        events.push({
+          id: `evt-landing-${params.ac.id}-${evt.tick}`,
+          tick: evt.tick,
+          timestamp: simulatedTimestamp,
+          type: "landing",
+          aircraftId: params.ac.id,
+          aircraftName: params.ac.name,
+          routeId: params.route.id,
+          originIata: evt.originIata,
+          destinationIata: evt.destinationIata,
+          description: `${params.ac.name} landed at ${evt.destinationIata}`,
+          revenue: financials.revenue.revenueTotal,
+          cost: financials.cost.costTotal,
+          profit: financials.profit,
+          details: financials.details,
+        });
+      }
+    }
+  }
+
+  // Sort events by tick descending (newest first) to match timeline convention
+  events.sort((a, b) => b.tick - a.tick);
+
+  return { fleet: updatedFleet, balanceDelta, events };
 }
