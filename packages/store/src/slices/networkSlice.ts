@@ -594,6 +594,10 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     const { airline, routes, pubkey } = get();
     if (!airline || !pubkey) throw new Error("No airline loaded.");
 
+    if (!airline.hubs.includes(originIata)) {
+      throw new Error("Route origin must be one of your active hubs.");
+    }
+
     if (airline.corporateBalance < ROUTE_SLOT_FEE) {
       throw new Error(`Insufficient funds to open route. Cost: ${fpFormat(ROUTE_SLOT_FEE, 0)}`);
     }
