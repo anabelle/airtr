@@ -100,7 +100,11 @@ vi.mock("@acars/store", () => {
       isViewingOther: false,
     }),
     useEngineStore: (selector?: (s: unknown) => unknown) => {
-      const state = { homeAirport: { iata: "JFK" }, tick: 200 };
+      const state = {
+        homeAirport: { iata: "JFK" },
+        tick: 200,
+        setActiveHubIata: vi.fn(),
+      };
       return selector ? selector(state) : state;
     },
   };

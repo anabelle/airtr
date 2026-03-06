@@ -109,6 +109,7 @@ export interface EngineState {
 
   syncTick: () => void;
   setHub: (airport: Airport, loc: UserLocation, method: string) => void;
+  setActiveHubIata: (iata: string, method?: string) => void;
   startEngine: () => void;
   stopEngine: () => void;
   setPermalinkAirport: (iata: string | null) => void;
@@ -163,6 +164,30 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     set({
       tick: currentTick,
       userLocation: loc,
+      homeAirport: airport,
+      locationMethod: method,
+      routes: generateRoutes(airport, currentTick),
+    });
+  },
+
+  setActiveHubIata: (iata, method = "hub selection") => {
+    const { homeAirport, userLocation } = get();
+    if (homeAirport?.iata === iata) return;
+    const airport = AIRPORTS.find((entry) => entry.iata === iata);
+    if (!airport) return;
+
+    const currentTick = calculateGlobalTick();
+    const location =
+      userLocation ??
+      ({
+        latitude: airport.latitude,
+        longitude: airport.longitude,
+        source: "manual",
+      } as const);
+
+    set({
+      tick: currentTick,
+      userLocation: location,
       homeAirport: airport,
       locationMethod: method,
       routes: generateRoutes(airport, currentTick),
