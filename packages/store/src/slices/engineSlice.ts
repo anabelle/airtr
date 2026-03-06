@@ -5,8 +5,8 @@ import {
   fpScale,
   fpSub,
   fpToNumber,
-  getCyclePhase,
   GENESIS_TIME,
+  getCyclePhase,
   TICK_DURATION,
   TICKS_PER_HOUR,
   TICKS_PER_MONTH,
@@ -135,7 +135,11 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           routes,
           timeline: get().timeline,
         };
-        set({ airline: updatedAirline, fleet: groundedFleet, timeline: updatedTimeline });
+        set({
+          airline: updatedAirline,
+          fleet: groundedFleet,
+          timeline: updatedTimeline,
+        });
         publishActionWithChain({
           action: {
             schemaVersion: 2,
@@ -501,6 +505,14 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           const eventId = `evt-landing-${ac.id}-${landing.tick}`;
           if (timelineEventIds.has(eventId)) continue;
 
+          // Skip landings whose tick falls within the range just processed by
+          // the tick-by-tick loop.  The tick loop generates authoritative
+          // events with full QSI / competitor data; the cycle-algebra ticks
+          // used here may drift from the actual state-machine ticks, which
+          // would bypass the ID-based dedup above and produce duplicate
+          // (and less-accurate) timeline entries.
+          if (landing.tick > lastTick && landing.tick <= lastProcessedTick) continue;
+
           const landingResult = estimateLandingFinancials(
             ac,
             route,
@@ -695,14 +707,23 @@ export const createEngineSlice: StateCreator<AirlineState, [], [], EngineSlice> 
           ac.turnaroundEndTick = ac.flight.arrivalTick + turnaroundTicks;
 
           if (landingResult) {
-            // Full financial breakdown using recovery helper
-            currentBalance = fpAdd(currentBalance, landingResult.profit);
             ac.lastKnownLoadFactor = landingResult.revenue.loadFactor;
 
-            // Skip the timeline event if the backfill already generated one
-            // for this exact landing (same aircraft + arrival tick).
-            const backfillId = `evt-landing-${ac.id}-${ac.flight.arrivalTick}`;
-            if (!timelineEventIds.has(backfillId)) {
+            // Guard: if the tick loop already processed a landing for this
+            // aircraft at this arrival tick, skip BOTH the balance credit and
+            // the timeline event to prevent double-counting revenue.
+            // Check both the exact tick-loop ID format and the backfill ID
+            // format since either could have already covered this landing.
+            const tickLoopId = `evt-landing-${ac.id}-${ac.flight.arrivalTick}`;
+            const alreadyProcessed =
+              timelineEventIds.has(tickLoopId) ||
+              // Also skip if the arrival tick falls within the range the
+              // tick-by-tick loop just processed — processFlightEngine
+              // already credited the balance for this landing.
+              (ac.flight.arrivalTick > lastTick && ac.flight.arrivalTick <= lastProcessedTick);
+
+            if (!alreadyProcessed) {
+              currentBalance = fpAdd(currentBalance, landingResult.profit);
               const arrivalTick = ac.flight.arrivalTick;
               recoveryEvents.push({
                 id: `evt-recovery-landing-${ac.id}-${arrivalTick}`,
