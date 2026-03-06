@@ -22,7 +22,13 @@ vi.mock("@acars/nostr", () => ({
 }));
 
 vi.mock("../actionChain", () => ({
-  publishActionWithChain: vi.fn(() => Promise.resolve()),
+  publishActionWithChain: vi.fn(() =>
+    Promise.resolve({
+      id: "evt-chain-1",
+      created_at: 1,
+      author: { pubkey: "test-pubkey" },
+    }),
+  ),
 }));
 
 vi.mock("../engine", () => ({

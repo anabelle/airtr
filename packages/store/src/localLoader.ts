@@ -12,22 +12,15 @@ export async function hydrateIdentityFromStorage(
   set: (state: Partial<AirlineState>) => void,
 ) {
   // 1. Load instantly from IndexedDB
-  const localAirline = await db.airline.get(pubkey);
+  const localAirline = await db.airline.where({ ceoPubkey: pubkey }).first();
   const localFleet = await db.fleet.where({ ownerPubkey: pubkey }).toArray();
   const localRoutes = await db.routes.where({ airlinePubkey: pubkey }).toArray();
 
-  // Apply immediately for instant loading
-  if (localAirline) {
-    set({
-      airline: localAirline,
-      fleet: localFleet,
-      routes: localRoutes,
-      timeline: localAirline.timeline || [],
-      // Re-trigger loading state off while we fetch from Nostr quietly
-      identityStatus: "ready",
-      isLoading: false,
-    });
-  }
+  let currentAirline = localAirline ?? null;
+  let currentFleet = localFleet;
+  let currentRoutes = localRoutes;
+  let currentActionChainHash = "";
+  const currentActionSeq = 0;
 
   // 2. Background sync with Nostr NIP-33 Snapshot Rollups
   try {
@@ -36,27 +29,29 @@ export async function hydrateIdentityFromStorage(
       const decompressedString = await decompressSnapshotString(remote.compressedData);
       const snapshotCheckpoint = JSON.parse(decompressedString) as Checkpoint;
 
-      const localTick = localAirline?.lastTick ?? 0;
+      const localTick = currentAirline?.lastTick ?? 0;
 
       // If remote is newer, replace local
       if (snapshotCheckpoint.tick > localTick) {
         console.log(
           `[Identity] Nostr snapshot tick ${snapshotCheckpoint.tick} is newer than local DB ${localTick}. Overwriting state.`,
         );
-        const { airline, fleet, routes, timeline, actionChainHash } = snapshotCheckpoint;
+        const { airline, fleet, routes, actionChainHash } = snapshotCheckpoint;
 
-        await db.airline.put(airline);
-        await Promise.all(fleet.map((f) => db.fleet.put(f)));
-        await Promise.all(routes.map((r) => db.routes.put(r)));
-
-        set({
-          airline,
-          fleet,
-          routes,
-          timeline,
-          actionChainHash,
-          latestCheckpoint: snapshotCheckpoint,
+        // Transactional replace: clear existing records for this owner then write snapshot
+        await db.transaction("rw", db.airline, db.fleet, db.routes, async () => {
+          await db.airline.where({ ceoPubkey: pubkey }).delete();
+          await db.fleet.where({ ownerPubkey: pubkey }).delete();
+          await db.routes.where({ airlinePubkey: pubkey }).delete();
+          await db.airline.put(airline);
+          if (fleet.length > 0) await db.fleet.bulkPut(fleet);
+          if (routes.length > 0) await db.routes.bulkPut(routes);
         });
+
+        currentAirline = airline;
+        currentFleet = fleet;
+        currentRoutes = routes;
+        currentActionChainHash = actionChainHash;
       }
     }
   } catch (err) {
@@ -64,28 +59,7 @@ export async function hydrateIdentityFromStorage(
   }
 
   // 3. Reconcile loaded state (catchup)
-  // Wait for the state to settle before reading it out to reconcile
-  const finalState = await new Promise<{
-    airline: import("@acars/core").AirlineEntity;
-    fleet: import("@acars/core").AircraftInstance[];
-    routes: import("@acars/core").Route[];
-  } | null>((resolve) =>
-    setTimeout(() => {
-      db.airline.get(pubkey).then((finalAirline) => {
-        if (!finalAirline) resolve(null);
-        else {
-          Promise.all([
-            db.fleet.where({ ownerPubkey: pubkey }).toArray(),
-            db.routes.where({ airlinePubkey: pubkey }).toArray(),
-          ]).then(([f, r]) => {
-            resolve({ airline: finalAirline, fleet: f, routes: r });
-          });
-        }
-      });
-    }, 0),
-  );
-
-  if (!finalState) {
+  if (!currentAirline) {
     set({
       pubkey,
       airline: null,
@@ -102,8 +76,9 @@ export async function hydrateIdentityFromStorage(
     return;
   }
 
-  const { airline, routes } = finalState;
-  let { fleet } = finalState;
+  const airline = { ...currentAirline };
+  let fleet = currentFleet;
+  const routes = currentRoutes;
   const engineTick = useEngineStore.getState().tick;
 
   if (
@@ -118,14 +93,12 @@ export async function hydrateIdentityFromStorage(
     }
   }
 
-  if (airline.lastTick != null && fleet.length > 0) {
-    const { fleet: reconciled, balanceDelta } = reconcileFleetToTick(
-      fleet,
-      routes,
-      airline.lastTick,
-    );
+  // Reconcile to the current engine tick, not the snapshot's lastTick
+  if (airline.lastTick != null && fleet.length > 0 && engineTick > airline.lastTick) {
+    const { fleet: reconciled, balanceDelta } = reconcileFleetToTick(fleet, routes, engineTick);
     fleet = reconciled;
     airline.corporateBalance = fpAdd(airline.corporateBalance, balanceDelta);
+    airline.lastTick = engineTick;
   }
 
   set({
@@ -134,6 +107,8 @@ export async function hydrateIdentityFromStorage(
     fleet,
     routes,
     timeline: airline.timeline || [],
+    actionChainHash: currentActionChainHash,
+    actionSeq: currentActionSeq,
     fleetDeletedDuringCatchup: [],
     identityStatus: "ready",
     isLoading: false,

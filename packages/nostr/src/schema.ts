@@ -117,12 +117,37 @@ export function parseActionContent(data: unknown): ActionEnvelope | null {
 }
 
 export function isTransientPublishError(error: unknown): boolean {
-  if (error instanceof Error) {
-    if (error.message.includes("timeout")) return true;
-    if (error.message.includes("network")) return true;
-    if (error.message.includes("connection closed")) return true;
-  }
-  return false;
+  if (!error) return false;
+
+  // Treat NDK structured publish errors as transient
+  if (error instanceof Error && error.constructor.name === "NDKPublishError") return true;
+
+  const message =
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : typeof error === "string"
+        ? error.toLowerCase()
+        : "";
+
+  if (!message) return false;
+
+  const transientPatterns = [
+    "timeout",
+    "network",
+    "connection closed",
+    "econnreset",
+    "econnrefused",
+    "websocket",
+    "socket hang up",
+    "fetch failed",
+    "relay",
+    "capacity",
+    "rate limit",
+    "429",
+    "503",
+  ];
+
+  return transientPatterns.some((p) => message.includes(p));
 }
 
 export function buildActionDTag(action: ActionEnvelope, seq?: number): string {

@@ -171,10 +171,10 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
         const currentTick = useEngineStore.getState().tick;
         const myPubkey = existingState.pubkey;
 
-        const competitors = new Map<string, AirlineEntity>();
+        const competitors = new Map<string, AirlineEntity>(existingState.competitors);
         const registry = new Map<string, FlightOffer[]>();
-        const updatedFleetByOwner = new Map<string, AircraftInstance[]>();
-        const updatedRoutesByOwner = new Map<string, Route[]>();
+        const updatedFleetByOwner = new Map<string, AircraftInstance[]>(existingState.fleetByOwner);
+        const updatedRoutesByOwner = new Map<string, Route[]>(existingState.routesByOwner);
         const newTimelineEvents: TimelineEvent[] = [];
         const myHubs = new Set(existingState.airline?.hubs || []);
 
@@ -205,7 +205,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
                 newTimelineEvents.push({
                   id: `evt-comp-hub-${pubkey}-${hub}-${currentTick}`,
                   tick: currentTick,
-                  timestamp: Date.now(),
+                  timestamp: GENESIS_TIME + currentTick * TICK_DURATION,
                   type: "competitor_hub",
                   description: `Competitor ${airline.name} just opened a hub at ${hub}!`,
                 });
@@ -323,9 +323,7 @@ export const createWorldSlice: StateCreator<AirlineState, [], [], WorldSlice> = 
   },
 
   syncCompetitor: async () => {
-    // Left as a no-op fallback, individual competitor loading is redundant when syncWorld is O(1)
-    // with loadAllSnapshots. Will just call syncWorld.
-    get().syncWorld();
+    return await get().syncWorld();
   },
 });
 

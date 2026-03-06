@@ -192,6 +192,13 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         } catch (e) {
           console.error("Failed to insert airline to IndexedDB", e);
         }
+        // Publish initial NIP-33 snapshot so the airline is discoverable on relays
+        try {
+          const { publishCurrentStateSnapshot } = await import("../actionChain");
+          await publishCurrentStateSnapshot(get());
+        } catch (e) {
+          console.error("Failed to publish initial snapshot", e);
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create airline.";

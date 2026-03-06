@@ -67,6 +67,7 @@ export async function loadSnapshot(pubkey: string): Promise<SnapshotPayload | nu
 
   let latest: SnapshotPayload | null = null;
   let latestCreatedAt = 0;
+  let latestTick = -1;
   await new Promise<void>((resolve) => {
     const sub = ndk.subscribe(filter, { closeOnEose: true });
     const timeout = setTimeout(() => {
@@ -82,9 +83,20 @@ export async function loadSnapshot(pubkey: string): Promise<SnapshotPayload | nu
 
       try {
         const parsed = JSON.parse(event.content) as SnapshotPayload;
-        if (!parsed.compressedData || !parsed.stateHash || parsed.tick == null) return;
-        if ((event.created_at || 0) >= latestCreatedAt) {
+        if (
+          typeof parsed.compressedData !== "string" ||
+          typeof parsed.stateHash !== "string" ||
+          typeof parsed.tick !== "number" ||
+          !Number.isInteger(parsed.tick) ||
+          parsed.tick < 0
+        )
+          return;
+        if (
+          parsed.tick > latestTick ||
+          (parsed.tick === latestTick && (event.created_at || 0) >= latestCreatedAt)
+        ) {
           latest = parsed;
+          latestTick = parsed.tick;
           latestCreatedAt = event.created_at || 0;
         }
       } catch {
@@ -110,7 +122,7 @@ export async function loadAllSnapshots(): Promise<Map<string, SnapshotPayload>> 
     "#d": [SNAPSHOT_D_TAG],
   };
 
-  const results = new Map<string, { payload: SnapshotPayload; createdAt: number }>();
+  const results = new Map<string, { payload: SnapshotPayload; createdAt: number; tick: number }>();
 
   await new Promise<void>((resolve) => {
     const sub = ndk.subscribe(filter, { closeOnEose: true });
@@ -129,11 +141,26 @@ export async function loadAllSnapshots(): Promise<Map<string, SnapshotPayload>> 
 
       try {
         const parsed = JSON.parse(event.content) as SnapshotPayload;
-        if (!parsed.compressedData || !parsed.stateHash || parsed.tick == null) return;
+        if (
+          typeof parsed.compressedData !== "string" ||
+          typeof parsed.stateHash !== "string" ||
+          typeof parsed.tick !== "number" ||
+          !Number.isInteger(parsed.tick) ||
+          parsed.tick < 0
+        )
+          return;
 
         const existing = results.get(pubkey);
-        if (!existing || (event.created_at || 0) > existing.createdAt) {
-          results.set(pubkey, { payload: parsed, createdAt: event.created_at || 0 });
+        if (
+          !existing ||
+          parsed.tick > existing.tick ||
+          (parsed.tick === existing.tick && (event.created_at || 0) > existing.createdAt)
+        ) {
+          results.set(pubkey, {
+            payload: parsed,
+            createdAt: event.created_at || 0,
+            tick: parsed.tick,
+          });
         }
       } catch {
         // Ignore malformed

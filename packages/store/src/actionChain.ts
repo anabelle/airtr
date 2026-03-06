@@ -19,28 +19,32 @@ export async function publishActionWithChain(params: {
   const { action, get, set } = params;
   const state = get();
 
+  if (!state.airline) {
+    throw new Error("Cannot publish action: no airline exists. Create an airline first.");
+  }
+
+  // Capture pre-action baseline for deterministic replay
+  const baselineCheckpoint: Checkpoint = {
+    schemaVersion: 1,
+    tick: useEngineStore.getState().tick,
+    createdAt: Date.now(),
+    actionChainHash: state.actionChainHash,
+    stateHash: state.latestCheckpoint?.stateHash || "",
+    airline: state.airline,
+    fleet: state.fleet,
+    routes: state.routes,
+    timeline: state.timeline,
+  };
+
   const seq = state.actionSeq;
   set({ actionSeq: seq + 1 });
 
   const event = await publishAction(action, seq);
 
   await enqueueSerialUpdate(async () => {
-    const currentState = get();
-    // 1. Locally apply the action to pseudo-checkpoint
-    const pseudoCheckpoint: Checkpoint = {
-      schemaVersion: 1,
-      tick: useEngineStore.getState().tick,
-      createdAt: Date.now(),
-      actionChainHash: currentState.actionChainHash,
-      stateHash: currentState.latestCheckpoint?.stateHash || "",
-      airline: currentState.airline!,
-      fleet: currentState.fleet,
-      routes: currentState.routes,
-      timeline: currentState.timeline,
-    };
-
+    // Replay from the committed baseline, not live store
     const replayed = await replayActionLog({
-      pubkey: currentState.pubkey || event.author.pubkey,
+      pubkey: get().pubkey || event.author.pubkey,
       actions: [
         {
           action,
@@ -49,11 +53,11 @@ export async function publishActionWithChain(params: {
           createdAt: event.created_at ?? null,
         },
       ],
-      checkpoint: pseudoCheckpoint,
+      checkpoint: baselineCheckpoint,
       rejectedEventIds: new Set(),
     });
 
-    // 2. update Zustand
+    // Update Zustand
     set({
       airline: replayed.airline,
       fleet: replayed.fleet,
@@ -62,15 +66,20 @@ export async function publishActionWithChain(params: {
       actionChainHash: replayed.actionChainHash,
     });
 
-    // 3. update IndexedDB
+    // Update IndexedDB — transactional replace by owner
     if (replayed.airline) {
-      await db.airline.put(replayed.airline);
+      const airline = replayed.airline;
+      const ownerPubkey = airline.ceoPubkey;
+      await db.transaction("rw", db.airline, db.fleet, db.routes, async () => {
+        await db.airline.put(airline);
+        await db.fleet.where({ ownerPubkey }).delete();
+        await db.routes.where({ airlinePubkey: ownerPubkey }).delete();
+        if (replayed.fleet.length > 0) await db.fleet.bulkPut(replayed.fleet);
+        if (replayed.routes.length > 0) await db.routes.bulkPut(replayed.routes);
+      });
     }
-    // Simple naive update for the active arrays
-    await Promise.all(replayed.fleet.map((f) => db.fleet.put(f)));
-    await Promise.all(replayed.routes.map((r) => db.routes.put(r)));
 
-    // 4. trigger NIP-33 snapshot (background)
+    // Trigger NIP-33 snapshot (background)
     publishCurrentStateSnapshot(get()).catch(console.error);
   });
 
