@@ -10,7 +10,8 @@ ACARS is a real-world aviation simulation where players build and operate virtua
 
 - **Deterministic Game Engine** — O(1) macro-economic formulas (Gravity Model, QSI) for route demand and market share
 - **Fixed-Point Arithmetic** — No floating-point drift; all financial calculations are cross-platform deterministic
-- **Nostr Integration** — Decentralized identity via NIP-07, airline state stored as signed events
+- **Nostr Integration** — Decentralized identity via NIP-07, airline state stored as signed events with **NIP-33 Snapshot Rollups** for instant cross-device sync and state recovery.
+- **Relay-Backed Snapshots** — Game state is compressed and attested via NIP-33 to avoid replaying thousands of historical events on every load.
 - **Real Airport Data** — 6,072 airports from OpenFlights with population, GDP, and seasonal tags
 - **Interactive Globe** — MapLibre GL map with virtualized airport selection
 - **Fleet Management** — Purchase (BUY/LEASE), aircraft depreciation, and structural condition tracking
@@ -199,19 +200,20 @@ Every feature must answer: _"If 10,000 players fire this event simultaneously, w
 
 ## Documentation
 
-| Document                                                            | Purpose                                           |
-| ------------------------------------------------------------------- | ------------------------------------------------- |
-| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)                   | Gameplay vision, engagement loops, sensory design |
-| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md)                         | Gravity model, QSI, fixed-point costs             |
-| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)                       | IPOs, M&A, bankruptcy, stock mechanics            |
-| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md)                 | Aircraft depreciation, maintenance, commonality   |
-| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md)                 | Bitcoin/Lightning revenue streams                 |
-| [SCALABILITY.md](docs/SCALABILITY.md)                               | Map and rendering scaling strategy                |
-| [UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md)                       | Frontend stack and cross-platform strategy        |
-| [TYCOON_UI_ARCHITECTURE.md](docs/TYCOON_UI_ARCHITECTURE.md)         | Enterprise-grade UI layout and data density       |
-| [AGENT_DEVELOPMENT_PARADIGM.md](docs/AGENT_DEVELOPMENT_PARADIGM.md) | Multi-agent coordination and safety contracts     |
-| [RESEARCH_SOURCES.md](docs/RESEARCH_SOURCES.md)                     | Bibliography and reference sources                |
-| [ROADMAP.md](docs/ROADMAP.md)                                       | Development phases and milestones                 |
+| Document                                                                | Purpose                                           |
+| ----------------------------------------------------------------------- | ------------------------------------------------- |
+| [DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)                       | Gameplay vision, engagement loops, sensory design |
+| [ECONOMIC_MODEL.md](docs/ECONOMIC_MODEL.md)                             | Gravity model, QSI, fixed-point costs             |
+| [CORPORATE_MODEL.md](docs/CORPORATE_MODEL.md)                           | IPOs, M&A, bankruptcy, stock mechanics            |
+| [FLEET_MANAGER_PLAN.md](docs/FLEET_MANAGER_PLAN.md)                     | Aircraft depreciation, maintenance, commonality   |
+| [MONETIZATION_MODEL.md](docs/MONETIZATION_MODEL.md)                     | Bitcoin/Lightning revenue streams                 |
+| [SCALABILITY.md](docs/SCALABILITY.md)                                   | Map and rendering scaling strategy                |
+| [UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md)                           | Frontend stack and cross-platform strategy        |
+| [TYCOON_UI_ARCHITECTURE.md](docs/TYCOON_UI_ARCHITECTURE.md)             | Enterprise-grade UI layout and data density       |
+| [AGENT_DEVELOPMENT_PARADIGM.md](docs/AGENT_DEVELOPMENT_PARADIGM.md)     | Multi-agent coordination and safety contracts     |
+| [RESEARCH_SOURCES.md](docs/RESEARCH_SOURCES.md)                         | Bibliography and reference sources                |
+| [SNAPSHOT_ROLLUP_ARCHITECTURE.md](docs/SNAPSHOT_ROLLUP_ARCHITECTURE.md) | NIP-33 attested snapshot rollup system            |
+| [ROADMAP.md](docs/ROADMAP.md)                                           | Development phases and milestones                 |
 
 ## Community & Support
 

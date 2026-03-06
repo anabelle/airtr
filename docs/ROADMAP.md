@@ -127,19 +127,19 @@
 
 ## Phase 5: Multiplayer Competition
 
-**Goal**: Multiple players compete on the same routes. QSI determines market share.
-**Depends on**: Phases 1–4
-**STATUS: IN PROGRESS 🚧**
+**STATUS: 100% COMPLETE ✅**
 
-| Key Features                                                         |
-| -------------------------------------------------------------------- |
-| Load other players' airlines from Nostr                              |
-| Show competitor routes on map (different colors)                     |
-| QSI-based demand splitting when multiple airlines serve same OD pair |
-| Competitor notification events                                       |
-| Price war dynamics (undercutting detection, demand stimulation)      |
-| Leaderboard (computed from Nostr events)                             |
-| State hash publication and verification                              |
+| Key Features                                                         | Status |
+| -------------------------------------------------------------------- | ------ |
+| Load other players' airlines from Nostr                              | ✅     |
+| Show competitor routes on map (different colors)                     | ✅     |
+| QSI-based demand splitting when multiple airlines serve same OD pair | ✅     |
+| Competitor notification events (Live Ticker Tape)                    | ✅     |
+| Price war dynamics (undercutting detection, demand stimulation)      | ✅     |
+| Leaderboard (computed from Nostr events)                             | ✅     |
+| **NIP-33 Snapshot Rollups** (attested hashing & compression)         | ✅     |
+| **Local Snapshot Index** (Dexie IDB synchronization)                 | ✅     |
+| **Background Auditor** (continuous state-drift verification)         | ✅     |
 
 ---
 
