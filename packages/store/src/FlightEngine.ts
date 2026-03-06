@@ -7,6 +7,7 @@ import {
   calculateHubLandingFee,
   calculatePriceElasticity,
   calculateSupplyPressure,
+  canonicalRouteKey,
   computeRouteFrequency,
   countLandingsBetween,
   detectPriceWar,
@@ -233,8 +234,17 @@ export function processFlightEngine(
         ac.flight?.fareFirst !== undefined
       );
       if (route || isFerry || isOrphan) {
-        const originIata = route ? route.originIata : ac.flight?.originIata;
-        const destinationIata = route ? route.destinationIata : ac.flight?.destinationIata;
+        const isInboundLeg = ac.flight?.direction === "inbound";
+        const originIata = route
+          ? isInboundLeg
+            ? route.destinationIata
+            : route.originIata
+          : ac.flight?.originIata;
+        const destinationIata = route
+          ? isInboundLeg
+            ? route.originIata
+            : route.destinationIata
+          : ac.flight?.destinationIata;
         const origin = originIata ? (airportMap.get(originIata) ?? null) : null;
         const destination = destinationIata ? (airportMap.get(destinationIata) ?? null) : null;
 
@@ -303,7 +313,8 @@ export function processFlightEngine(
 
         if (route || (isOrphan && hasFareSnapshot)) {
           // --- NEW MP ALLOCATION LOGIC ---
-          const routeKey = originIata && destinationIata ? `${originIata}-${destinationIata}` : "";
+          const routeKey =
+            originIata && destinationIata ? canonicalRouteKey(originIata, destinationIata) : "";
           const competitorOffers = route && routeKey ? globalRouteRegistry.get(routeKey) || [] : [];
 
           // Frequency for our offer: how many planes we (the player) have on this route?

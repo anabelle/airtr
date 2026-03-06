@@ -73,6 +73,8 @@ export { createLogger } from "./logger.js";
 export { createPRNG, createTickPRNG } from "./prng.js";
 // QSI
 export { allocatePassengers, calculateShares } from "./qsi.js";
+// Routes
+export { canonicalRouteKey } from "./route.js";
 // Season
 export { getSeason, getSeasonalMultiplier } from "./season.js";
 export type {
