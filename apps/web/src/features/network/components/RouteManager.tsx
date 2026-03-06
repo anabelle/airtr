@@ -28,7 +28,6 @@ import { airports as ALL_AIRPORTS, HUB_CLASSIFICATIONS } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import {
   AlertCircle,
   ArrowDown,
@@ -43,6 +42,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
 
 const toneDotClass = {
@@ -110,7 +110,7 @@ export function RouteManager() {
     competitors,
   } = useAirlineStore();
   const confirm = useConfirm();
-  const { homeAirport, tick } = useEngineStore();
+  const { homeAirport, tick, setActiveHubIata } = useEngineStore();
   const { tab } = useSearch({ from: "/network" });
   const navigate = useNavigate({ from: "/network" });
   const setTab = (newTab: "active" | "opportunities") => {
@@ -122,7 +122,11 @@ export function RouteManager() {
     destinationIata: string;
     distanceKm: number;
   } | null>(null);
-  const [fareInputs, setFareInputs] = useState<{ e: string; b: string; f: string }>({
+  const [fareInputs, setFareInputs] = useState<{
+    e: string;
+    b: string;
+    f: string;
+  }>({
     e: "",
     b: "",
     f: "",
@@ -147,6 +151,12 @@ export function RouteManager() {
       setPlanningOriginIata(airline.hubs[0]);
     }
   }, [airline?.hubs, planningOriginIata]);
+
+  useEffect(() => {
+    if (planningOriginIata) {
+      setActiveHubIata(planningOriginIata, "route planner");
+    }
+  }, [planningOriginIata, setActiveHubIata]);
 
   const planningOriginAirport = useMemo(() => {
     if (planningOriginIata) {
@@ -250,7 +260,14 @@ export function RouteManager() {
           ),
           fpScale(fares.first, demand.first / 7),
         );
-        return { origin, destination: dest, distance, demand, estimatedDailyRevenue, season };
+        return {
+          origin,
+          destination: dest,
+          distance,
+          demand,
+          estimatedDailyRevenue,
+          season,
+        };
       });
     },
     [tick],
@@ -609,7 +626,10 @@ export function RouteManager() {
                             ""
                           }
                           onChange={(e) =>
-                            setRebaseTargets((prev) => ({ ...prev, [route.id]: e.target.value }))
+                            setRebaseTargets((prev) => ({
+                              ...prev,
+                              [route.id]: e.target.value,
+                            }))
                           }
                           className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-bold text-foreground"
                         >
@@ -634,7 +654,9 @@ export function RouteManager() {
                             } catch (err) {
                               const message =
                                 err instanceof Error ? err.message : "Route rebase failed";
-                              toast.error("Route rebase failed", { description: message });
+                              toast.error("Route rebase failed", {
+                                description: message,
+                              });
                             }
                           }}
                           className="h-9 rounded-lg bg-amber-500 px-3 text-xs font-bold text-amber-950 hover:bg-amber-400 transition"
@@ -661,7 +683,9 @@ export function RouteManager() {
                           await closeRoute(route.id);
                         } catch (err) {
                           const message = err instanceof Error ? err.message : "Route close failed";
-                          toast.error("Route close failed", { description: message });
+                          toast.error("Route close failed", {
+                            description: message,
+                          });
                         }
                       }}
                       className="h-9 rounded-lg border border-amber-500/30 bg-transparent px-3 text-xs font-bold text-amber-100 hover:bg-amber-500/20 transition"
@@ -810,7 +834,8 @@ export function RouteManager() {
                               </span>
                               <span className="text-xs text-muted-foreground font-semibold mt-1">
                                 {destinationAirport?.city}, {destinationAirport?.country} •{" "}
-                                {Math.round(route.distanceKm).toLocaleString()}km
+                                {Math.round(route.distanceKm).toLocaleString()}
+                                km
                               </span>
                             </div>
 
@@ -901,7 +926,9 @@ export function RouteManager() {
                                       } catch (err) {
                                         const message =
                                           err instanceof Error ? err.message : "Route close failed";
-                                        toast.error("Route close failed", { description: message });
+                                        toast.error("Route close failed", {
+                                          description: message,
+                                        });
                                       }
                                     }}
                                     className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
@@ -963,15 +990,17 @@ export function RouteManager() {
                               <div className="mt-1 h-2 w-full rounded-full bg-background/70 overflow-hidden">
                                 <div
                                   className={`h-full ${lfFill} transition-all duration-500`}
-                                  style={{ width: `${Math.min(100, loadFactor)}%` }}
+                                  style={{
+                                    width: `${Math.min(100, loadFactor)}%`,
+                                  }}
                                 />
                               </div>
                               <div className="mt-2 flex justify-between text-[9px] text-muted-foreground">
                                 <span>Target {Math.round(NATURAL_LF_CEILING * 100)}%</span>
                                 <span>
                                   {supplyRatio > 1.05
-                                    ? `Oversupply ${(supplyRatio).toFixed(2)}x`
-                                    : `Coverage ${(supplyRatio).toFixed(2)}x`}
+                                    ? `Oversupply ${supplyRatio.toFixed(2)}x`
+                                    : `Coverage ${supplyRatio.toFixed(2)}x`}
                                 </span>
                               </div>
                               {showPriceEffect && (
@@ -1373,7 +1402,9 @@ export function RouteManager() {
                         />
                         <div
                           className="h-full bg-yellow-500"
-                          style={{ width: `${(market.demand.first / (totalDemand || 1)) * 100}%` }}
+                          style={{
+                            width: `${(market.demand.first / (totalDemand || 1)) * 100}%`,
+                          }}
                           title="First"
                         />
                       </div>

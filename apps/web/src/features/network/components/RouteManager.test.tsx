@@ -73,7 +73,11 @@ describe("RouteManager", () => {
       fleet: [],
       isViewingOther: false,
     });
-    mockUseEngineStore.mockReturnValue({ homeAirport: null, tick: 0 });
+    mockUseEngineStore.mockReturnValue({
+      homeAirport: null,
+      tick: 0,
+      setActiveHubIata: vi.fn(),
+    });
     const { container } = render(<RouteManager />);
     expect(container.firstChild).toBeNull();
   });
@@ -109,6 +113,7 @@ describe("RouteManager", () => {
         longitude: 0,
       },
       tick: 0,
+      setActiveHubIata: vi.fn(),
     });
 
     render(<RouteManager />);

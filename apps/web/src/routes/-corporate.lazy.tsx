@@ -901,6 +901,7 @@ export default function CorporateDashboard() {
   const { airline, modifyHubs, dissolveAirline, initializeIdentity, isLoading } = useAirlineStore();
   const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
+  const setActiveHubIata = useEngineStore((s) => s.setActiveHubIata);
 
   const [pendingAction, setPendingAction] = useState<{
     type: "add" | "switch" | "remove";
@@ -984,6 +985,7 @@ export default function CorporateDashboard() {
   const handleSwitchActiveHub = (iata: string) => {
     setActionError(null);
     setPendingAction({ type: "switch", iata });
+    setActiveHubIata(iata, "corporate hub");
   };
 
   const handleCloseHub = (iata: string) => {

@@ -1,4 +1,4 @@
-import type { AirlineEntity, AircraftInstance, Route } from "@acars/core";
+import type { AircraftInstance, AirlineEntity, Route } from "@acars/core";
 
 export const getAircraftBaseHub = (
   aircraft: AircraftInstance,
@@ -9,5 +9,9 @@ export const getAircraftBaseHub = (
     ? routes.find((route) => route.id === aircraft.assignedRouteId)
     : null;
 
-  return assignedRoute?.originIata ?? airline?.hubs[0] ?? aircraft.baseAirportIata;
+  const baseIata = aircraft.baseAirportIata?.trim();
+
+  const resolvedBase = baseIata && baseIata.length > 0 ? baseIata : (airline?.hubs[0] ?? "");
+
+  return assignedRoute?.originIata ?? resolvedBase;
 };

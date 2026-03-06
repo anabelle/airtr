@@ -71,7 +71,7 @@ describe("getAircraftBaseHub", () => {
     expect(getAircraftBaseHub(aircraft, routes, airline)).toBe("PTY");
   });
 
-  it("falls back to airline primary hub when unassigned", () => {
+  it("falls back to aircraft location when unassigned", () => {
     const aircraft = makeAircraft({
       assignedRouteId: null,
       baseAirportIata: "BOG",
@@ -79,16 +79,17 @@ describe("getAircraftBaseHub", () => {
     const routes: Route[] = [];
     const airline = makeAirline({ hubs: ["PTY"] });
 
-    expect(getAircraftBaseHub(aircraft, routes, airline)).toBe("PTY");
+    expect(getAircraftBaseHub(aircraft, routes, airline)).toBe("BOG");
   });
 
-  it("falls back to aircraft location when airline is missing", () => {
+  it("falls back to airline primary hub when location is blank", () => {
     const aircraft = makeAircraft({
       assignedRouteId: null,
-      baseAirportIata: "BOG",
+      baseAirportIata: "",
     });
     const routes: Route[] = [];
+    const airline = makeAirline({ hubs: ["PTY"] });
 
-    expect(getAircraftBaseHub(aircraft, routes, null)).toBe("BOG");
+    expect(getAircraftBaseHub(aircraft, routes, airline)).toBe("PTY");
   });
 });
