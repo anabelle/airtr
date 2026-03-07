@@ -60,7 +60,7 @@ describe("map interactions", () => {
       aircraftId: "ac-456",
     });
     expect(queryRenderedFeatures).toHaveBeenNthCalledWith(2, [10, 20], {
-      layers: [...FLIGHT_INTERACTION_LAYERS],
+      layers: FLIGHT_INTERACTION_LAYERS,
     });
   });
 
@@ -69,5 +69,17 @@ describe("map interactions", () => {
 
     expect(resolveMapSelection({ x: 0, y: 0 }, queryRenderedFeatures)).toBeNull();
     expect(queryRenderedFeatures).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores malformed airport properties and falls back to aircraft selection", () => {
+    const queryRenderedFeatures = vi
+      .fn()
+      .mockReturnValueOnce([{ properties: { iata: "JFK" } }])
+      .mockReturnValueOnce([{ properties: { id: "ac-789" } }]);
+
+    expect(resolveMapSelection({ x: 4, y: 8 }, queryRenderedFeatures)).toEqual({
+      type: "aircraft",
+      aircraftId: "ac-789",
+    });
   });
 });

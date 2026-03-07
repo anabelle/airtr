@@ -438,6 +438,8 @@ export function Globe({
 
     map.on("moveend", saveView);
     map.on("zoomend", saveView);
+    let cursorFrame: number | null = null;
+    let pendingCursorPoint: { x: number; y: number } | null = null;
 
     map.on("load", () => {
       setMapLoaded(true);
@@ -1088,12 +1090,24 @@ export function Globe({
       };
       addLightLayers("global-flights", "global-flight", 0.6);
       addLightLayers("flights", "flight", 0.9);
+      const queryRenderedFeatures = map.queryRenderedFeatures.bind(map);
+      const setCursor = (cursor: string) => {
+        map.getCanvas().style.cursor = cursor;
+      };
+      const updateCursor = () => {
+        cursorFrame = null;
+
+        if (!pendingCursorPoint) return;
+
+        const selection = resolveMapSelection(pendingCursorPoint, queryRenderedFeatures);
+        setCursor(selection ? "pointer" : "");
+      };
 
       map.on("click", (e) => {
-        const selection = resolveMapSelection(e.point, map.queryRenderedFeatures.bind(map));
+        const selection = resolveMapSelection(e.point, queryRenderedFeatures);
 
         if (selection?.type === "airport") {
-          latestOnAirportSelect.current(selection.airport);
+          latestOnAirportSelect.current?.(selection.airport);
           return;
         }
 
@@ -1106,17 +1120,26 @@ export function Globe({
       });
 
       map.on("mousemove", (e) => {
-        const selection = resolveMapSelection(e.point, map.queryRenderedFeatures.bind(map));
-        map.getCanvas().style.cursor = selection ? "pointer" : "";
+        pendingCursorPoint = e.point;
+        if (cursorFrame !== null) return;
+        cursorFrame = requestAnimationFrame(updateCursor);
       });
 
       map.on("mouseleave", () => {
-        map.getCanvas().style.cursor = "";
+        pendingCursorPoint = null;
+        if (cursorFrame !== null) {
+          cancelAnimationFrame(cursorFrame);
+          cursorFrame = null;
+        }
+        setCursor("");
       });
     });
 
     mapRef.current = map;
     return () => {
+      if (cursorFrame !== null) {
+        cancelAnimationFrame(cursorFrame);
+      }
       cleanupTimer.current = setTimeout(() => {
         mapRef.current?.remove();
         mapRef.current = null;

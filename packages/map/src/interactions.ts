@@ -14,7 +14,7 @@ export const FLIGHT_INTERACTION_LAYERS = [
   "global-flight-light-port",
   "global-flight-light-stbd",
   "global-flight-light-strobe",
-] as const;
+];
 
 export interface ScreenPoint {
   x: number;
@@ -41,6 +41,28 @@ export function buildHitbox(
   ];
 }
 
+function isAirportProperties(value: unknown): value is Airport {
+  if (!value || typeof value !== "object") return false;
+
+  const airport = value as Record<string, unknown>;
+
+  return (
+    typeof airport.id === "string" &&
+    typeof airport.iata === "string" &&
+    typeof airport.icao === "string" &&
+    typeof airport.name === "string" &&
+    typeof airport.city === "string" &&
+    typeof airport.country === "string" &&
+    typeof airport.latitude === "number" &&
+    typeof airport.longitude === "number" &&
+    typeof airport.population === "number" &&
+    typeof airport.gdpPerCapita === "number" &&
+    typeof airport.altitude === "number" &&
+    typeof airport.timezone === "string" &&
+    Array.isArray(airport.tags)
+  );
+}
+
 export function resolveMapSelection(
   point: ScreenPoint,
   queryRenderedFeatures: FeatureQuery,
@@ -48,16 +70,17 @@ export function resolveMapSelection(
   const airportFeature = queryRenderedFeatures(buildHitbox(point, AIRPORT_INTERACTION_RADIUS_PX), {
     layers: ["airports-layer"],
   })[0];
+  const airportProperties = airportFeature?.properties;
 
-  if (airportFeature?.properties) {
+  if (isAirportProperties(airportProperties)) {
     return {
       type: "airport",
-      airport: airportFeature.properties as unknown as Airport,
+      airport: airportProperties,
     };
   }
 
   const flightFeature = queryRenderedFeatures([point.x, point.y], {
-    layers: [...FLIGHT_INTERACTION_LAYERS],
+    layers: FLIGHT_INTERACTION_LAYERS,
   })[0];
   const aircraftId = flightFeature?.properties?.id;
 
