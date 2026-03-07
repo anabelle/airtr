@@ -9,8 +9,8 @@ import {
 describe("map interactions", () => {
   it("builds a square airport hitbox around the pointer", () => {
     expect(buildHitbox({ x: 50, y: 75 }, AIRPORT_INTERACTION_RADIUS_PX)).toEqual([
-      [34, 59],
-      [66, 91],
+      [26, 51],
+      [74, 99],
     ]);
   });
 
@@ -80,6 +80,33 @@ describe("map interactions", () => {
     expect(resolveMapSelection({ x: 4, y: 8 }, queryRenderedFeatures)).toEqual({
       type: "aircraft",
       aircraftId: "ac-789",
+    });
+  });
+
+  it("selects airports when tags are serialized as a string (MapLibre queryRenderedFeatures behavior)", () => {
+    const queryRenderedFeatures = vi.fn().mockReturnValueOnce([
+      {
+        properties: {
+          iata: "LAX",
+          icao: "KLAX",
+          name: "Los Angeles International",
+          city: "Los Angeles",
+          country: "US",
+          latitude: 33.9425,
+          longitude: -118.408,
+          population: 3_979_576,
+          gdpPerCapita: 65_000,
+          altitude: 126,
+          timezone: "America/Los_Angeles",
+          tags: '["business"]',
+          id: "3484",
+        },
+      },
+    ]);
+
+    expect(resolveMapSelection({ x: 50, y: 50 }, queryRenderedFeatures)).toEqual({
+      type: "airport",
+      airport: expect.objectContaining({ iata: "LAX" }),
     });
   });
 });

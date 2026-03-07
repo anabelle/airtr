@@ -1,7 +1,7 @@
 import type { Airport } from "@acars/core";
 import type { MapGeoJSONFeature, PointLike } from "maplibre-gl";
 
-export const AIRPORT_INTERACTION_RADIUS_PX = 16;
+export const AIRPORT_INTERACTION_RADIUS_PX = 24;
 
 export const FLIGHT_INTERACTION_LAYERS = [
   "flights-layer",
@@ -59,7 +59,7 @@ function isAirportProperties(value: unknown): value is Airport {
     typeof airport.gdpPerCapita === "number" &&
     typeof airport.altitude === "number" &&
     typeof airport.timezone === "string" &&
-    Array.isArray(airport.tags)
+    airport.tags !== undefined
   );
 }
 
