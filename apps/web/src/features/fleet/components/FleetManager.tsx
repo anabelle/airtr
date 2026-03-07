@@ -14,6 +14,7 @@ import {
 import { getAircraftById } from "@acars/data";
 import { FAMILY_ICONS } from "@acars/map";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Plane,
   PlaneLanding,
@@ -28,12 +29,12 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import { navigateToAircraft, navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
-import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNavigation";
+import { cn } from "@/shared/lib/utils";
 import { getAircraftBaseHub } from "../utils/aircraftBaseHub";
 import { getAircraftTimer } from "../utils/aircraftTimers";
 import { AircraftDealer } from "./AircraftDealer";
@@ -244,35 +245,37 @@ export function FleetManager() {
   }
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between rounded-2xl bg-card border border-border/40 p-4 shadow-sm backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <div className="relative flex items-center flex-1 sm:w-[300px]">
+    <div className="flex h-full min-h-0 flex-col gap-3 sm:gap-4">
+      <div className="shrink-0 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex items-center flex-1 sm:max-w-[320px]">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
             <input
+              type="search"
+              name="fleetSearch"
               className="h-10 w-full rounded-xl bg-background border border-border/50 pl-10 pr-4 text-sm transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground outline-none"
-              placeholder="Search active fleet..."
+              placeholder="Search active fleet…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              autoComplete="off"
+              aria-label="Search active fleet"
             />
           </div>
-        </div>
 
-        {!isViewingOther && (
-          <button
-            type="button"
-            onClick={() => setView("dealer")}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold shadow-lg shadow-primary/25 hover:scale-[1.02] transition-all active:scale-95"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Purchase Aircraft
-          </button>
-        )}
+          {!isViewingOther && (
+            <button
+              type="button"
+              onClick={() => setView("dealer")}
+              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-95 sm:px-6"
+            >
+              <PlusCircle className="h-4 w-4" aria-hidden="true" />
+              Purchase Aircraft
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Results */}
-      <div ref={fleetListRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
+      <div ref={fleetListRef} className="custom-scrollbar flex-1 overflow-y-auto pb-8">
         {fleet.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/50 rounded-2xl bg-card/10">
             <Plane className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
@@ -336,10 +339,10 @@ export function FleetManager() {
                       return (
                         <div
                           key={ac.id}
-                          className="group relative flex flex-col rounded-3xl border border-border/50 bg-card overflow-hidden shadow-sm hover:shadow-xl hover:border-primary/30 transition-all duration-300"
+                          className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/50 bg-card shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-xl"
                         >
-                          <div className="relative h-40 bg-zinc-900/40 p-6 perspective-1000 overflow-hidden">
-                            <div className="absolute top-4 right-4 z-10 flex gap-2 items-center">
+                          <div className="relative h-36 overflow-hidden bg-zinc-900/40 p-4 perspective-1000 sm:h-40 sm:p-6">
+                            <div className="absolute right-3 top-3 z-10 flex items-center gap-2 sm:right-4 sm:top-4">
                               {ac.listingPrice && (
                                 <span className="inline-flex items-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
                                   For Sale: {fpFormat(ac.listingPrice, 0)}
@@ -406,22 +409,22 @@ export function FleetManager() {
                               <button
                                 type="button"
                                 onClick={() => navigateToAircraft(ac.id)}
-                                className="text-left hover:opacity-80 transition-opacity cursor-pointer"
+                                className="cursor-pointer text-left transition-opacity hover:opacity-80"
                               >
-                                <h3 className="text-xl font-black tracking-tighter text-foreground group-hover:text-primary transition-colors">
+                                <h3 className="text-lg font-black tracking-tight text-foreground transition-colors group-hover:text-primary sm:text-xl">
                                   {ac.name}
                                 </h3>
                               </button>
                             </div>
                           </div>
 
-                          <div className="p-4 sm:p-6 pt-3 sm:pt-4 flex flex-col space-y-4">
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                          <div className="flex flex-col space-y-4 p-4 pt-3 sm:p-6 sm:pt-4">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-6">
                               <div>
                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">
                                   Registry ID
                                 </p>
-                                <p className="font-mono text-xs text-foreground font-bold">
+                                <p className="font-mono text-[11px] font-bold text-foreground sm:text-xs break-all">
                                   {ac.id.toUpperCase()}
                                 </p>
                               </div>
@@ -429,7 +432,7 @@ export function FleetManager() {
                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">
                                   Current Location
                                 </p>
-                                <p className="font-mono text-xs text-foreground font-bold">
+                                <p className="font-mono text-[11px] font-bold text-foreground sm:text-xs">
                                   {ac.status === "enroute" && ac.flight ? (
                                     <>
                                       Enroute:{" "}
@@ -480,7 +483,7 @@ export function FleetManager() {
                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">
                                   Base Hub
                                 </p>
-                                <p className="font-mono text-xs text-accent font-bold">
+                                <p className="font-mono text-[11px] font-bold text-accent sm:text-xs">
                                   <button
                                     type="button"
                                     onClick={() => navigateToAirport(baseHub)}
@@ -495,10 +498,12 @@ export function FleetManager() {
                                   Condition
                                 </p>
                                 <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-1.5 rounded-full bg-accent/20 overflow-hidden">
+                                  <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-accent/20">
                                     <div
                                       className={`h-full transition-all duration-500 ${ac.condition > 0.8 ? "bg-primary" : ac.condition > 0.5 ? "bg-yellow-500" : "bg-red-500"}`}
-                                      style={{ width: `${Math.round(ac.condition * 100)}%` }}
+                                      style={{
+                                        width: `${Math.round(ac.condition * 100)}%`,
+                                      }}
                                     />
                                   </div>
                                   <span className="font-mono text-[10px] font-bold">
@@ -510,7 +515,7 @@ export function FleetManager() {
                                 <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-0.5">
                                   Flight Hours
                                 </p>
-                                <p className="font-mono text-xs">
+                                <p className="font-mono text-[11px] sm:text-xs">
                                   {ac.flightHoursTotal.toLocaleString()}h
                                 </p>
                               </div>
@@ -525,7 +530,7 @@ export function FleetManager() {
                                     Grounding at 20%
                                   </span>
                                 </p>
-                                <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/30">
                                   <div
                                     className={`h-full transition-all duration-500 ${ac.condition < 0.3 ? "bg-red-500" : "bg-primary"}`}
                                     style={{
@@ -593,7 +598,7 @@ export function FleetManager() {
                               const lf = lastLanding.details?.loadFactor;
 
                               return (
-                                <div className="bg-muted/20 rounded-2xl p-4 border border-border/40">
+                                <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
                                   <div className="flex justify-between items-center mb-3">
                                     <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
                                       Last Flight Outcome
@@ -606,7 +611,7 @@ export function FleetManager() {
                                   </div>
 
                                   {/* Route & Profit */}
-                                  <div className="flex justify-between items-end mb-3">
+                                  <div className="mb-3 flex items-end justify-between gap-3">
                                     <div className="flex flex-col">
                                       <span className="text-[10px] text-muted-foreground uppercase font-semibold">
                                         Route
@@ -631,7 +636,7 @@ export function FleetManager() {
                                         </button>
                                       </span>
                                     </div>
-                                    <div className="flex flex-col text-right">
+                                    <div className="min-w-0 flex flex-col text-right">
                                       <span className="text-[10px] text-muted-foreground uppercase font-semibold">
                                         {isLeased ? "True Profit" : "Net Profit"}
                                       </span>
@@ -677,12 +682,14 @@ export function FleetManager() {
                                                 ? "bg-yellow-500"
                                                 : "bg-red-500"
                                           }`}
-                                          style={{ width: `${Math.round(lf * 100)}%` }}
+                                          style={{
+                                            width: `${Math.round(lf * 100)}%`,
+                                          }}
                                         />
                                       </div>
 
                                       {/* Class Breakdown */}
-                                      <div className="flex items-center gap-3 text-[10px] font-mono">
+                                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-mono">
                                         <span className="text-muted-foreground">
                                           <span className="text-foreground font-bold">
                                             {pax.total}
@@ -734,6 +741,7 @@ export function FleetManager() {
                                   </p>
                                   <div className="flex gap-2">
                                     <select
+                                      aria-label={`Assign route for ${ac.name}`}
                                       className="flex-1 bg-background border border-border/50 rounded-xl px-3 py-2 text-xs font-bold outline-none ring-primary/20 focus:ring-2 focus:border-primary/50 transition-all appearance-none cursor-pointer"
                                       value={ac.assignedRouteId || ""}
                                       disabled={isAssignmentLocked}
@@ -837,11 +845,14 @@ export function FleetManager() {
                                       } catch (err) {
                                         const message =
                                           err instanceof Error ? err.message : "Unknown error";
-                                        toast.error("Scrap failed", { description: message });
+                                        toast.error("Scrap failed", {
+                                          description: message,
+                                        });
                                       }
                                     });
                                   }}
-                                  className={`flex items-center justify-center p-2 rounded-lg border transition-all ${isScrapLocked ? "bg-muted/20 text-muted-foreground border-border/50 cursor-not-allowed" : "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white"}`}
+                                  aria-label={`Scrap ${ac.name}`}
+                                  className={`flex items-center justify-center rounded-lg border p-2 transition-all ${isScrapLocked ? "cursor-not-allowed border-border/50 bg-muted/20 text-muted-foreground" : "border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white"}`}
                                   title={
                                     isScrapLocked
                                       ? "Scrap only available while idle."
@@ -858,6 +869,7 @@ export function FleetManager() {
                                   airline.hubs.length > 0 && (
                                     <div className="flex-1 flex items-center gap-2">
                                       <select
+                                        aria-label={`Select ferry hub for ${ac.name}`}
                                         value={ferryTargets[ac.id] ?? ""}
                                         onChange={(e) =>
                                           setFerryTargets((prev) => ({
@@ -895,11 +907,13 @@ export function FleetManager() {
                                             } catch (err) {
                                               const message =
                                                 err instanceof Error ? err.message : "Ferry failed";
-                                              toast.error("Ferry failed", { description: message });
+                                              toast.error("Ferry failed", {
+                                                description: message,
+                                              });
                                             }
                                           });
                                         }}
-                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-sky-500/20 border border-sky-500/30 text-sky-300 hover:bg-sky-500 hover:text-white transition-all overflow-hidden"
+                                        className="flex-1 flex items-center justify-center gap-2 overflow-hidden rounded-lg border border-sky-500/30 bg-sky-500/20 p-2 text-sky-300 transition-all hover:bg-sky-500 hover:text-white"
                                       >
                                         <Plane className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase truncate">
@@ -925,7 +939,7 @@ export function FleetManager() {
                                             });
                                           }
                                         }}
-                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all overflow-hidden"
+                                        className="flex-1 flex items-center justify-center gap-2 overflow-hidden rounded-lg border border-emerald-500/30 bg-emerald-500/20 p-2 text-emerald-400 transition-all hover:bg-emerald-500 hover:text-white"
                                       >
                                         <XCircle className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase truncate">
@@ -954,7 +968,7 @@ export function FleetManager() {
                                           setListingPrice(fpToNumber(marketVal).toString());
                                           setListingError(null);
                                         }}
-                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400 shadow-sm transition-all hover:bg-emerald-500 hover:text-white"
                                       >
                                         <Tag className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase">
@@ -988,7 +1002,7 @@ export function FleetManager() {
                                             }
                                           });
                                         }}
-                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500 hover:text-white transition-all"
+                                        className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-orange-500/20 bg-orange-500/10 p-2 text-orange-400 transition-all hover:bg-orange-500 hover:text-white"
                                       >
                                         <PlusCircle className="h-4 w-4" />
                                         <span className="text-[10px] font-bold uppercase">
@@ -1000,9 +1014,12 @@ export function FleetManager() {
 
                                 <button
                                   type="button"
-                                  className="p-2 rounded-lg bg-background border border-border/50 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all"
+                                  aria-label={`Aircraft settings for ${ac.name}`}
+                                  className={cn(
+                                    "rounded-lg border border-border/50 bg-background p-2 text-muted-foreground transition-all hover:bg-accent/40 hover:text-foreground",
+                                  )}
                                 >
-                                  <Settings className="h-4 w-4" />
+                                  <Settings className="h-4 w-4" aria-hidden="true" />
                                 </button>
                               </div>
                             </div>
@@ -1018,15 +1035,15 @@ export function FleetManager() {
         )}
       </div>
       {listingTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => !isListing && setListingTarget(null)}
             aria-label="Close listing modal"
           />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
-            <div className="flex items-start justify-between border-b border-border/50 px-6 py-5">
+          <div className="relative z-10 flex w-full max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[88vh] sm:max-w-lg sm:rounded-2xl">
+            <div className="flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                   Marketplace Listing
@@ -1042,7 +1059,7 @@ export function FleetManager() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 space-y-4 sm:px-6 sm:py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-xl border border-border/50 bg-background/60 p-3">
                   <p className="text-[10px] uppercase text-muted-foreground font-semibold">
@@ -1100,7 +1117,7 @@ export function FleetManager() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-border/50 px-6 py-4">
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-border/50 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-4">
               <button
                 type="button"
                 onClick={() => setListingTarget(null)}
@@ -1115,7 +1132,7 @@ export function FleetManager() {
                 disabled={isListing}
                 className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
               >
-                {isListing ? "Listing..." : "List aircraft"}
+                {isListing ? "Listing…" : "List aircraft"}
               </button>
             </div>
           </div>

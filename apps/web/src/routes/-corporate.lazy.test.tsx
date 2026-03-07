@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/shared/components/layout/PanelLayout", () => {
   return {
     PanelLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    PanelHeader: ({ title }: { title: string }) => <div>{title}</div>,
+    PanelBody: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   };
 });
 

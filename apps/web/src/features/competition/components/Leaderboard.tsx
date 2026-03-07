@@ -13,6 +13,7 @@ import {
   sortLeaderboardRows,
 } from "@/features/competition/leaderboardMetrics";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
+import { cn } from "@/shared/lib/utils";
 
 const metricMeta: Record<
   LeaderboardMetric,
@@ -36,7 +37,7 @@ const metricMeta: Record<
     description: "Ranked by total route kilometers",
   },
 };
-const ROW_HEIGHT = 84;
+const ROW_HEIGHT = 116;
 
 function formatBrandScore(value: number) {
   return `${(value * 10).toFixed(1)}`;
@@ -74,9 +75,14 @@ function LeaderboardRow({
 
   return (
     <div
-      className={`flex items-center justify-between rounded-xl border px-4 py-3 transition ${isOwn ? "border-primary/40 bg-primary/10" : "border-border/50 bg-background/40 hover:bg-accent/10"}`}
+      className={cn(
+        "flex flex-col gap-3 rounded-2xl border px-3 py-3 transition sm:flex-row sm:items-center sm:justify-between sm:px-4",
+        isOwn
+          ? "border-primary/40 bg-primary/10"
+          : "border-border/50 bg-background/40 hover:bg-accent/10",
+      )}
     >
-      <div className="flex flex-1 min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <a
           href={npub ? `https://primal.net/p/${npub}` : undefined}
           target={npub ? "_blank" : undefined}
@@ -91,6 +97,8 @@ function LeaderboardRow({
               alt={displayName}
               className="h-full w-full object-cover"
               loading="lazy"
+              width="40"
+              height="40"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center font-mono text-sm font-black text-muted-foreground">
@@ -98,26 +106,30 @@ function LeaderboardRow({
             </div>
           )}
         </a>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground truncate">{row.name}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-sm font-semibold text-foreground sm:text-base">
+              {row.name}
+            </span>
             {isOwn && (
               <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
                 Your Airline
               </span>
             )}
           </div>
-          <div className="text-xs text-muted-foreground truncate">
-            {row.icaoCode} · {displayName}
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground sm:text-xs">
+            <span className="truncate">
+              {row.icaoCode} · {displayName}
+            </span>
             {profile.nip05 && (
-              <span className="ml-2 rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
+              <span className="rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
                 {profile.nip05}
               </span>
             )}
             {!isOwn && profile.lud16 && (
               <a
                 href={`lightning:${profile.lud16}`}
-                className="ml-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300"
+                className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-300"
               >
                 Zap
               </a>
@@ -125,7 +137,38 @@ function LeaderboardRow({
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-6">
+      <div className="flex items-end justify-between gap-3 sm:shrink-0 sm:items-center sm:justify-end sm:gap-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:hidden">
+          <div className="min-w-0 text-left">
+            <div className="text-[10px] uppercase text-muted-foreground">Fleet</div>
+            <div className="font-mono text-sm text-foreground">{row.fleet}</div>
+          </div>
+          <div className="min-w-0 text-left">
+            <div className="text-[10px] uppercase text-muted-foreground">Routes</div>
+            <div className="font-mono text-sm text-foreground">{row.routes}</div>
+          </div>
+        </div>
+        <div className="hidden text-right text-xs text-muted-foreground sm:block">
+          <div className="text-[10px] uppercase">Fleet</div>
+          <div className="font-mono text-sm text-foreground">{row.fleet}</div>
+        </div>
+        <div className="hidden text-right text-xs text-muted-foreground sm:block">
+          <div className="text-[10px] uppercase">Routes</div>
+          <div className="font-mono text-sm text-foreground">{row.routes}</div>
+        </div>
+        <div className="min-w-0 text-right">
+          <div className="flex items-center justify-end gap-1 text-[10px] uppercase text-muted-foreground">
+            {metricMeta[metric].label}
+            {index === 0 ? (
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            ) : (
+              <ArrowDownRight className="h-3 w-3" aria-hidden="true" />
+            )}
+          </div>
+          <div className="font-mono text-base font-black text-foreground sm:text-lg">
+            {formatMetric(metric, value)}
+          </div>
+        </div>
         {!isOwn && (
           <button
             type="button"
@@ -135,27 +178,6 @@ function LeaderboardRow({
             View As
           </button>
         )}
-        <div className="hidden text-right text-xs text-muted-foreground sm:block">
-          <div className="text-[10px] uppercase">Fleet</div>
-          <div className="font-mono text-sm text-foreground">{row.fleet}</div>
-        </div>
-        <div className="hidden text-right text-xs text-muted-foreground sm:block">
-          <div className="text-[10px] uppercase">Routes</div>
-          <div className="font-mono text-sm text-foreground">{row.routes}</div>
-        </div>
-        <div className="text-right">
-          <div className="flex items-center justify-end gap-1 text-[10px] uppercase text-muted-foreground">
-            {metricMeta[metric].label}
-            {index === 0 ? (
-              <ArrowUpRight className="h-3 w-3" />
-            ) : (
-              <ArrowDownRight className="h-3 w-3" />
-            )}
-          </div>
-          <div className="font-mono text-lg font-black text-foreground">
-            {formatMetric(metric, value)}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -219,24 +241,28 @@ export function Leaderboard() {
   });
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="mb-4 flex items-center justify-between pr-10">
+    <div className="flex h-full min-h-0 w-full flex-col gap-3 sm:gap-4">
+      <div className="shrink-0 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2">
-            <Trophy className="h-6 w-6 text-primary" />
+            <Trophy className="h-5 w-5 text-primary sm:h-6 sm:w-6" aria-hidden="true" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Leaderboard</h2>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              Multiplayer standings
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+              Active Metric
+            </p>
+            <p className="text-sm font-semibold text-foreground sm:text-base">
+              {metricMeta[metric].description}
             </p>
           </div>
         </div>
-        <div className="relative">
+
+        <div className="relative mt-3">
           <select
             value={metric}
             onChange={handleMetricChange}
-            className="appearance-none cursor-pointer rounded-full border border-border/60 bg-background/60 pl-3 pr-8 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition hover:border-primary/40 hover:text-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30"
+            aria-label="Sort leaderboard by metric"
+            className="h-10 w-full appearance-none rounded-xl border border-border/60 bg-background/70 px-3 pr-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition hover:border-primary/40 hover:text-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 sm:text-[11px]"
           >
             {(Object.keys(metricMeta) as LeaderboardMetric[]).map((key) => (
               <option key={key} value={key}>
@@ -248,7 +274,7 @@ export function Leaderboard() {
         </div>
       </div>
 
-      <div ref={parentRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+      <div ref={parentRef} className="custom-scrollbar flex-1 overflow-y-auto">
         <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];

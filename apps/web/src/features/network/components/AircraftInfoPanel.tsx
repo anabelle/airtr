@@ -229,12 +229,12 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   return (
     <aside
-      className="pointer-events-auto fixed z-30 flex flex-col w-[min(480px,calc(100vw-2rem))] max-h-[80vh] rounded-2xl border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl overflow-hidden left-4 right-4 bottom-4 sm:left-auto sm:right-4 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2"
+      className="pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 top-[4.5rem] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl"
       aria-live="polite"
     >
       {/* Header */}
       <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
-        <div className="flex items-start gap-3 min-w-0">
+        <div className="flex min-w-0 items-start gap-3">
           <AircraftSilhouette
             familyId={familyId}
             className="h-8 w-8 shrink-0 text-muted-foreground [&>svg]:h-full [&>svg]:w-full"
@@ -280,7 +280,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
       {/* Livery hero image */}
       {model ? (
-        <div className="relative w-full overflow-hidden bg-zinc-900/40 h-56">
+        <div className="relative h-40 w-full overflow-hidden bg-zinc-900/40 sm:h-56">
           <AircraftLiveryImage
             aircraft={aircraft}
             airline={ownerAirline}
@@ -297,7 +297,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
       ) : null}
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-5 sm:px-5">
         {/* Status badge */}
         <div className="flex flex-wrap items-center gap-2">
           <span

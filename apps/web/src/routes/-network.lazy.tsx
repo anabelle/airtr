@@ -21,7 +21,7 @@ export default function NetworkPage() {
               disabled={isLoading}
               className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
             >
-              {isLoading ? "Connecting..." : "Connect Wallet"}
+              {isLoading ? "Connecting…" : "Connect Wallet"}
             </button>
           </div>
         </div>

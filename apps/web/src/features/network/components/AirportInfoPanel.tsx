@@ -17,8 +17,8 @@ import { toast } from "sonner";
 import { FlightBoard } from "@/features/network/components/FlightBoard";
 import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
 import { buildGroundTraffic } from "@/features/network/utils/groundTraffic";
-import { useConfirm } from "@/shared/lib/useConfirm";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
+import { useConfirm } from "@/shared/lib/useConfirm";
 
 type AirportInfoPanelProps = {
   airport: Airport;
@@ -74,7 +74,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
 
   useEffect(() => {
     let armed = false;
-    const timer = setTimeout(() => { armed = true; }, 300);
+    const timer = setTimeout(() => {
+      armed = true;
+    }, 300);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && armed) onClose();
     };
@@ -116,23 +118,23 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const activeHubAirport = playerHubs[0] ? airportIndex.get(playerHubs[0]) : null;
   const distanceKm = originHubAirport
     ? Math.round(
-      haversineDistance(
-        originHubAirport.latitude,
-        originHubAirport.longitude,
-        airport.latitude,
-        airport.longitude,
-      ),
-    )
+        haversineDistance(
+          originHubAirport.latitude,
+          originHubAirport.longitude,
+          airport.latitude,
+          airport.longitude,
+        ),
+      )
     : null;
   const hqDistanceKm = activeHubAirport
     ? Math.round(
-      haversineDistance(
-        activeHubAirport.latitude,
-        activeHubAirport.longitude,
-        airport.latitude,
-        airport.longitude,
-      ),
-    )
+        haversineDistance(
+          activeHubAirport.latitude,
+          activeHubAirport.longitude,
+          airport.latitude,
+          airport.longitude,
+        ),
+      )
     : null;
 
   const routesTouching = useMemo(
@@ -263,7 +265,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
 
   return (
     <aside
-      className="pointer-events-auto fixed z-30 w-[min(480px,calc(100vw-2rem))] max-h-[80vh] rounded-2xl border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl overflow-hidden left-4 right-4 bottom-4 sm:left-auto sm:right-4 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2"
+      className="pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 top-[4.5rem] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl"
       aria-live="polite"
     >
       <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
@@ -292,7 +294,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         </button>
       </div>
 
-      <div className="max-h-[70vh] overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-5 sm:px-5">
         <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
           {(
             [
@@ -409,7 +411,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                 {routesTouching.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {routesTouching.slice(0, 5).map((route) => {
-                      const otherIata = route.originIata === airport.iata ? route.destinationIata : route.originIata;
+                      const otherIata =
+                        route.originIata === airport.iata
+                          ? route.destinationIata
+                          : route.originIata;
                       return (
                         <button
                           key={route.id}
@@ -597,18 +602,28 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
                   Distance from{" "}
-                  <button type="button" onClick={() => navigateToAirport(originHubAirport.iata)} className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => navigateToAirport(originHubAirport.iata)}
+                    className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+                  >
                     {originHubAirport.iata}
-                  </button>: {distanceKm.toLocaleString()} km
+                  </button>
+                  : {distanceKm.toLocaleString()} km
                 </div>
               ) : null}
               {!originHubAirport && hqDistanceKm && activeHubAirport ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
                   Distance from HQ{" "}
-                  <button type="button" onClick={() => navigateToAirport(activeHubAirport.iata)} className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => navigateToAirport(activeHubAirport.iata)}
+                    className="font-mono font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+                  >
                     {activeHubAirport.iata}
-                  </button>: {hqDistanceKm.toLocaleString()} km
+                  </button>
+                  : {hqDistanceKm.toLocaleString()} km
                 </div>
               ) : null}
             </div>
