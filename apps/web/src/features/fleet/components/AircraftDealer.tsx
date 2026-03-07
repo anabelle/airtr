@@ -172,8 +172,20 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
         : displayMode === "used"
           ? filteredUsed
           : [];
+  const useVirtualGrid = gridColumns > 1;
   const rowCount = Math.ceil(listItems.length / gridColumns);
-  const rowHeight = displayMode === "factory" ? 360 : displayMode === "used-loading" ? 260 : 320;
+  const rowHeight =
+    displayMode === "factory"
+      ? gridColumns === 1
+        ? 380
+        : 360
+      : displayMode === "used-loading"
+        ? gridColumns === 1
+          ? 300
+          : 260
+        : gridColumns === 1
+          ? 372
+          : 320;
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollRef.current,
@@ -182,16 +194,16 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
   });
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden sm:gap-6">
       {/* Mode Switcher */}
-      <div className="flex items-center gap-2 border-b border-border/40 pb-4">
+      <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-border/40 pb-4">
         <button
           type="button"
           onClick={() => setMode("factory")}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${mode === "factory" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent/40"}`}
+          className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${mode === "factory" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent/40"}`}
         >
           <ShoppingBag className="h-4 w-4" />
-          Factory New
+          <span className="truncate">Factory New</span>
         </button>
         <button
           type="button"
@@ -199,16 +211,16 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
             setMode("marketplace");
             fetchUsed();
           }}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-bold transition-all ${mode === "marketplace" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-muted-foreground hover:bg-accent/40"}`}
+          className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${mode === "marketplace" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-muted-foreground hover:bg-accent/40"}`}
         >
           <History className={`h-4 w-4 ${isLoadingUsed ? "animate-spin" : ""}`} />
-          Used Marketplace
+          <span className="truncate">Used Marketplace</span>
         </button>
       </div>
 
       {/* Header & Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-card border border-border/40 p-4 shadow-sm backdrop-blur-xl">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="shrink-0 rounded-2xl border border-border/40 bg-card p-3 shadow-sm backdrop-blur-xl sm:p-4">
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
             <input
@@ -225,53 +237,94 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
               type="button"
               onClick={fetchUsed}
               disabled={isLoadingUsed}
-              className="h-10 px-4 rounded-xl border border-orange-500/20 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-all font-bold text-xs flex items-center gap-2 disabled:opacity-50"
+              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 text-xs font-bold text-orange-400 transition-all hover:bg-orange-500/20 disabled:opacity-50 sm:self-start"
             >
               <History className={`h-4 w-4 ${isLoadingUsed ? "animate-spin" : ""}`} />
               Refresh
             </button>
           )}
-        </div>
 
-        {mode === "factory" && (
-          <div className="flex items-center space-x-2 bg-background p-1 rounded-xl border border-border/50">
-            <button
-              type="button"
-              onClick={() => setSelectedTier("all")}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                selectedTier === "all"
-                  ? "bg-primary/20 text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              All
-            </button>
-            {[1, 2, 3, 4].map((tier) => (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => setSelectedTier(tier)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-                  selectedTier === tier
-                    ? "bg-primary/20 text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
-              >
-                Tier {tier}
-              </button>
-            ))}
-          </div>
-        )}
+          {mode === "factory" && (
+            <div className="overflow-x-auto pb-1">
+              <div className="flex min-w-max items-center gap-2 rounded-xl border border-border/50 bg-background p-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTier("all")}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                    selectedTier === "all"
+                      ? "bg-primary/20 text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  All
+                </button>
+                {[1, 2, 3, 4].map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => setSelectedTier(tier)}
+                    className={`flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                      selectedTier === tier
+                        ? "bg-primary/20 text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    Tier {tier}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
+      <div
+        ref={scrollRef}
+        className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-8 sm:pr-2 sm:pb-10"
+      >
         {displayMode === "used-empty" ? (
           <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
             <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
             <p className="text-muted-foreground">
               No used aircraft currently listed on the Marketplace.
             </p>
+          </div>
+        ) : !useVirtualGrid ? (
+          <div className="space-y-4">
+            {listItems.map((item) => {
+              if (displayMode === "factory") {
+                const aircraft = item as AircraftModel;
+                return (
+                  <AircraftCard
+                    key={aircraft.id}
+                    aircraft={aircraft}
+                    airlineTier={airlineTier}
+                    onSelect={() => setSelectedModel(aircraft)}
+                  />
+                );
+              }
+
+              if (displayMode === "used-loading") {
+                const key = item as string;
+                return (
+                  <div
+                    key={key}
+                    className="h-64 rounded-2xl border border-border/40 bg-card animate-pulse"
+                  />
+                );
+              }
+
+              const listing = item as MarketplaceListing;
+              return (
+                <UsedAircraftCard
+                  key={listing.id}
+                  listing={listing}
+                  airlineTier={airlineTier}
+                  onBuy={() => handleBuyUsed(listing)}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
@@ -282,7 +335,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
               return (
                 <div
                   key={row.key}
-                  className="grid gap-6"
+                  className="grid gap-4 sm:gap-6"
                   style={{
                     position: "absolute",
                     top: 0,
@@ -372,15 +425,15 @@ function AircraftCard({
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:border-border/80 ${
+      className={`group relative flex min-w-0 flex-col rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-border/80 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] ${
         isLocked ? "opacity-60" : ""
       }`}
     >
       {/* Top Image Splash */}
       <div
-        className={`h-32 w-full bg-gradient-to-br ${bgGradient} relative flex items-center justify-center border-b border-border/30`}
+        className={`relative flex h-20 w-full items-center justify-center border-b border-border/30 bg-gradient-to-br ${bgGradient} sm:h-32`}
       >
-        <div className="absolute top-4 left-4 flex gap-2">
+        <div className="absolute left-3 top-3 flex gap-2 sm:left-4 sm:top-4">
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold text-foreground border border-border/50">
             Tier {aircraft.unlockTier}
           </span>
@@ -388,61 +441,65 @@ function AircraftCard({
             {aircraft.type}
           </span>
         </div>
-        <Plane className="h-16 w-16 text-foreground/20 rotate-[-15deg] group-hover:scale-110 group-hover:text-foreground/40 transition-all duration-500" />
+        <Plane className="h-10 w-10 rotate-[-15deg] text-foreground/20 transition-all duration-500 group-hover:scale-110 group-hover:text-foreground/40 sm:h-16 sm:w-16" />
       </div>
 
-      <div className="flex flex-col flex-1 p-5">
+      <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
         <div className="mb-4">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
             {aircraft.manufacturer}
           </p>
-          <h3 className="text-xl font-bold text-foreground">{aircraft.name}</h3>
+          <h3 className="truncate text-xl font-bold leading-tight text-foreground sm:text-xl">
+            {aircraft.name}
+          </h3>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-6 mt-auto">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
+        <div className="mt-auto grid grid-cols-2 gap-3 pb-5 sm:mb-6 sm:gap-4 sm:pb-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
               <Users className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] uppercase text-muted-foreground font-semibold">Capacity</p>
-              <p className="text-sm font-medium">{totalCapacity} pax</p>
+              <p className="truncate text-base font-medium sm:text-sm">{totalCapacity} pax</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
               <ArrowRight className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] uppercase text-muted-foreground font-semibold">Range</p>
-              <p className="text-sm font-medium">{aircraft.rangeKm.toLocaleString()} km</p>
+              <p className="truncate text-base font-medium sm:text-sm">
+                {aircraft.rangeKm.toLocaleString()} km
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 col-span-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
+          <div className="flex min-w-0 items-center gap-3 col-span-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
               <Timer className="h-4 w-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-[10px] uppercase text-muted-foreground font-semibold">
                 Factory Lead Time
               </p>
-              <p className="text-sm font-medium text-yellow-500">
+              <p className="truncate text-base font-medium text-yellow-500 sm:text-sm">
                 ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)} minutes
               </p>
             </div>
           </div>
         </div>
 
-        <div className="h-px w-full bg-border/50 mb-4" />
+        <div className="mb-4 h-px w-full bg-border/50" />
 
-        <div className="flex items-end justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
               List Price
             </p>
-            <p className="text-lg font-bold text-primary group-hover:text-primary-foreground transition-colors group-hover:-translate-y-0.5 transform duration-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+            <p className="truncate text-xl font-bold text-primary transition-colors duration-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.2)] group-hover:-translate-y-0.5 group-hover:text-primary-foreground sm:text-lg">
               {fpFormat(aircraft.price, 0)}
             </p>
           </div>
@@ -451,13 +508,13 @@ function AircraftCard({
             type="button"
             onClick={onSelect}
             disabled={isLocked}
-            className={`relative overflow-hidden rounded-xl px-4 py-2 text-sm font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background ${
+            className={`relative w-full shrink-0 overflow-hidden rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background sm:w-auto sm:py-2 ${
               isLocked
                 ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
                 : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] focus:ring-primary"
             }`}
           >
-            <span className="relative flex items-center gap-2">
+            <span className="relative flex items-center justify-center gap-2 truncate">
               {isLocked ? `Requires Tier ${aircraft.unlockTier}` : "Configure & Buy"}
             </span>
           </button>
@@ -485,7 +542,7 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
   const bgGradient = "from-orange-500/10 via-orange-900/5 to-transparent";
 
   return (
-    <div className="group relative flex flex-col rounded-2xl bg-card border border-orange-500/20 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(249,115,22,0.2)] hover:border-orange-500/40">
+    <div className="group relative flex min-w-0 flex-col rounded-2xl bg-card border border-orange-500/20 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgb(249,115,22,0.2)] hover:border-orange-500/40">
       <div
         className={`h-28 w-full bg-gradient-to-br ${bgGradient} relative flex items-center justify-center border-b border-orange-500/10`}
       >
@@ -501,7 +558,7 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
         <Plane className="h-12 w-12 text-orange-500/20 rotate-[-15deg] group-hover:scale-110 group-hover:text-orange-500/40 transition-all duration-500" />
       </div>
 
-      <div className="flex flex-col flex-1 p-4">
+      <div className="flex min-w-0 flex-col flex-1 p-4">
         <div className="mb-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">
             {model.manufacturer}
@@ -538,15 +595,15 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
           </div>
         </div>
 
-        <div className="flex items-end justify-between pt-2">
-          <div>
+        <div className="flex min-w-0 items-end justify-between gap-3 pt-2">
+          <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">
               Asking Price
             </p>
-            <p className="text-lg font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.2)]">
+            <p className="truncate text-lg font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.2)]">
               {fpFormat(listing.marketplacePrice || FP_ZERO, 0)}
             </p>
-            <p className="text-[9px] text-muted-foreground mt-0.5 italic line-clamp-1">
+            <p className="text-[9px] text-muted-foreground mt-0.5 italic truncate">
               Seller: {listing.sellerPubkey?.slice(0, 8)}...
             </p>
           </div>
@@ -555,13 +612,13 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
             type="button"
             onClick={onBuy}
             disabled={isLocked}
-            className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+            className={`shrink-0 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
               isLocked
                 ? "bg-muted/40 text-muted-foreground cursor-not-allowed"
                 : "bg-orange-500 text-white hover:bg-orange-600 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
             }`}
           >
-            {isLocked ? `Requires Tier ${model.unlockTier}` : "Purchase"}
+            {isLocked ? `Tier ${model.unlockTier}` : "Purchase"}
           </button>
         </div>
       </div>
@@ -651,37 +708,40 @@ function PurchaseModal({
   const canAfford = typeof corporateBalance === "number" ? corporateBalance >= upfrontCost : true;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
+      <div className="relative flex h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
         {/* Header Graphic */}
         <div
-          className={`h-32 w-full bg-gradient-to-br ${bgGradient} relative flex items-center justify-between p-6 border-b border-border/30 shrink-0`}
+          className={`relative flex w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:h-32 sm:p-6`}
         >
-          <div className="z-10">
+          <div className="z-10 min-w-0 flex-1">
             <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
               {aircraft.manufacturer}
             </span>
-            <h2 className="text-3xl font-bold text-foreground drop-shadow-sm">{aircraft.name}</h2>
+            <h2 className="truncate pr-10 text-2xl font-bold text-foreground drop-shadow-sm sm:text-3xl">
+              {aircraft.name}
+            </h2>
           </div>
-          <Plane className="h-24 w-24 text-foreground/10 rotate-[-15deg] absolute right-6 top-4" />
+          <Plane className="pointer-events-none absolute right-4 top-4 h-16 w-16 rotate-[-15deg] text-foreground/10 sm:right-6 sm:h-24 sm:w-24" />
 
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-background/20 hover:bg-background/40 backdrop-blur-md transition-colors z-20"
+            className="absolute right-4 top-4 z-20 rounded-full bg-background/20 p-2 backdrop-blur-md transition-colors hover:bg-background/40"
+            aria-label="Close purchase modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+        <div className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 space-y-6 sm:p-6 sm:pb-28 sm:space-y-8">
           {/* Identification */}
           <div className="space-y-4">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
               Aircraft Identity
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
                 <label
                   htmlFor={nameInputId}
@@ -694,7 +754,7 @@ function PurchaseModal({
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder={`e.g. ${aircraft.name} 1`}
+                  placeholder={`e.g. ${aircraft.name} 1…`}
                   className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -724,13 +784,50 @@ function PurchaseModal({
             </div>
           </div>
 
+          <div className="rounded-2xl border border-border/50 bg-background/40 p-4 sm:p-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Range
+                </p>
+                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
+                  {aircraft.rangeKm.toLocaleString()} km
+                </p>
+              </div>
+              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Speed
+                </p>
+                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
+                  {aircraft.speedKmh.toLocaleString()} km/h
+                </p>
+              </div>
+              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Base Seats
+                </p>
+                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
+                  {aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first}
+                </p>
+              </div>
+              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Lead Time
+                </p>
+                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
+                  ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}m
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Acquisition Type */}
           <div className="space-y-3">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <ShoppingBag className="h-4 w-4 text-primary" />
               Acquisition Method
             </h4>
-            <div className="flex p-1 bg-background/50 border border-border/50 rounded-xl w-full">
+            <div className="grid w-full grid-cols-2 gap-0 rounded-xl border border-border/50 bg-background/50 p-1">
               <button
                 type="button"
                 onClick={() => setPurchaseType("buy")}
@@ -755,7 +852,7 @@ function PurchaseModal({
               </button>
             </div>
             {purchaseType === "lease" && (
-              <p className="text-[10px] text-muted-foreground italic px-2">
+              <p className="px-2 text-[10px] italic text-muted-foreground">
                 * Lease requires a 10% refundable security deposit and monthly payments of{" "}
                 {fpFormat(aircraft.monthlyLease, 0)}.
               </p>
@@ -771,11 +868,11 @@ function PurchaseModal({
               Cabin Configuration
             </h4>
 
-            <div className="border border-border/50 rounded-xl p-5 bg-background/50 space-y-6">
+            <div className="space-y-6 rounded-xl border border-border/50 bg-background/50 p-4 sm:p-5">
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor={firstSliderId}
-                  className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between"
+                  className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
                 >
                   <span>First Class (4x space)</span>
                   <span className={firstSeats > 0 ? "text-primary" : ""}>{firstSeats} seats</span>
@@ -796,14 +893,14 @@ function PurchaseModal({
                       setFirstSeats(val);
                     }
                   }}
-                  className="w-full accent-primary h-2 bg-border/50 rounded-lg appearance-none cursor-pointer hover:bg-border transition-colors"
+                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
                 <label
                   htmlFor={businessSliderId}
-                  className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between"
+                  className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
                 >
                   <span>Business Class (2.5x space)</span>
                   <span className={busSeats > 0 ? "text-primary" : ""}>{busSeats} seats</span>
@@ -816,74 +913,83 @@ function PurchaseModal({
                   step="1"
                   value={busSeats}
                   onChange={(e) => setBusSeats(parseInt(e.target.value))}
-                  className="w-full accent-primary h-2 bg-border/50 rounded-lg appearance-none cursor-pointer hover:bg-border transition-colors"
+                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
                 />
               </div>
 
               <div className="flex flex-col mt-4 pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <div className="text-center flex-1">
+                <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0 flex-1 overflow-hidden text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
                       First
                     </span>
-                    <span className="font-mono font-bold line-clamp-1 text-lg">{firstSeats}</span>
+                    <span className="font-mono text-lg font-bold truncate block">{firstSeats}</span>
                   </div>
-                  <div className="text-center flex-1 border-x border-border/50">
+                  <div className="min-w-0 flex-1 overflow-hidden border-x border-border/50 text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
                       Business
                     </span>
-                    <span className="font-mono font-bold line-clamp-1 text-lg">{busSeats}</span>
+                    <span className="font-mono text-lg font-bold truncate block">{busSeats}</span>
                   </div>
-                  <div className="text-center flex-1">
+                  <div className="min-w-0 flex-1 overflow-hidden text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
                       Economy
                     </span>
-                    <span className="font-mono font-bold text-primary line-clamp-1 text-lg">
+                    <span className="font-mono text-lg font-bold text-primary truncate block">
                       {econSeats}
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between items-center text-xs mt-4 px-4 py-2 bg-accent/20 rounded-lg border border-accent/20">
-                  <span className="text-accent-foreground font-semibold uppercase text-[10px]">
+                <div className="flex min-w-0 justify-between items-center text-xs mt-4 px-4 py-2 bg-accent/20 rounded-lg border border-accent/20">
+                  <span className="truncate text-accent-foreground font-semibold uppercase text-[10px]">
                     Total Passengers
                   </span>
-                  <span className="font-mono font-bold text-accent-foreground">
+                  <span className="shrink-0 font-mono font-bold text-accent-foreground">
                     {totalCapacity}
                   </span>
                 </div>
               </div>
             </div>
           </div>
+
+          <div className="rounded-xl border border-border/50 bg-background/40 p-4 overflow-hidden">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {purchaseType === "buy" ? "Full Purchase Price" : "Security Deposit (10%)"}
+                </p>
+                <p
+                  className={`mt-1 truncate text-3xl font-black ${canAfford ? "text-primary" : "text-red-500"}`}
+                >
+                  {fpFormat(upfrontCost, 0)}
+                </p>
+                {purchaseType === "lease" ? (
+                  <p className="mt-1 truncate text-xs font-bold uppercase text-orange-400">
+                    + {fpFormat(aircraft.monthlyLease, 0)} / month
+                  </p>
+                ) : null}
+              </div>
+              <div className="shrink-0 text-right text-xs text-yellow-500">
+                <p className="font-semibold">Ready in</p>
+                <p className="font-mono font-bold">
+                  ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
+                  :00
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Footer Action */}
-        <div className="p-4 sm:p-6 border-t border-border/50 bg-background/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:justify-between shrink-0">
-          <div>
-            <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
-              {purchaseType === "buy" ? "Full Purchase Price" : "Security Deposit (10%)"}
-            </p>
-            <p
-              className={`text-2xl font-bold drop-shadow-[0_0_10px_rgba(16,185,129,0.2)] ${canAfford ? "text-primary" : "text-red-500"}`}
-            >
-              {fpFormat(upfrontCost, 0)}
-            </p>
-            {purchaseType === "lease" && (
-              <p className="text-[10px] font-bold text-orange-400 uppercase mt-0.5">
-                + {fpFormat(aircraft.monthlyLease, 0)} / month
-              </p>
-            )}
-            <p className="text-xs text-yellow-500 font-medium mt-1 flex items-center gap-1">
-              <Timer className="h-3 w-3" /> Ready in ~
-              {Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
-              :00
-            </p>
-          </div>
-
+        <div className="flex shrink-0 min-w-0 flex-col gap-3 overflow-hidden border-t border-border/50 bg-background/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:p-6">
+          <p className="truncate text-center text-xs text-muted-foreground sm:mr-auto sm:text-left">
+            Review your configuration above, then confirm the order.
+          </p>
           <button
             type="button"
             onClick={handlePurchase}
             disabled={isPurchasing || !canAfford || (hubs.length > 0 && !selectedHub)}
-            className={`relative overflow-hidden rounded-xl px-8 py-3 text-base font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background ${
+            className={`relative w-full shrink-0 overflow-hidden rounded-xl px-8 py-3 text-base font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background sm:w-auto ${
               isPurchasing
                 ? "bg-primary text-primary-foreground opacity-90 scale-95"
                 : !canAfford
@@ -891,17 +997,17 @@ function PurchaseModal({
                   : "bg-primary text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:opacity-90"
             }`}
           >
-            <span className="relative flex items-center gap-2">
+            <span className="relative flex items-center justify-center gap-2 truncate">
               {isPurchasing ? (
                 <>
-                  <Check className="h-5 w-5 animate-pulse" />
-                  Purchasing...
+                  <Check className="h-5 w-5 shrink-0 animate-pulse" />
+                  Purchasing…
                 </>
               ) : !canAfford ? (
                 <>Insufficient Funds</>
               ) : (
                 <>
-                  <Coins className="h-5 w-5" />
+                  <Coins className="h-5 w-5 shrink-0" />
                   Confirm Order
                 </>
               )}

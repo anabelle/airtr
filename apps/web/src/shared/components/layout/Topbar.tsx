@@ -62,7 +62,7 @@ export function Topbar() {
                 <input
                   name="nsec"
                   type="password"
-                  placeholder="nsec1..."
+                  placeholder="nsec1…"
                   autoComplete="off"
                   className="w-48 rounded-md border border-border bg-background/70 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none"
                 />
@@ -71,7 +71,7 @@ export function Topbar() {
                   disabled={isLoading}
                   className="rounded-md border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary transition hover:bg-primary/20 disabled:opacity-60"
                 >
-                  {isLoading ? "..." : "Login"}
+                  {isLoading ? "Loading…" : "Login"}
                 </button>
                 <button
                   type="button"
@@ -110,7 +110,7 @@ export function Topbar() {
                 disabled={isLoading}
                 className="rounded-md border border-border bg-background/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
               >
-                {isLoading ? "Connecting..." : "Connect Wallet"}
+                {isLoading ? "Connecting…" : "Connect Wallet"}
               </button>
             </>
           )}
@@ -142,7 +142,7 @@ export function Topbar() {
           </button>
         </div>
       )}
-      <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-xl">
+      <div className="pointer-events-auto flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex items-center space-x-4">
           {/* Livery Box */}
           <div
@@ -155,7 +155,7 @@ export function Topbar() {
           >
             {activeAirline.icaoCode}
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-sm font-bold tracking-tight text-foreground leading-none">
               {activeAirline.name}
             </h1>
@@ -178,11 +178,10 @@ export function Topbar() {
         </div>
 
         {/* Critical Macro Metrics */}
-        <div className="hidden md:flex items-center space-x-8">
+        <div className="hidden items-center space-x-8 md:flex">
           {/* Relay health indicator */}
-          <div
+          <output
             className="flex items-center gap-1.5"
-            role="status"
             aria-live="polite"
             title={
               isConnected
@@ -203,7 +202,7 @@ export function Topbar() {
                 ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
                 : "Relay offline"}
             </span>
-          </div>
+          </output>
           <div className="flex flex-col items-end">
             <span className="text-[10px] uppercase font-semibold text-muted-foreground leading-none">
               Corporate Balance

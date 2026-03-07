@@ -1,12 +1,13 @@
-import { PanelLayout } from '@/shared/components/layout/PanelLayout';
-import { Leaderboard } from '@/features/competition/components/Leaderboard';
+import { Leaderboard } from "@/features/competition/components/Leaderboard";
+import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function LeaderboardPage() {
-    return (
-        <PanelLayout>
-            <div className="flex h-full w-full flex-col p-6">
-                <Leaderboard />
-            </div>
-        </PanelLayout>
-    );
+  return (
+    <PanelLayout>
+      <PanelHeader title="Leaderboard" subtitle="Multiplayer standings across the active world." />
+      <PanelBody className="overflow-hidden pt-3 sm:pt-4">
+        <Leaderboard />
+      </PanelBody>
+    </PanelLayout>
+  );
 }

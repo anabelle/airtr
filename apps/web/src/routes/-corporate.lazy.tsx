@@ -42,7 +42,7 @@ import {
   estimateRouteEconomics,
   getPrimaryAssignedAircraft,
 } from "@/features/network/utils/routeEconomics";
-import { PanelLayout } from "@/shared/components/layout/PanelLayout";
+import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
 
 const CHAPTER11_THRESHOLD_DISPLAY = new Intl.NumberFormat("en-US", {
@@ -605,7 +605,7 @@ function BankruptcyPanel({
               disabled={isDissolving}
               className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
             >
-              {isDissolving ? "Dissolving..." : "Confirm Dissolution"}
+              {isDissolving ? "Dissolving…" : "Confirm Dissolution"}
             </button>
           </div>
         </div>
@@ -1097,7 +1097,7 @@ export default function CorporateDashboard() {
             disabled={isLoading}
             className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
           >
-            {isLoading ? "Connecting..." : "Connect Wallet"}
+            {isLoading ? "Connecting…" : "Connect Wallet"}
           </button>
         </div>
       </div>
@@ -1160,176 +1160,190 @@ export default function CorporateDashboard() {
 
   return (
     <PanelLayout>
-      <div className="flex h-full w-full flex-col gap-4 p-5 pr-12 overflow-y-auto custom-scrollbar">
-        {/* 1. Financial Pulse — the heartbeat */}
-        <FinancialPulse
-          corporateBalance={airline.corporateBalance}
-          pulse={pulse}
-          hubOpex={currentMonthlyOpex}
-          fleetLease={totalMonthlyLease}
-          leasedCount={leasedCount}
-        />
+      <PanelHeader
+        title="Corporate"
+        subtitle="Review your balance sheet, network health, and operating centers in one place."
+        badge={
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary sm:px-3 sm:text-xs">
+            Tier {airline.tier}
+          </span>
+        }
+      />
+      <PanelBody className="pt-3 sm:pt-4">
+        <div className="flex w-full flex-col gap-4">
+          {/* 1. Financial Pulse — the heartbeat */}
+          <FinancialPulse
+            corporateBalance={airline.corporateBalance}
+            pulse={pulse}
+            hubOpex={currentMonthlyOpex}
+            fleetLease={totalMonthlyLease}
+            leasedCount={leasedCount}
+          />
 
-        {routePerformance.length > 0 && (
-          <section className="rounded-xl border border-border/50 bg-background/50 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Route Performance
-              </p>
-              <span className="text-[10px] text-muted-foreground">
-                Last {RECENT_FLIGHT_COUNT} flights
-              </span>
-            </div>
-            <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
-              <div
-                className="relative w-full"
-                style={{
-                  height: `${routePerformanceVirtualizer.getTotalSize()}px`,
-                }}
-              >
-                {routePerformanceVirtualizer.getVirtualItems().map((virtualItem) => {
-                  const route = sortedRoutePerformance[virtualItem.index];
-                  const lf = Math.round(route.avgLoadFactor * 100);
-                  const lfTone =
-                    lf >= 80 ? "text-emerald-400" : lf >= 60 ? "text-amber-400" : "text-rose-400";
-                  const profitTone =
-                    route.profitPerHour >= 0 ? "text-emerald-400" : "text-rose-400";
-                  return (
-                    <div
-                      key={route.routeId}
-                      className="absolute left-0 top-0 w-full"
-                      style={{
-                        height: `${virtualItem.size}px`,
-                        transform: `translateY(${virtualItem.start}px)`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-foreground">{route.label}</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {route.fleetCount} aircraft
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-[10px] font-mono">
-                          <span className={lfTone}>{lf}% LF</span>
-                          <span className={profitTone}>{fpFormat(route.profitPerHour, 0)}/hr</span>
+          {routePerformance.length > 0 && (
+            <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Route Performance
+                </p>
+                <span className="text-[10px] text-muted-foreground">
+                  Last {RECENT_FLIGHT_COUNT} flights
+                </span>
+              </div>
+              <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
+                <div
+                  className="relative w-full"
+                  style={{
+                    height: `${routePerformanceVirtualizer.getTotalSize()}px`,
+                  }}
+                >
+                  {routePerformanceVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const route = sortedRoutePerformance[virtualItem.index];
+                    const lf = Math.round(route.avgLoadFactor * 100);
+                    const lfTone =
+                      lf >= 80 ? "text-emerald-400" : lf >= 60 ? "text-amber-400" : "text-rose-400";
+                    const profitTone =
+                      route.profitPerHour >= 0 ? "text-emerald-400" : "text-rose-400";
+                    return (
+                      <div
+                        key={route.routeId}
+                        className="absolute left-0 top-0 w-full"
+                        style={{
+                          height: `${virtualItem.size}px`,
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-foreground">{route.label}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {route.fleetCount} aircraft
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-[10px] font-mono">
+                            <span className={lfTone}>{lf}% LF</span>
+                            <span className={profitTone}>
+                              {fpFormat(route.profitPerHour, 0)}/hr
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
+            </section>
+          )}
+
+          <NetworkHealth
+            oversuppliedRoutes={networkHealth.oversuppliedRoutes}
+            projectedWeeklyProfit={networkHealth.projectedWeeklyProfit}
+            routesNeedingCuts={networkHealth.routesNeedingCuts}
+          />
+
+          {/* 2. Company Profile — identity + tier/brand/status */}
+          <CompanyProfile
+            name={airline.name}
+            icaoCode={airline.icaoCode}
+            callsign={airline.callsign}
+            tier={airline.tier}
+            brandScore={airline.brandScore}
+            cumulativeRevenue={airline.cumulativeRevenue}
+            status={airline.status}
+            ceoPubkey={airline.ceoPubkey}
+          />
+
+          {/* Bankruptcy explanation panel */}
+          {(airline.status === "chapter11" || airline.status === "liquidated") &&
+            !isViewingOther && (
+              <BankruptcyPanel
+                key={`bankruptcy-${airline.status}`}
+                airline={airline}
+                isDissolving={isDissolving}
+                dissolveError={dissolveError}
+                onDissolve={async () => {
+                  setDissolveError(null);
+                  setIsDissolving(true);
+                  try {
+                    await dissolveAirline();
+                    const latestError = useAirlineStore.getState().error;
+                    if (latestError) {
+                      throw new Error(latestError);
+                    }
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : "Unable to dissolve airline.";
+                    console.error("Dissolution failed", error);
+                    setDissolveError(message);
+                  } finally {
+                    setIsDissolving(false);
+                  }
+                }}
+              />
+            )}
+
+          {/* 3. Hub Operations — actionable */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Operations Centers ({airline.hubs.length})
+                </p>
+              </div>
+              {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {airline.hubs.map((hub) => (
+                <HubCard
+                  key={hub}
+                  iata={hub}
+                  isActive={homeAirport?.iata === hub}
+                  onSwitch={() => handleSwitchActiveHub(hub)}
+                  onClose={() => handleCloseHub(hub)}
+                  canClose={!isViewingOther && airline.hubs.length > 1}
+                  isReadOnly={isViewingOther}
+                />
+              ))}
             </div>
           </section>
-        )}
 
-        <NetworkHealth
-          oversuppliedRoutes={networkHealth.oversuppliedRoutes}
-          projectedWeeklyProfit={networkHealth.projectedWeeklyProfit}
-          routesNeedingCuts={networkHealth.routesNeedingCuts}
-        />
+          {/* 4. Livery — compact */}
+          <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
 
-        {/* 2. Company Profile — identity + tier/brand/status */}
-        <CompanyProfile
-          name={airline.name}
-          icaoCode={airline.icaoCode}
-          callsign={airline.callsign}
-          tier={airline.tier}
-          brandScore={airline.brandScore}
-          cumulativeRevenue={airline.cumulativeRevenue}
-          status={airline.status}
-          ceoPubkey={airline.ceoPubkey}
-        />
+          {/* 5. Activity Log — collapsed by default */}
+          {isViewingOther ? (
+            <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Activity Log
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Timeline data is not available for other airlines yet.
+              </p>
+            </section>
+          ) : (
+            <ActivityLog timeline={timeline} />
+          )}
+        </div>
 
-        {/* Bankruptcy explanation panel */}
-        {(airline.status === "chapter11" || airline.status === "liquidated") && !isViewingOther && (
-          <BankruptcyPanel
-            key={`bankruptcy-${airline.status}`}
-            airline={airline}
-            isDissolving={isDissolving}
-            dissolveError={dissolveError}
-            onDissolve={async () => {
-              setDissolveError(null);
-              setIsDissolving(true);
-              try {
-                await dissolveAirline();
-                const latestError = useAirlineStore.getState().error;
-                if (latestError) {
-                  throw new Error(latestError);
-                }
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : "Unable to dissolve airline.";
-                console.error("Dissolution failed", error);
-                setDissolveError(message);
-              } finally {
-                setIsDissolving(false);
-              }
-            }}
+        {/* Hub Confirmation Dialog */}
+        {!isViewingOther && pendingAction && pendingPricing && (
+          <HubConfirmDialog
+            action={pendingAction}
+            pricing={pendingPricing}
+            cost={pendingCostRaw}
+            nextMonthlyOpex={nextMonthlyOpex}
+            canAfford={canAfford}
+            corporateBalance={
+              typeof airline.corporateBalance === "number" ? airline.corporateBalance : 0
+            }
+            isProcessing={isProcessing}
+            error={actionError}
+            onConfirm={confirmHubAction}
+            onCancel={() => setPendingAction(null)}
           />
         )}
-
-        {/* 3. Hub Operations — actionable */}
-        <section className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Operations Centers ({airline.hubs.length})
-              </p>
-            </div>
-            {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            {airline.hubs.map((hub) => (
-              <HubCard
-                key={hub}
-                iata={hub}
-                isActive={homeAirport?.iata === hub}
-                onSwitch={() => handleSwitchActiveHub(hub)}
-                onClose={() => handleCloseHub(hub)}
-                canClose={!isViewingOther && airline.hubs.length > 1}
-                isReadOnly={isViewingOther}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* 4. Livery — compact */}
-        <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
-
-        {/* 5. Activity Log — collapsed by default */}
-        {isViewingOther ? (
-          <section className="rounded-xl border border-border/50 bg-background/50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-              Activity Log
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Timeline data is not available for other airlines yet.
-            </p>
-          </section>
-        ) : (
-          <ActivityLog timeline={timeline} />
-        )}
-      </div>
-
-      {/* Hub Confirmation Dialog */}
-      {!isViewingOther && pendingAction && pendingPricing && (
-        <HubConfirmDialog
-          action={pendingAction}
-          pricing={pendingPricing}
-          cost={pendingCostRaw}
-          nextMonthlyOpex={nextMonthlyOpex}
-          canAfford={canAfford}
-          corporateBalance={
-            typeof airline.corporateBalance === "number" ? airline.corporateBalance : 0
-          }
-          isProcessing={isProcessing}
-          error={actionError}
-          onConfirm={confirmHubAction}
-          onCancel={() => setPendingAction(null)}
-        />
-      )}
+      </PanelBody>
     </PanelLayout>
   );
 }

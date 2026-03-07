@@ -160,7 +160,7 @@ describe("RouteManager", () => {
     });
 
     render(<RouteManager />);
-    expect(screen.getAllByRole("button", { name: /Active Network/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Market Opportunities").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Active \(0\)/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /Opportunities/ }).length).toBeGreaterThan(0);
   });
 });

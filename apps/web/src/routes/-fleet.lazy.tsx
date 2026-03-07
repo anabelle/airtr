@@ -1,7 +1,7 @@
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { AlertTriangle } from "lucide-react";
 import { FleetManager } from "@/features/fleet/components/FleetManager";
-import { PanelLayout } from "@/shared/components/layout/PanelLayout";
+import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
   const { airline, initializeIdentity, isLoading } = useAirlineStore();
@@ -27,7 +27,7 @@ export default function FleetDashboard() {
               disabled={isLoading}
               className="w-full rounded-md border border-border bg-background/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
             >
-              {isLoading ? "Connecting..." : "Connect Wallet"}
+              {isLoading ? "Connecting…" : "Connect Wallet"}
             </button>
           </div>
         </div>
@@ -37,9 +37,17 @@ export default function FleetDashboard() {
 
   return (
     <PanelLayout>
-      <div className="flex h-full w-full flex-col p-4 sm:p-6 overflow-hidden">
+      <PanelHeader
+        title="Fleet Manager"
+        badge={
+          <span className="rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent sm:px-3 sm:text-xs">
+            {fleetSize} Aircraft
+          </span>
+        }
+      />
+      <PanelBody className="overflow-hidden pt-3 sm:pt-4">
         {isBankrupt && !isViewingOther && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-500/20 bg-rose-950/30 px-4 py-3 shrink-0">
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-950/30 px-4 py-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
             <span className="text-xs text-rose-300">
               {activeAirline?.status === "chapter11"
@@ -48,16 +56,10 @@ export default function FleetDashboard() {
             </span>
           </div>
         )}
-        <div className="mb-4 sm:mb-6 flex items-center shrink-0 justify-between pr-10">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Fleet Manager</h2>
-          <span className="rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold uppercase text-accent">
-            {fleetSize} Aircraft
-          </span>
-        </div>
-        <div className="flex-1 overflow-hidden min-h-0">
+        <div className="min-h-0 h-full">
           <FleetManager />
         </div>
-      </div>
+      </PanelBody>
     </PanelLayout>
   );
 }

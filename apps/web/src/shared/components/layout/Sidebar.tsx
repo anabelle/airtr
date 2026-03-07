@@ -1,15 +1,25 @@
 import { useAirlineStore } from "@acars/store";
 import { Link } from "@tanstack/react-router";
 import { Building2, Globe, Map as MapIcon, Plane, Trophy } from "lucide-react";
-import { NavBadge } from "./NavBadge";
 import { useNavBadges } from "@/shared/hooks/useNavBadges";
+import { NavBadge } from "./NavBadge";
 
 const navItems = [
   { icon: MapIcon, label: "Map", to: "/", requiresAirline: false },
   { icon: Plane, label: "Fleet", to: "/fleet", requiresAirline: true },
   { icon: Globe, label: "Network", to: "/network", requiresAirline: false },
-  { icon: Trophy, label: "Leaderboard", to: "/leaderboard", requiresAirline: false },
-  { icon: Building2, label: "Corporate", to: "/corporate", requiresAirline: true },
+  {
+    icon: Trophy,
+    label: "Leaderboard",
+    to: "/leaderboard",
+    requiresAirline: false,
+  },
+  {
+    icon: Building2,
+    label: "Corporate",
+    to: "/corporate",
+    requiresAirline: true,
+  },
 ];
 
 /** Resolve the badge to show for a given nav route path, given current badge counts. */
@@ -82,7 +92,7 @@ export function MobileNav() {
   const badges = useNavBadges();
 
   return (
-    <nav className="pointer-events-auto flex sm:hidden items-center justify-around border-t border-border bg-background/90 backdrop-blur-xl px-2 py-1.5 shrink-0">
+    <nav className="pointer-events-auto flex shrink-0 items-center justify-around border-t border-border bg-background/90 px-2 py-1.5 backdrop-blur-xl pb-[calc(0.375rem+env(safe-area-inset-bottom))] sm:hidden">
       {navItems.map((item) => {
         const isDisabled = item.requiresAirline && !hasAirlineContext;
         const badge = resolveNavBadge(item.to, badges);
@@ -90,7 +100,7 @@ export function MobileNav() {
           <Link
             key={item.to}
             to={item.to}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${isDisabled ? "pointer-events-none opacity-40" : ""}`}
+            className={`flex min-w-[3.75rem] touch-manipulation flex-col items-center gap-0.5 rounded-lg px-2 py-1 transition-all ${isDisabled ? "pointer-events-none opacity-40" : ""}`}
             activeProps={{
               className: "text-primary",
             }}
