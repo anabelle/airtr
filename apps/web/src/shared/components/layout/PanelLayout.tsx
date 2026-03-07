@@ -5,7 +5,9 @@ import { cn } from "@/shared/lib/utils";
 export function PanelLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="pointer-events-auto relative flex h-full w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/85 shadow-[0_0_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl duration-300 animate-in fade-in slide-in-from-left-4 sm:rounded-[28px]">
-      <div className="flex h-full w-full min-h-0 flex-col">{children}</div>
+      <div className="custom-scrollbar flex h-full w-full min-h-0 flex-col overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }
@@ -28,7 +30,7 @@ export function PanelHeader({
   return (
     <div
       className={cn(
-        "shrink-0 border-b border-border/60 bg-background/88 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4",
+        "border-b border-border/60 bg-background/88 px-4 py-3 backdrop-blur-xl sm:px-6 sm:py-4",
         className,
       )}
     >
@@ -69,14 +71,5 @@ export function PanelBody({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <div
-      className={cn(
-        "flex-1 min-h-0 overflow-y-auto px-4 py-3 custom-scrollbar sm:px-6 sm:py-4",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("min-w-0 px-4 py-3 sm:px-6 sm:py-4", className)}>{children}</div>;
 }

@@ -241,8 +241,8 @@ export function Leaderboard() {
   });
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col gap-3 sm:gap-4">
-      <div className="shrink-0 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
+    <div className="flex w-full flex-col gap-3 sm:gap-4">
+      <div className="rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2">
             <Trophy className="h-5 w-5 text-primary sm:h-6 sm:w-6" aria-hidden="true" />
@@ -274,7 +274,7 @@ export function Leaderboard() {
         </div>
       </div>
 
-      <div ref={parentRef} className="custom-scrollbar flex-1 overflow-y-auto">
+      <div ref={parentRef} className="custom-scrollbar h-[70vh] overflow-y-auto">
         <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
