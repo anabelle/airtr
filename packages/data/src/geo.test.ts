@@ -77,6 +77,11 @@ describe("findPreferredHub", () => {
     expect(result.iata).toBe("BIG");
   });
 
+  it("keeps zero-population domestic airports in the in-country fallback", () => {
+    const result = findPreferredHub(5.1, 5.1, airports as any, new Set(["NONE"]));
+    expect(result.iata).toBe("NONE2");
+  });
+
   it("prefers close smaller city over far megacity when expanding globally", () => {
     // Airports: close small city vs far megacity
     const testAirports = [

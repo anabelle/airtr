@@ -42,7 +42,9 @@ function findAirportByTimezone(occupiedIatas?: ReadonlySet<string>): Airport | n
 }
 
 /** Collect all IATA codes used as hubs by competitor airlines. */
-function collectOccupiedHubs(competitors: Map<string, { hubs: string[] }>): Set<string> {
+function collectOccupiedHubs(
+  competitors: ReadonlyMap<string, { hubs: readonly string[] }>,
+): Set<string> {
   const occupied = new Set<string>();
   competitors.forEach((airline) => {
     for (const hub of airline.hubs) {
@@ -57,6 +59,7 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
   const identityStatus = useAirlineStore((s) => s.identityStatus);
   const competitors = useAirlineStore((s) => s.competitors);
   const homeAirport = useEngineStore((s) => s.homeAirport);
+  const userLocation = useEngineStore((s) => s.userLocation);
   const setHub = useEngineStore((s) => s.setHub);
   const startEngine = useEngineStore((s) => s.startEngine);
 
@@ -64,9 +67,18 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
   // When they do, we must not override their choice.
   const userManuallyPickedHub = useRef(false);
 
+  const isHubSelectionLocked = () =>
+    userManuallyPickedHub.current || useEngineStore.getState().userLocation?.source === "manual";
+
   useEffect(() => {
     initializeIdentity();
   }, [initializeIdentity]);
+
+  useEffect(() => {
+    if (userLocation?.source === "manual") {
+      userManuallyPickedHub.current = true;
+    }
+  }, [userLocation]);
 
   // Once airline loads from Nostr, authoritatively set engine hub to hubs[0].
   // This takes priority over any geo-detection that may have run first.
@@ -93,6 +105,10 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
     const fallbackLocate = () => {
       // Guard: airline may have loaded while geo was pending
       if (useAirlineStore.getState().airline) return;
+      if (isHubSelectionLocked()) {
+        startEngine();
+        return;
+      }
 
       const tzAirport = findAirportByTimezone();
       if (tzAirport) {
@@ -115,6 +131,10 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
         (pos) => {
           // Guard: airline may have loaded while geo was pending
           if (useAirlineStore.getState().airline) return;
+          if (isHubSelectionLocked()) {
+            startEngine();
+            return;
+          }
 
           const loc: UserLocation = {
             latitude: pos.coords.latitude,
@@ -139,10 +159,10 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (airline) return; // Returning user — don't touch their hub
     if (competitors.size === 0) return; // No competitor data yet
+    if (!userLocation || !homeAirport) return;
 
     // Check if the user manually picked a hub (source === "manual")
-    const { userLocation } = useEngineStore.getState();
-    if (!userLocation || userLocation.source === "manual") {
+    if (userLocation.source === "manual") {
       userManuallyPickedHub.current = true;
       return;
     }
@@ -150,17 +170,15 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
 
     const occupied = collectOccupiedHubs(competitors);
     if (occupied.size === 0) return;
-
-    const currentHome = useEngineStore.getState().homeAirport;
-    if (!currentHome || !occupied.has(currentHome.iata)) return; // Current suggestion is fine
+    if (!occupied.has(homeAirport.iata)) return; // Current suggestion is fine
 
     // Re-run hub suggestion with competitor awareness
     const { latitude, longitude } = userLocation;
     const better = findPreferredHub(latitude, longitude, undefined, occupied);
-    if (better.iata !== currentHome.iata) {
+    if (better.iata !== homeAirport.iata) {
       setHub(better, { latitude, longitude, source: userLocation.source }, "auto-distributed");
     }
-  }, [airline, competitors, setHub]);
+  }, [airline, competitors, homeAirport, userLocation, setHub]);
 
   return <>{children}</>;
 }

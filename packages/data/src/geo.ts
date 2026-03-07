@@ -9,6 +9,20 @@ import { airports as AIRPORTS } from "./airports.js";
  */
 const DISTANCE_REF_KM = 500;
 
+function isBetterHubCandidate(
+  candidate: Airport,
+  candidateDistance: number,
+  current: Airport,
+  currentDistance: number,
+): boolean {
+  const candidatePopulation = candidate.population || 0;
+  const currentPopulation = current.population || 0;
+  return (
+    candidatePopulation > currentPopulation ||
+    (candidatePopulation === currentPopulation && candidateDistance < currentDistance)
+  );
+}
+
 /**
  * Find the best hub near a location, avoiding airports that already have
  * a competitor hub.
@@ -50,22 +64,40 @@ export function findPreferredHub(
 
   const occupied = occupiedIatas ?? new Set<string>();
   const countryAirports = airports.filter((a) => a.country === country);
-  const populated = countryAirports.filter((a) => (a.population || 0) > 0);
+  if (countryAirports.length > 0) {
+    let bestInCountry = countryAirports[0];
+    let bestInCountryDistance = haversineDistance(
+      lat,
+      lon,
+      bestInCountry.latitude,
+      bestInCountry.longitude,
+    );
+    let bestAvailable = occupied.has(countryAirports[0].iata) ? null : countryAirports[0];
+    let bestAvailableDistance = bestAvailable ? bestInCountryDistance : Infinity;
 
-  if (populated.length > 0) {
-    // Sort by population descending, distance ascending as tiebreaker
-    const sorted = [...populated].sort((a, b) => {
-      const popDiff = (b.population || 0) - (a.population || 0);
-      if (popDiff !== 0) return popDiff;
-      return (
-        haversineDistance(lat, lon, a.latitude, a.longitude) -
-        haversineDistance(lat, lon, b.latitude, b.longitude)
-      );
-    });
+    for (let index = 1; index < countryAirports.length; index += 1) {
+      const airport = countryAirports[index];
+      const distance = haversineDistance(lat, lon, airport.latitude, airport.longitude);
 
-    // Pick the first unoccupied airport in-country
-    const available = sorted.find((a) => !occupied.has(a.iata));
-    if (available) return available;
+      if (isBetterHubCandidate(airport, distance, bestInCountry, bestInCountryDistance)) {
+        bestInCountry = airport;
+        bestInCountryDistance = distance;
+      }
+
+      if (occupied.has(airport.iata)) continue;
+      if (!bestAvailable) {
+        bestAvailable = airport;
+        bestAvailableDistance = distance;
+        continue;
+      }
+
+      if (isBetterHubCandidate(airport, distance, bestAvailable, bestAvailableDistance)) {
+        bestAvailable = airport;
+        bestAvailableDistance = distance;
+      }
+    }
+
+    if (bestAvailable) return bestAvailable;
 
     // All in-country airports occupied — expand globally
     const globalCandidates = airports.filter(
@@ -87,7 +119,7 @@ export function findPreferredHub(
     }
 
     // Every airport worldwide is occupied — fall back to biggest in-country
-    return sorted[0];
+    return bestInCountry;
   }
 
   return nearest;
