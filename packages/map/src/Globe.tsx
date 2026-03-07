@@ -12,6 +12,7 @@ import {
   routeIntersectsViewport,
 } from "./geo.js";
 import { FAMILY_ICONS, LIGHT_DOT_SVG, WING_TIP_OFFSETS } from "./icons.js";
+import { resolveMapSelection } from "./interactions.js";
 
 const NIGHT_CANVAS_W = 1024;
 const NIGHT_CANVAS_H = 512;
@@ -437,6 +438,8 @@ export function Globe({
 
     map.on("moveend", saveView);
     map.on("zoomend", saveView);
+    let cursorFrame: number | null = null;
+    let pendingCursorPoint: { x: number; y: number } | null = null;
 
     map.on("load", () => {
       setMapLoaded(true);
@@ -1087,63 +1090,56 @@ export function Globe({
       };
       addLightLayers("global-flights", "global-flight", 0.6);
       addLightLayers("flights", "flight", 0.9);
+      const queryRenderedFeatures = map.queryRenderedFeatures.bind(map);
+      const setCursor = (cursor: string) => {
+        map.getCanvas().style.cursor = cursor;
+      };
+      const updateCursor = () => {
+        cursorFrame = null;
 
-      // Airport click handler (uses ref to avoid stale closure)
-      map.on("click", "airports-layer", (e) => {
-        if (!e.features || e.features.length === 0) return;
-        (e.originalEvent as MouseEvent & { _handled?: boolean })._handled = true;
-        latestOnAirportSelect.current(e.features[0].properties as unknown as Airport);
-      });
+        if (!pendingCursorPoint) return;
 
-      // Aircraft click handlers (flight + light layers, uses ref to avoid stale closure)
-      const flightLayers = [
-        "flights-layer",
-        "flights-accent-layer",
-        "global-flights-layer",
-        "global-flights-accent-layer",
-        "flight-light-port",
-        "flight-light-stbd",
-        "flight-light-strobe",
-        "global-flight-light-port",
-        "global-flight-light-stbd",
-        "global-flight-light-strobe",
-      ];
-      for (const layerId of flightLayers) {
-        map.on("click", layerId, (e) => {
-          if (!e.features || e.features.length === 0) return;
-          (e.originalEvent as MouseEvent & { _handled?: boolean })._handled = true;
-          const id = e.features[0].properties?.id;
-          if (id && latestOnAircraftSelect.current) latestOnAircraftSelect.current(String(id));
-        });
-      }
+        const selection = resolveMapSelection(pendingCursorPoint, queryRenderedFeatures);
+        setCursor(selection ? "pointer" : "");
+      };
 
-      // Map click handler (dismiss panels on empty map clicks, uses ref to avoid stale closure)
       map.on("click", (e) => {
-        if ((e.originalEvent as MouseEvent & { _handled?: boolean })._handled) return;
-        if (latestOnMapClick.current) latestOnMapClick.current();
+        const selection = resolveMapSelection(e.point, queryRenderedFeatures);
+
+        if (selection?.type === "airport") {
+          latestOnAirportSelect.current?.(selection.airport);
+          return;
+        }
+
+        if (selection?.type === "aircraft") {
+          latestOnAircraftSelect.current?.(selection.aircraftId);
+          return;
+        }
+
+        latestOnMapClick.current?.();
       });
 
-      // Cursor: pointer on airports
-      map.on("mouseenter", "airports-layer", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "airports-layer", () => {
-        map.getCanvas().style.cursor = "";
+      map.on("mousemove", (e) => {
+        pendingCursorPoint = e.point;
+        if (cursorFrame !== null) return;
+        cursorFrame = requestAnimationFrame(updateCursor);
       });
 
-      // Cursor: pointer on flights
-      for (const layerId of flightLayers) {
-        map.on("mouseenter", layerId, () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", layerId, () => {
-          map.getCanvas().style.cursor = "";
-        });
-      }
+      map.on("mouseleave", () => {
+        pendingCursorPoint = null;
+        if (cursorFrame !== null) {
+          cancelAnimationFrame(cursorFrame);
+          cursorFrame = null;
+        }
+        setCursor("");
+      });
     });
 
     mapRef.current = map;
     return () => {
+      if (cursorFrame !== null) {
+        cancelAnimationFrame(cursorFrame);
+      }
       cleanupTimer.current = setTimeout(() => {
         mapRef.current?.remove();
         mapRef.current = null;
