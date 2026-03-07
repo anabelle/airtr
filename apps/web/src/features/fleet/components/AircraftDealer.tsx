@@ -194,9 +194,9 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
   });
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden sm:gap-6">
+    <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
       {/* Mode Switcher */}
-      <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-border/40 pb-4">
+      <div className="grid grid-cols-2 gap-2 border-b border-border/40 pb-4">
         <button
           type="button"
           onClick={() => setMode("factory")}
@@ -219,7 +219,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
       </div>
 
       {/* Header & Filters */}
-      <div className="shrink-0 rounded-2xl border border-border/40 bg-card p-3 shadow-sm backdrop-blur-xl sm:p-4">
+      <div className="rounded-2xl border border-border/40 bg-card p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
@@ -281,7 +281,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
       {/* Grid */}
       <div
         ref={scrollRef}
-        className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-8 sm:pr-2 sm:pb-10"
+        className="custom-scrollbar h-[70vh] overflow-y-auto overflow-x-hidden pb-8 sm:pr-2 sm:pb-10"
       >
         {displayMode === "used-empty" ? (
           <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">

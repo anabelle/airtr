@@ -45,7 +45,7 @@ export default function FleetDashboard() {
           </span>
         }
       />
-      <PanelBody className="overflow-hidden pt-3 sm:pt-4">
+      <PanelBody className="pt-3 sm:pt-4">
         {isBankrupt && !isViewingOther && (
           <div className="mb-3 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-950/30 px-4 py-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
@@ -56,9 +56,7 @@ export default function FleetDashboard() {
             </span>
           </div>
         )}
-        <div className="min-h-0 h-full">
-          <FleetManager />
-        </div>
+        <FleetManager />
       </PanelBody>
     </PanelLayout>
   );

@@ -572,7 +572,7 @@ export function RouteManager() {
   if (!airline || !homeAirport || !planningOriginAirport) return null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex flex-col">
       <PanelHeader
         title="Network"
         subtitle={`Manage your routes and flight frequencies from ${planningOriginAirport.name}.`}
@@ -583,8 +583,8 @@ export function RouteManager() {
         }
       />
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4">
-        <div className="mb-3 shrink-0 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
+      <div className="flex flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mb-3 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
           <div className="flex flex-col gap-3">
             {airline.hubs.length > 1 ? (
               <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
@@ -623,9 +623,9 @@ export function RouteManager() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="flex flex-col">
           {suspendedRoutes.length > 0 && !isViewingOther && (
-            <div className="mb-3 shrink-0 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
+            <div className="mb-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
@@ -752,7 +752,7 @@ export function RouteManager() {
             </div>
           )}
           {tab === "opportunities" && (
-            <div className="mb-3 shrink-0 flex items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-3 sm:p-4">
+            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-border/50 bg-muted/30 p-3 sm:p-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
@@ -794,7 +794,7 @@ export function RouteManager() {
                 )}
               </div>
             ) : (
-              <div ref={listParentRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div ref={listParentRef} className="h-[70vh] overflow-y-auto custom-scrollbar">
                 <div
                   style={{
                     height: `${activeRoutesVirtualizer.getTotalSize()}px`,
@@ -1344,7 +1344,7 @@ export function RouteManager() {
               </div>
             )
           ) : (
-            <div ref={listParentRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <div ref={listParentRef} className="h-[70vh] overflow-y-auto custom-scrollbar">
               <div
                 style={{
                   height: `${opportunitiesVirtualizer.getTotalSize()}px`,

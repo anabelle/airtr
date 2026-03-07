@@ -227,7 +227,7 @@ export function FleetManager() {
 
   if (view === "dealer") {
     return (
-      <div className="flex flex-col h-full w-full">
+      <div className="flex flex-col w-full">
         <div className="mb-4">
           <button
             type="button"
@@ -237,7 +237,7 @@ export function FleetManager() {
             &larr; Back to My Fleet
           </button>
         </div>
-        <div className="flex-1 overflow-hidden min-h-0">
+        <div>
           <AircraftDealer onPurchaseSuccess={() => setView("owned")} />
         </div>
       </div>
@@ -245,8 +245,8 @@ export function FleetManager() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 sm:gap-4">
-      <div className="shrink-0 rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
+    <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="rounded-2xl border border-border/50 bg-card/90 p-3 shadow-sm backdrop-blur-xl sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex items-center flex-1 sm:max-w-[320px]">
             <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
@@ -275,7 +275,7 @@ export function FleetManager() {
         </div>
       </div>
 
-      <div ref={fleetListRef} className="custom-scrollbar flex-1 overflow-y-auto pb-8">
+      <div ref={fleetListRef} className="custom-scrollbar h-[70vh] overflow-y-auto pb-8">
         {fleet.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/50 rounded-2xl bg-card/10">
             <Plane className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
