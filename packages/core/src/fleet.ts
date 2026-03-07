@@ -8,7 +8,8 @@ import { TICKS_PER_HOUR } from "./types.js";
  *
  * Each aircraft can complete N round-trips per week:
  *   roundTripHours = 2 * (distanceKm / speedKmh) + 2 * (turnaroundMinutes / 60)
- *   tripsPerWeek = floor(168 / roundTripHours)   // 168 hours in a week
+ *   availableHoursPerWeek = blockHoursPerDay * 7
+ *   tripsPerWeek = floor(availableHoursPerWeek / roundTripHours)
  *   totalFrequency = assignedAircraft * tripsPerWeek
  *
  * Falls back to assignedAircraft * 7 if model info is unavailable.
@@ -18,6 +19,7 @@ export function computeRouteFrequency(
   assignedAircraftCount: number,
   speedKmh: number = 800,
   turnaroundMinutes: number = 35,
+  blockHoursPerDay: number = 16,
 ): number {
   if (assignedAircraftCount <= 0) return 0;
   if (distanceKm <= 0 || speedKmh <= 0) return assignedAircraftCount * 7;
@@ -26,8 +28,8 @@ export function computeRouteFrequency(
   const turnaroundHours = turnaroundMinutes / 60;
   const roundTripHours = 2 * legHours + 2 * turnaroundHours;
 
-  // Cap at realistic block hours per day (~16 hours of utilization)
-  const hoursPerWeek = 168; // 7 * 24
+  // Cap at realistic block hours per day (crew rest, maintenance windows)
+  const hoursPerWeek = blockHoursPerDay * 7;
   const tripsPerAircraftPerWeek = Math.max(1, Math.floor(hoursPerWeek / roundTripHours));
 
   return assignedAircraftCount * tripsPerAircraftPerWeek;
@@ -58,7 +60,7 @@ export function calculateBookValue(
   const residualValue = fpScale(model.price, residualPercent);
 
   // V = P * (1-r)^t
-  let baseValue = fpScale(model.price, Math.pow(1 - annualRate, ageYears));
+  let baseValue = fpScale(model.price, (1 - annualRate) ** ageYears);
 
   // 3. Apply Condition Penalty (Up to 30% reduction)
   // 100% condition = 0 penalty. 50% condition = 15% penalty.

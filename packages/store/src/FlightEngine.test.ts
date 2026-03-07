@@ -167,6 +167,25 @@ const makeFlight = (
 });
 
 describe("FlightEngine — Solo/Offline scenarios", () => {
+  it("thin routes keep demand non-negative under aggressive oversupply", () => {
+    const aircraft = makeAircraft({
+      id: "ac-thin",
+      modelId: "atr72-600",
+      assignedRouteId: "route-thin",
+      baseAirportIata: "GKA",
+    });
+    const route = makeRoute({
+      id: "route-thin",
+      originIata: "GKA",
+      destinationIata: "POM",
+      distanceKm: 800,
+      assignedAircraftIds: Array.from({ length: 18 }, (_, idx) => `thin-${idx}`),
+    });
+
+    const { landing } = simulateSingleLanding(aircraft, route);
+    expect(landing.details?.passengers?.total ?? 0).toBeGreaterThanOrEqual(0);
+  });
+
   it("turboprop economy-only stays zero for business/first", () => {
     const aircraft = makeAircraft({
       id: "ac-atr",

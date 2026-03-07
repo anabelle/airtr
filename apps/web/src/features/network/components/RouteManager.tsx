@@ -24,7 +24,7 @@ import {
   type Season,
   scaleToAddressableMarket,
 } from "@acars/core";
-import { airports as ALL_AIRPORTS, HUB_CLASSIFICATIONS } from "@acars/data";
+import { airports as ALL_AIRPORTS, getAircraftById, HUB_CLASSIFICATIONS } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -42,6 +42,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import {
+  estimateRouteEconomics,
+  getPrimaryAssignedAircraft,
+} from "@/features/network/utils/routeEconomics";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
 
@@ -188,6 +192,7 @@ export function RouteManager() {
     demand: { economy: number; business: number; first: number };
     estimatedDailyRevenue: FixedPoint;
     season: Season;
+    routeEconomics: ReturnType<typeof estimateRouteEconomics> | null;
   };
 
   const calculateSearchProspect = useCallback(
@@ -203,6 +208,7 @@ export function RouteManager() {
         dest.longitude,
       );
       const demand = calculateDemand(planningOriginAirport, dest, season, prosperity, 1.0);
+      const addressableDemand = scaleToAddressableMarket(demand);
       const fares = getSuggestedFares(distance);
       const estimatedDailyRevenue = fpAdd(
         fpAdd(
@@ -211,6 +217,25 @@ export function RouteManager() {
         ),
         fpScale(fares.first, demand.first / 7),
       );
+      const sampleModel = getAircraftById("atr72-600") ?? getAircraftById("a320neo");
+      const routeEconomics = sampleModel
+        ? estimateRouteEconomics({
+            route: {
+              originIata: planningOriginAirport.iata,
+              destinationIata: dest.iata,
+              distanceKm: distance,
+              fareEconomy: fares.economy,
+              fareBusiness: fares.business,
+              fareFirst: fares.first,
+            },
+            addressableDemand,
+            pressureMultiplier: 0.85,
+            effectiveLoadFactor: 0.85,
+            aircraft: sampleModel,
+            aircraftCount: 1,
+            cabinConfig: sampleModel.capacity,
+          })
+        : null;
       return {
         origin: planningOriginAirport,
         destination: dest,
@@ -218,6 +243,7 @@ export function RouteManager() {
         demand,
         estimatedDailyRevenue,
         season,
+        routeEconomics,
       };
     },
     [planningOriginAirport, tick],
@@ -252,6 +278,7 @@ export function RouteManager() {
           dest.longitude,
         );
         const demand = calculateDemand(origin, dest, season, prosperity, 1.0);
+        const addressableDemand = scaleToAddressableMarket(demand);
         const fares = getSuggestedFares(distance);
         const estimatedDailyRevenue = fpAdd(
           fpAdd(
@@ -260,6 +287,25 @@ export function RouteManager() {
           ),
           fpScale(fares.first, demand.first / 7),
         );
+        const sampleModel = getAircraftById("atr72-600") ?? getAircraftById("a320neo");
+        const routeEconomics = sampleModel
+          ? estimateRouteEconomics({
+              route: {
+                originIata: origin.iata,
+                destinationIata: dest.iata,
+                distanceKm: distance,
+                fareEconomy: fares.economy,
+                fareBusiness: fares.business,
+                fareFirst: fares.first,
+              },
+              addressableDemand,
+              pressureMultiplier: 0.85,
+              effectiveLoadFactor: 0.85,
+              aircraft: sampleModel,
+              aircraftCount: 1,
+              cabinConfig: sampleModel.capacity,
+            })
+          : null;
         return {
           origin,
           destination: dest,
@@ -267,6 +313,7 @@ export function RouteManager() {
           demand,
           estimatedDailyRevenue,
           season,
+          routeEconomics,
         };
       });
     },
@@ -797,6 +844,23 @@ export function RouteManager() {
                     Math.abs(1 - economyElasticity) > 0.05 ||
                     Math.abs(1 - businessElasticity) > 0.05 ||
                     Math.abs(1 - firstElasticity) > 0.05;
+                  const primaryAssignment = getPrimaryAssignedAircraft(
+                    route.assignedAircraftIds,
+                    fleet,
+                    getAircraftById,
+                  );
+                  const routeEconomics = primaryAssignment
+                    ? estimateRouteEconomics({
+                        route,
+                        addressableDemand: demandSnapshot.addressableDemand,
+                        pressureMultiplier: demandSnapshot.pressureMultiplier,
+                        effectiveLoadFactor: demandSnapshot.effectiveLoadFactor,
+                        aircraft: primaryAssignment.model,
+                        aircraftCount: Math.max(1, route.assignedAircraftIds.length),
+                        cabinConfig: primaryAssignment.aircraft.configuration,
+                        includeFixedCosts: true,
+                      })
+                    : null;
 
                   return (
                     <div
@@ -1044,6 +1108,52 @@ export function RouteManager() {
                                   )}
                                 </div>
                               )}
+
+                              {routeEconomics && (
+                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3 text-[10px] font-mono">
+                                  <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                    <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Profit / flight
+                                    </div>
+                                    <div
+                                      className={`mt-1 font-bold ${routeEconomics.profitPerFlight >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                                    >
+                                      {fpFormat(routeEconomics.profitPerFlight, 0)}
+                                    </div>
+                                    <div className="mt-1 text-[9px] text-muted-foreground">
+                                      Rev {fpFormat(routeEconomics.revenuePerFlight, 0)} • Cost{" "}
+                                      {fpFormat(routeEconomics.costPerFlight, 0)}
+                                    </div>
+                                  </div>
+                                  <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                    <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Break-even LF
+                                    </div>
+                                    <div className="mt-1 font-bold text-foreground">
+                                      {Math.round(routeEconomics.breakEvenLoadFactor * 100)}%
+                                    </div>
+                                    <div className="mt-1 text-[9px] text-muted-foreground">
+                                      Current est.{" "}
+                                      {Math.round(routeEconomics.estimatedLoadFactor * 100)}%
+                                    </div>
+                                  </div>
+                                  <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                    <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Action
+                                    </div>
+                                    <div className="mt-1 font-bold text-foreground">
+                                      {routeEconomics.recommendedAircraftCount < assignedCount
+                                        ? `Remove ${assignedCount - routeEconomics.recommendedAircraftCount}`
+                                        : routeEconomics.recommendedAircraftCount > assignedCount
+                                          ? `Add ${routeEconomics.recommendedAircraftCount - assignedCount}`
+                                          : "Hold fleet"}
+                                    </div>
+                                    <div className="mt-1 text-[9px] text-muted-foreground">
+                                      Supports ~{routeEconomics.recommendedAircraftCount} aircraft
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1247,6 +1357,7 @@ export function RouteManager() {
                 const destinationMeta = HUB_CLASSIFICATIONS[market.destination.iata];
                 const destinationCapacity = destinationMeta?.baseCapacityPerHour ?? null;
                 const destinationSlotControlled = destinationMeta?.slotControlled ?? false;
+                const routeEconomics = market.routeEconomics;
 
                 return (
                   <div
@@ -1311,10 +1422,14 @@ export function RouteManager() {
 
                           <div className="flex flex-col">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
-                              Est. Daily Rev
+                              Est. Profit / flight
                             </span>
-                            <span className="text-lg font-mono font-bold text-green-400">
-                              {fpFormat(market.estimatedDailyRevenue, 0)}
+                            <span
+                              className={`text-lg font-mono font-bold ${routeEconomics && routeEconomics.profitPerFlight >= 0 ? "text-green-400" : "text-rose-400"}`}
+                            >
+                              {routeEconomics
+                                ? fpFormat(routeEconomics.profitPerFlight, 0)
+                                : fpFormat(market.estimatedDailyRevenue, 0)}
                             </span>
                           </div>
                           {destinationCapacity && (
@@ -1408,6 +1523,43 @@ export function RouteManager() {
                           title="First"
                         />
                       </div>
+                      {routeEconomics && (
+                        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 text-[10px] font-mono">
+                          <div className="rounded-lg border border-border/30 bg-background/30 px-3 py-2">
+                            <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                              Cost / flight
+                            </div>
+                            <div className="mt-1 font-bold text-foreground">
+                              {fpFormat(routeEconomics.costPerFlight, 0)}
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-border/30 bg-background/30 px-3 py-2">
+                            <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                              Break-even LF
+                            </div>
+                            <div className="mt-1 font-bold text-foreground">
+                              {Math.round(routeEconomics.breakEvenLoadFactor * 100)}%
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-border/30 bg-background/30 px-3 py-2">
+                            <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                              Suggested fleet
+                            </div>
+                            <div className="mt-1 font-bold text-foreground">
+                              {routeEconomics.recommendedAircraftCount} aircraft
+                            </div>
+                          </div>
+                          <div className="rounded-lg border border-border/30 bg-background/30 px-3 py-2">
+                            <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                              Cost split
+                            </div>
+                            <div className="mt-1 text-[9px] text-muted-foreground">
+                              Fuel {fpFormat(routeEconomics.costBreakdown.fuel, 0)} • Crew{" "}
+                              {fpFormat(routeEconomics.costBreakdown.crew, 0)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

@@ -44,7 +44,7 @@ const FIRST_SHARE = 0.05;
 
 // --- Price Elasticity (from ECONOMIC_MODEL.md §1.4) ---
 
-export const PRICE_ELASTICITY_ECONOMY = -1.5;
+export const PRICE_ELASTICITY_ECONOMY = -1.2;
 export const PRICE_ELASTICITY_BUSINESS = -0.5;
 export const PRICE_ELASTICITY_FIRST = -0.2;
 export const MAX_PRICE_ELASTICITY_MULTIPLIER = 1.5;
@@ -57,10 +57,10 @@ export const MIN_PRICE_ELASTICITY_MULTIPLIER = 0.01;
  * can collectively capture. The remainder is served by NPC legacy
  * carriers (Avianca, LATAM, etc.) who exist off-screen.
  *
- * At 0.14, BOG-MDE (85K total) yields ~11,900 addressable pax/week.
+ * At 0.20, BOG-MDE (85K total) yields ~17,000 addressable pax/week.
  * This creates meaningful supply/demand tension with 5-15 aircraft.
  */
-export const PLAYER_MARKET_CEILING = 0.14;
+export const PLAYER_MARKET_CEILING = 0.2;
 
 /**
  * Minimum total addressable weekly passengers on any route.

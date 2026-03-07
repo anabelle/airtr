@@ -603,6 +603,7 @@ function RouteTab({
     route.assignedAircraftIds.length,
     acModel?.speedKmh || 800,
     acModel?.turnaroundTimeMinutes || 35,
+    acModel?.blockHoursPerDay || 16,
   );
 
   const getLocalTime = (tz: string | undefined) => {

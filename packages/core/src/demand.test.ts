@@ -250,6 +250,7 @@ describe("scaleToAddressableMarket()", () => {
     const scaled = scaleToAddressableMarket(demand);
     const total = scaled.economy + scaled.business + scaled.first;
     expect(total).toBe(Math.floor(10_000 * PLAYER_MARKET_CEILING));
+    expect(total).toBe(2000);
   });
 
   it("applies minimum addressable weekly floor", () => {
@@ -322,6 +323,13 @@ describe("calculatePriceElasticity()", () => {
     const first = calculatePriceElasticity(actual, reference, PRICE_ELASTICITY_FIRST);
     expect(economy).toBeLessThan(business);
     expect(business).toBeLessThan(first);
+  });
+
+  it("economy elasticity is less punishing after retune", () => {
+    const reference = fp(200);
+    const actual = fp(240);
+    const multiplier = calculatePriceElasticity(actual, reference, PRICE_ELASTICITY_ECONOMY);
+    expect(multiplier).toBeCloseTo(0.803, 2);
   });
 
   it("caps stimulation for deep discounts", () => {

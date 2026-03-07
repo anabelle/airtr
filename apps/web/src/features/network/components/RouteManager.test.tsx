@@ -3,6 +3,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RouteManager } from "./RouteManager";
 
+vi.mock("@/features/network/utils/routeEconomics", () => ({
+  getPrimaryAssignedAircraft: vi.fn(() => null),
+  estimateRouteEconomics: vi.fn(() => null),
+}));
+
 const mockUseAirlineStore = vi.fn();
 const mockUseEngineStore = vi.fn();
 const mockUseActiveAirline = vi.fn();
@@ -118,5 +123,44 @@ describe("RouteManager", () => {
 
     render(<RouteManager />);
     expect(screen.getByText("Network")).toBeInTheDocument();
+  });
+
+  it("renders active and opportunities tabs", () => {
+    mockUseAirlineStore.mockReturnValue({
+      pubkey: "pub",
+      routes: [],
+      openRoute: vi.fn(),
+      updateRouteFares: vi.fn(),
+      rebaseRoute: vi.fn(),
+      closeRoute: vi.fn(),
+      globalRouteRegistry: new Map(),
+      competitors: new Map(),
+    });
+    mockUseActiveAirline.mockReturnValue({
+      airline: {
+        hubs: ["JFK"],
+        brandScore: 0.6,
+        cumulativeRevenue: 0,
+      },
+      routes: [],
+      fleet: [],
+      isViewingOther: false,
+    });
+    mockUseEngineStore.mockReturnValue({
+      homeAirport: {
+        iata: "JFK",
+        name: "JFK",
+        city: "New York",
+        country: "US",
+        latitude: 0,
+        longitude: 0,
+      },
+      tick: 0,
+      setActiveHubIata: vi.fn(),
+    });
+
+    render(<RouteManager />);
+    expect(screen.getAllByRole("button", { name: /Active Network/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Market Opportunities").length).toBeGreaterThan(0);
   });
 });

@@ -324,6 +324,7 @@ export function processFlightEngine(
                 Math.max(1, route.assignedAircraftIds.length),
                 model.speedKmh || 800,
                 model.turnaroundTimeMinutes,
+                model.blockHoursPerDay,
               )
             : Math.max(1, ac.flight?.frequencyPerWeek ?? 7);
 
@@ -414,15 +415,17 @@ export function processFlightEngine(
           );
 
           // Per-flight allocation (Weekly allocation / frequency), adjusted by supply pressure
+          // Use Math.round instead of Math.floor to prevent systematic zero-passenger
+          // rounding on thin routes where fractional pax (e.g. 0.7) should round to 1.
           let paxE = Math.min(
             seatConfig.economy,
-            Math.floor(
+            Math.round(
               (ourWeeklyAllocation.economy / ourFrequency) * pressureMultiplier * elasticityEconomy,
             ),
           );
           let paxB = Math.min(
             seatConfig.business,
-            Math.floor(
+            Math.round(
               (ourWeeklyAllocation.business / ourFrequency) *
                 pressureMultiplier *
                 elasticityBusiness,
@@ -430,7 +433,7 @@ export function processFlightEngine(
           );
           let paxF = Math.min(
             seatConfig.first,
-            Math.floor(
+            Math.round(
               (ourWeeklyAllocation.first / ourFrequency) * pressureMultiplier * elasticityFirst,
             ),
           );
@@ -440,9 +443,24 @@ export function processFlightEngine(
           const rawLoadFactor = totalSeats > 0 ? totalPax / totalSeats : 0;
           if (rawLoadFactor > NATURAL_LF_CEILING && totalPax > 0) {
             const scale = NATURAL_LF_CEILING / rawLoadFactor;
-            paxE = Math.floor(paxE * scale);
-            paxB = Math.floor(paxB * scale);
-            paxF = Math.floor(paxF * scale);
+            paxE = Math.round(paxE * scale);
+            paxB = Math.round(paxB * scale);
+            paxF = Math.round(paxF * scale);
+
+            const maxTotalPax = Math.floor(totalSeats * NATURAL_LF_CEILING);
+            let overflow = paxE + paxB + paxF - maxTotalPax;
+            while (overflow > 0 && paxE > 0) {
+              paxE -= 1;
+              overflow -= 1;
+            }
+            while (overflow > 0 && paxB > 0) {
+              paxB -= 1;
+              overflow -= 1;
+            }
+            while (overflow > 0 && paxF > 0) {
+              paxF -= 1;
+              overflow -= 1;
+            }
           }
           // --- END NEW MP ALLOCATION ---
 

@@ -37,6 +37,11 @@ import {
 } from "@/features/corporate/hooks/useFinancialPulse";
 import { useRoutePerformance } from "@/features/corporate/hooks/useRoutePerformance";
 import { HubPicker } from "@/features/network/components/HubPicker";
+import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import {
+  estimateRouteEconomics,
+  getPrimaryAssignedAircraft,
+} from "@/features/network/utils/routeEconomics";
 import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
 
@@ -307,6 +312,84 @@ function PnlCell({ label, value, color }: { label: string; value: string; color:
         {value}
       </p>
     </div>
+  );
+}
+
+function NetworkHealth({
+  oversuppliedRoutes,
+  projectedWeeklyProfit,
+  routesNeedingCuts,
+}: {
+  oversuppliedRoutes: Array<{
+    routeId: string;
+    label: string;
+    supplyRatio: number;
+    projectedProfit: FixedPoint;
+  }>;
+  projectedWeeklyProfit: FixedPoint;
+  routesNeedingCuts: number;
+}) {
+  return (
+    <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          Network Health
+        </p>
+        <span
+          className={`text-xs font-mono font-bold ${projectedWeeklyProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+        >
+          {fpFormat(projectedWeeklyProfit, 0)}/wk
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 mb-3">
+        <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+          <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+            Oversupplied
+          </div>
+          <div className="mt-1 text-sm font-bold text-rose-400">
+            {oversuppliedRoutes.length} routes
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+          <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+            Needs fleet cuts
+          </div>
+          <div className="mt-1 text-sm font-bold text-amber-400">{routesNeedingCuts} routes</div>
+        </div>
+        <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
+          <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+            Projected network
+          </div>
+          <div
+            className={`mt-1 text-sm font-bold ${projectedWeeklyProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+          >
+            {projectedWeeklyProfit >= 0 ? "Profitable" : "Losing money"}
+          </div>
+        </div>
+      </div>
+      {oversuppliedRoutes.length > 0 && (
+        <div className="space-y-2">
+          {oversuppliedRoutes.slice(0, 5).map((route) => (
+            <div
+              key={route.routeId}
+              className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-2"
+            >
+              <div>
+                <div className="text-xs font-bold text-foreground">{route.label}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  Oversupply {route.supplyRatio.toFixed(2)}x
+                </div>
+              </div>
+              <div
+                className={`text-xs font-mono font-bold ${route.projectedProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+              >
+                {fpFormat(route.projectedProfit, 0)}/wk
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -952,6 +1035,51 @@ export default function CorporateDashboard() {
     };
   }, [fleet]);
 
+  const networkHealth = useMemo(() => {
+    const entries = routes
+      .map((route) => {
+        const primaryAssignment = getPrimaryAssignedAircraft(
+          route.assignedAircraftIds,
+          fleet,
+          getAircraftById,
+        );
+        if (!primaryAssignment) return null;
+        const snapshot = getRouteDemandSnapshot(
+          route,
+          useEngineStore.getState().tick,
+          fleet,
+          routes,
+        );
+        const economics = estimateRouteEconomics({
+          route,
+          addressableDemand: snapshot.addressableDemand,
+          pressureMultiplier: snapshot.pressureMultiplier,
+          effectiveLoadFactor: snapshot.effectiveLoadFactor,
+          aircraft: primaryAssignment.model,
+          aircraftCount: Math.max(1, route.assignedAircraftIds.length),
+          cabinConfig: primaryAssignment.aircraft.configuration,
+          includeFixedCosts: true,
+        });
+        return {
+          routeId: route.id,
+          label: `${route.originIata} -> ${route.destinationIata}`,
+          supplyRatio: economics.supplyRatio,
+          projectedProfit: economics.profitPerWeek,
+          needsCuts:
+            economics.recommendedAircraftCount < Math.max(1, route.assignedAircraftIds.length),
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+    return {
+      oversuppliedRoutes: entries
+        .filter((entry) => entry.supplyRatio > 1.5)
+        .sort((a, b) => b.supplyRatio - a.supplyRatio),
+      projectedWeeklyProfit: fpSum(entries.map((entry) => entry.projectedProfit)),
+      routesNeedingCuts: entries.filter((entry) => entry.needsCuts).length,
+    };
+  }, [fleet, routes]);
+
   if (!airline && !isViewingOther) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -1094,6 +1222,12 @@ export default function CorporateDashboard() {
             </div>
           </section>
         )}
+
+        <NetworkHealth
+          oversuppliedRoutes={networkHealth.oversuppliedRoutes}
+          projectedWeeklyProfit={networkHealth.projectedWeeklyProfit}
+          routesNeedingCuts={networkHealth.routesNeedingCuts}
+        />
 
         {/* 2. Company Profile — identity + tier/brand/status */}
         <CompanyProfile

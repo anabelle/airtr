@@ -51,6 +51,33 @@ vi.mock("@/features/corporate/hooks/useRoutePerformance", () => {
   };
 });
 
+vi.mock("@/features/network/utils/routeEconomics", () => {
+  return {
+    getPrimaryAssignedAircraft: vi.fn(() => null),
+    estimateRouteEconomics: vi.fn(() => ({
+      supplyRatio: 2,
+      profitPerWeek: fp(-1000),
+      recommendedAircraftCount: 1,
+    })),
+  };
+});
+
+vi.mock("@/features/network/hooks/useRouteDemand", () => {
+  return {
+    getRouteDemandSnapshot: vi.fn(() => ({
+      addressableDemand: {
+        origin: "JFK",
+        destination: "LAX",
+        economy: 100,
+        business: 20,
+        first: 5,
+      },
+      pressureMultiplier: 0.5,
+      effectiveLoadFactor: 0.5,
+    })),
+  };
+});
+
 const mockAirline = {
   hubs: ["JFK"],
   corporateBalance: 0,
@@ -244,5 +271,10 @@ describe("Corporate route", () => {
     expect(useVirtualizerMock).toHaveBeenCalledWith(expect.objectContaining({ count: 7 }));
     expect(screen.getAllByText("1 aircraft")).toHaveLength(7);
     expect(screen.getByText("G")).toBeInTheDocument();
+  });
+
+  it("renders network health section", () => {
+    render(<CorporateRoute />);
+    expect(screen.getByText("Network Health")).toBeInTheDocument();
   });
 });

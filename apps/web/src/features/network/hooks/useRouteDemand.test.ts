@@ -53,9 +53,13 @@ vi.mock("@acars/core", async () => {
     })),
     calculateSupplyPressure: vi.fn(() => 0.8),
     getAirportTraffic: vi.fn(() => 0),
-    getSuggestedFares: vi.fn(() => ({ economy: fp(100), business: fp(200), first: fp(300) })),
+    getSuggestedFares: vi.fn(() => ({
+      economy: fp(100),
+      business: fp(200),
+      first: fp(300),
+    })),
     calculatePriceElasticity: vi.fn((_actual, _reference, elasticity) => {
-      if (elasticity === -1.5) return 0.5;
+      if (elasticity === -1.2) return 0.5;
       if (elasticity === -0.5) return 0.9;
       return 1.1;
     }),
