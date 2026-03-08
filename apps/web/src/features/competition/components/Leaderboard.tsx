@@ -277,47 +277,58 @@ export function Leaderboard() {
         </div>
       </div>
 
-      <div ref={parentRef}>
-        <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-          {virtualizer.getVirtualItems().map((virtualRow) => {
-            const row = rows[virtualRow.index];
-            if (!row) return null;
-            const isOwn = ownId === row.id;
-            const value =
-              metric === "balance"
-                ? row.balance
-                : metric === "fleet"
-                  ? row.fleet
-                  : metric === "routes"
-                    ? row.routes
-                    : metric === "brand"
-                      ? row.brand
-                      : metric === "fleetValue"
-                        ? row.fleetValue
-                        : row.networkDistance;
-            return (
-              <div
-                key={virtualRow.key}
-                data-index={virtualRow.index}
-                ref={virtualizer.measureElement}
-                className="absolute left-0 right-0 pb-2"
-                style={{
-                  transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-                }}
-              >
-                <LeaderboardRow
-                  row={row}
-                  index={virtualRow.index}
-                  isOwn={isOwn}
-                  metric={metric}
-                  value={value}
-                  onView={viewAs}
-                />
-              </div>
-            );
-          })}
+      {rows.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-8 text-center">
+          <p className="text-sm font-semibold text-foreground">
+            No active airlines on the board yet
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Airlines appear here once they launch aircraft, open routes, or log real activity.
+          </p>
         </div>
-      </div>
+      ) : (
+        <div ref={parentRef}>
+          <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              if (!row) return null;
+              const isOwn = ownId === row.id;
+              const value =
+                metric === "balance"
+                  ? row.balance
+                  : metric === "fleet"
+                    ? row.fleet
+                    : metric === "routes"
+                      ? row.routes
+                      : metric === "brand"
+                        ? row.brand
+                        : metric === "fleetValue"
+                          ? row.fleetValue
+                          : row.networkDistance;
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  className="absolute left-0 right-0 pb-2"
+                  style={{
+                    transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  <LeaderboardRow
+                    row={row}
+                    index={virtualRow.index}
+                    isOwn={isOwn}
+                    metric={metric}
+                    value={value}
+                    onView={viewAs}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,34 +3,58 @@ import { useAirlineStore } from "@acars/store";
 import { Check, Copy, Download, Shield, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
 
+function getDismissedBannerKey(pubkey: string) {
+  return `acars:banner:dismissed:${pubkey}`;
+}
+
+function getSecuredBannerKey(pubkey: string) {
+  return `acars:banner:secured:${pubkey}`;
+}
+
 /**
  * Non-blocking banner shown when the user is playing with an
  * in-browser generated key that hasn't been backed up yet.
  *
  * Displayed when identityStatus === "ready" && isEphemeral === true.
- * Dismissed per-session via sessionStorage but reappears on next visit
- * until the user properly secures their account.
+ * Dismissed per-session for the current account via sessionStorage, and
+ * permanently hidden for that account once the user copies or downloads
+ * their secret key.
  */
 export function SecurityUpgradeBanner() {
   const initializeIdentity = useAirlineStore((state) => state.initializeIdentity);
-  const [dismissed, setDismissed] = useState(
-    () => sessionStorage.getItem("acars:banner:dismissed") === "1",
-  );
+  const pubkey = useAirlineStore((state) => state.pubkey);
+  const [dismissedAccounts, setDismissedAccounts] = useState<Record<string, true>>({});
+  const [securedAccounts, setSecuredAccounts] = useState<Record<string, true>>({});
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  if (dismissed) return null;
+  const dismissed = pubkey
+    ? dismissedAccounts[pubkey] || sessionStorage.getItem(getDismissedBannerKey(pubkey)) === "1"
+    : false;
+  const secured = pubkey
+    ? securedAccounts[pubkey] || localStorage.getItem(getSecuredBannerKey(pubkey)) === "1"
+    : false;
+
+  if (dismissed || secured) return null;
 
   const nsec = loadEphemeralKey();
 
   function dismiss() {
-    sessionStorage.setItem("acars:banner:dismissed", "1");
-    setDismissed(true);
+    if (!pubkey) return;
+    sessionStorage.setItem(getDismissedBannerKey(pubkey), "1");
+    setDismissedAccounts((current) => ({ ...current, [pubkey]: true }));
+  }
+
+  function markSecured() {
+    if (!pubkey) return;
+    localStorage.setItem(getSecuredBannerKey(pubkey), "1");
+    setSecuredAccounts((current) => ({ ...current, [pubkey]: true }));
   }
 
   async function copyNsec() {
     if (!nsec) return;
     await navigator.clipboard.writeText(nsec);
+    markSecured();
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
@@ -49,6 +73,7 @@ export function SecurityUpgradeBanner() {
     a.download = "acars-secret-key.txt";
     a.click();
     URL.revokeObjectURL(url);
+    markSecured();
   }
 
   async function upgradeToExtension() {
