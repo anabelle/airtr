@@ -2,42 +2,41 @@ import { useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
 import { Globe, Plane, TrendingUp, Users, Zap } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { GuestKeyOnboarding } from "@/features/identity/components/GuestKeyOnboarding";
 
-const features = [
-  {
-    icon: Plane,
-    title: "Real-time flights",
-    description:
-      "Routes resolve in actual real-world time. A 7-hour transatlantic flight takes 7 real hours — check in anytime.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Run a real corporation",
-    description:
-      "Issue stock, manage a cap table, file for IPO, weather bankruptcies, or launch a hostile takeover.",
-  },
-  {
-    icon: Zap,
-    title: "Earn real Bitcoin",
-    description: "Play-to-earn prize pools and Lightning Zaps. Trade airline stock slots P2P.",
-  },
-  {
-    icon: Globe,
-    title: "Fully decentralized",
-    description:
-      "No servers, no central database. Your airline lives on the open Nostr network — you own it completely.",
-  },
-  {
-    icon: Users,
-    title: "Compete globally",
-    description: "Thousands of airlines, live leaderboards, and a global route marketplace.",
-  },
-];
-
 export default function JoinPage() {
+  const { t } = useTranslation(["common", "identity"]);
   const identityStatus = useAirlineStore((state) => state.identityStatus);
   const navigate = useNavigate();
+
+  const features = [
+    {
+      icon: Plane,
+      title: t("join.features.realTimeFlights.title", { ns: "common" }),
+      description: t("join.features.realTimeFlights.description", { ns: "common" }),
+    },
+    {
+      icon: TrendingUp,
+      title: t("join.features.corporation.title", { ns: "common" }),
+      description: t("join.features.corporation.description", { ns: "common" }),
+    },
+    {
+      icon: Zap,
+      title: t("join.features.bitcoin.title", { ns: "common" }),
+      description: t("join.features.bitcoin.description", { ns: "common" }),
+    },
+    {
+      icon: Globe,
+      title: t("join.features.decentralized.title", { ns: "common" }),
+      description: t("join.features.decentralized.description", { ns: "common" }),
+    },
+    {
+      icon: Users,
+      title: t("join.features.competition.title", { ns: "common" }),
+      description: t("join.features.competition.description", { ns: "common" }),
+    },
+  ];
 
   // Redirect to app once identity exists so users cannot overwrite
   // a freshly generated local account by re-triggering onboarding.
@@ -59,9 +58,11 @@ export default function JoinPage() {
           AT
         </div>
         <div>
-          <h1 className="text-sm font-bold leading-none tracking-tight text-foreground">ACARS</h1>
+          <h1 className="text-sm font-bold leading-none tracking-tight text-foreground">
+            {t("topbar.acars", { ns: "common" })}
+          </h1>
           <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
-            Aircraft Communication Addressing and Relay System
+            {t("topbar.acarsLong", { ns: "common" })}
           </p>
         </div>
       </header>
@@ -73,15 +74,14 @@ export default function JoinPage() {
           <div className="flex-1 space-y-4">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               <Plane className="h-3 w-3" />
-              Free to play · No account needed
+              {t("join.badge", { ns: "common" })}
             </div>
             <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl">
-              Build the world&apos;s <br />
-              most powerful airline.
+              {t("join.heroTitleLineOne", { ns: "common" })} <br />
+              {t("join.heroTitleLineTwo", { ns: "common" })}
             </h2>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-              An open-source, real-time airline tycoon where you own everything — your fleet, your
-              routes, your data. No middlemen. No subscriptions.
+              {t("join.heroDescription", { ns: "common" })}
             </p>
           </div>
 
@@ -113,7 +113,7 @@ export default function JoinPage() {
 
         {/* Footer note */}
         <p className="text-center text-[11px] text-muted-foreground/50">
-          Open source · MIT License · Powered by the Nostr protocol
+          {t("join.footer", { ns: "common" })}
         </p>
       </main>
     </div>

@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/utils";
 import { PanelScrollContext } from "./panelScrollContext";
 
@@ -35,6 +36,7 @@ export function PanelHeader({
   className?: string;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation("common");
 
   return (
     <div
@@ -62,8 +64,8 @@ export function PanelHeader({
             type="button"
             onClick={() => navigate({ to: "/" })}
             className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            title="Close Panel (View Map)"
-            aria-label="Close panel and view map"
+            title={t("panel.closeTitle")}
+            aria-label={t("panel.closeAria")}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>

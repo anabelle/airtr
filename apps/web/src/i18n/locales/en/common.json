@@ -63,7 +63,10 @@
     "dissolving": "Dissolving...",
     "dissolveStartFresh": "Dissolve & Start Fresh",
     "acknowledged": "Acknowledged",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "panelChapter11Title": "Chapter 11 — Operations Suspended",
+    "panelLiquidatedTitle": "Airline Liquidated",
+    "whatThisMeans": "What This Means"
   },
   "time": {
     "justNow": "Just now",
@@ -75,5 +78,38 @@
   "language": {
     "label": "Language",
     "auto": "Auto-detect"
+  },
+  "panel": {
+    "closeTitle": "Close Panel (View Map)",
+    "closeAria": "Close panel and view map"
+  },
+  "join": {
+    "badge": "Free to play · No account needed",
+    "heroTitleLineOne": "Build the world's",
+    "heroTitleLineTwo": "most powerful airline.",
+    "heroDescription": "An open-source, real-time airline tycoon where you own everything — your fleet, your routes, your data. No middlemen. No subscriptions.",
+    "footer": "Open source · MIT License · Powered by the Nostr protocol",
+    "features": {
+      "realTimeFlights": {
+        "title": "Real-time flights",
+        "description": "Routes resolve in actual real-world time. A 7-hour transatlantic flight takes 7 real hours — check in anytime."
+      },
+      "corporation": {
+        "title": "Run a real corporation",
+        "description": "Issue stock, manage a cap table, file for IPO, weather bankruptcies, or launch a hostile takeover."
+      },
+      "bitcoin": {
+        "title": "Earn real Bitcoin",
+        "description": "Play-to-earn prize pools and Lightning Zaps. Trade airline stock slots P2P."
+      },
+      "decentralized": {
+        "title": "Fully decentralized",
+        "description": "No servers, no central database. Your airline lives on the open Nostr network — you own it completely."
+      },
+      "competition": {
+        "title": "Compete globally",
+        "description": "Thousands of airlines, live leaderboards, and a global route marketplace."
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { ExternalLink, KeyRound, Sparkles, Wallet, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type NostrAccessCardProps = {
   icon: LucideIcon;
@@ -21,6 +22,7 @@ export function NostrAccessCard({
   onLoginWithNsec,
   isLoading = false,
 }: NostrAccessCardProps) {
+  const { t } = useTranslation(["common", "identity"]);
   const [showNsecInput, setShowNsecInput] = useState(false);
   const [nsecError, setNsecError] = useState<string | null>(null);
 
@@ -32,7 +34,7 @@ export function NostrAccessCard({
 
       <div className="space-y-2">
         <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-          New to Nostr? Start here
+          {t("access.badge", { ns: "identity" })}
         </span>
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -49,7 +51,7 @@ export function NostrAccessCard({
               ?.trim()
               ?.toLowerCase();
             if (!normalized?.startsWith("nsec1")) {
-              setNsecError("Enter a valid nsec1 key.");
+              setNsecError(t("topbar.enterValidNsec", { ns: "common" }));
               return;
             }
             setNsecError(null);
@@ -57,7 +59,7 @@ export function NostrAccessCard({
           }}
         >
           <label htmlFor="access-card-nsec" className="text-[11px] text-muted-foreground">
-            Paste your Nostr secret key to sign in.
+            {t("access.nsecLabel", { ns: "identity" })}
           </label>
           <input
             id="access-card-nsec"
@@ -73,7 +75,9 @@ export function NostrAccessCard({
               disabled={isLoading}
               className="flex min-h-11 flex-1 items-center justify-center rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60"
             >
-              {isLoading ? "Loading…" : "Sign in"}
+              {isLoading
+                ? t("topbar.loading", { ns: "common" })
+                : t("topbar.signIn", { ns: "common" })}
             </button>
             <button
               type="button"
@@ -81,7 +85,7 @@ export function NostrAccessCard({
                 setNsecError(null);
                 setShowNsecInput(false);
               }}
-              aria-label="Cancel nsec login"
+              aria-label={t("topbar.cancelNsecLogin", { ns: "common" })}
               className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-border hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -99,7 +103,9 @@ export function NostrAccessCard({
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4 shrink-0" />
-              {isLoading ? "Creating…" : "Play Free"}
+              {isLoading
+                ? t("topbar.creating", { ns: "common" })
+                : t("topbar.playFree", { ns: "common" })}
             </button>
           )}
 
@@ -110,7 +116,9 @@ export function NostrAccessCard({
             className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
           >
             <Wallet className="h-4 w-4 shrink-0" />
-            {isLoading ? "Connecting…" : "Browser wallet"}
+            {isLoading
+              ? t("topbar.connecting", { ns: "common" })
+              : t("topbar.browserWallet", { ns: "common" })}
           </button>
 
           {onLoginWithNsec && (
@@ -122,7 +130,8 @@ export function NostrAccessCard({
               }}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
             >
-              <KeyRound className="h-4 w-4 shrink-0" />I already have an nsec key
+              <KeyRound className="h-4 w-4 shrink-0" />
+              {t("topbar.haveNsec", { ns: "common" })}
             </button>
           )}
 
@@ -132,7 +141,7 @@ export function NostrAccessCard({
             rel="noopener noreferrer"
             className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
           >
-            What is Nostr?
+            {t("topbar.whatIsNostr", { ns: "common" })}
             <ExternalLink className="h-4 w-4 shrink-0" />
           </a>
         </>

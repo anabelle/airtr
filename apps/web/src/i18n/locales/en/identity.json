@@ -74,5 +74,15 @@
     "switchToWallet": "Switch to wallet extension",
     "switching": "Switching…",
     "keyExplainer": "Your secret key starts with nsec1… — treat it like a password. ACARS stores it locally on this device and exports it from here whenever you need your recovery copy."
+  },
+  "access": {
+    "badge": "New to Nostr? Start here",
+    "nsecLabel": "Paste your Nostr secret key to sign in.",
+    "networkLockedTitle": "Network access locked",
+    "networkLockedDescription": "Open routes after you connect a Nostr wallet and create your airline profile.",
+    "fleetLockedTitle": "Fleet access locked",
+    "fleetLockedDescription": "Connect a Nostr wallet first, then buy aircraft, manage leases, and keep your fleet flying.",
+    "corporateLockedTitle": "Corporate access locked",
+    "corporateLockedDescription": "Connect a Nostr wallet to create your airline and unlock balance sheets, hubs, and strategy tools."
   }
 }

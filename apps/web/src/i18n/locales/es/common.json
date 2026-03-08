@@ -63,7 +63,10 @@
     "dissolving": "Disolviendo...",
     "dissolveStartFresh": "Disolver y Empezar de Nuevo",
     "acknowledged": "Entendido",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "panelChapter11Title": "Capítulo 11 — Operaciones suspendidas",
+    "panelLiquidatedTitle": "Aerolínea liquidada",
+    "whatThisMeans": "Qué significa esto"
   },
   "time": {
     "justNow": "Ahora mismo",
@@ -75,5 +78,38 @@
   "language": {
     "label": "Idioma",
     "auto": "Detectar automáticamente"
+  },
+  "panel": {
+    "closeTitle": "Cerrar panel (ver mapa)",
+    "closeAria": "Cerrar panel y ver mapa"
+  },
+  "join": {
+    "badge": "Gratis para jugar · No se necesita cuenta",
+    "heroTitleLineOne": "Construye la",
+    "heroTitleLineTwo": "aerolínea más poderosa del mundo.",
+    "heroDescription": "Un tycoon aéreo de código abierto y en tiempo real donde tú eres dueño de todo: tu flota, tus rutas y tus datos. Sin intermediarios. Sin suscripciones.",
+    "footer": "Código abierto · Licencia MIT · Impulsado por el protocolo Nostr",
+    "features": {
+      "realTimeFlights": {
+        "title": "Vuelos en tiempo real",
+        "description": "Las rutas se resuelven en tiempo real. Un vuelo transatlántico de 7 horas tarda 7 horas reales — vuelve cuando quieras."
+      },
+      "corporation": {
+        "title": "Dirige una corporación real",
+        "description": "Emite acciones, gestiona una tabla de capitalización, sal a bolsa, supera bancarrotas o lanza una adquisición hostil."
+      },
+      "bitcoin": {
+        "title": "Gana Bitcoin real",
+        "description": "Pozos de premios play-to-earn y zaps de Lightning. Intercambia slots de acciones de aerolíneas P2P."
+      },
+      "decentralized": {
+        "title": "Totalmente descentralizado",
+        "description": "Sin servidores ni base de datos central. Tu aerolínea vive en la red abierta de Nostr — te pertenece por completo."
+      },
+      "competition": {
+        "title": "Compite globalmente",
+        "description": "Miles de aerolíneas, clasificaciones en vivo y un mercado global de rutas."
+      }
+    }
   }
 }

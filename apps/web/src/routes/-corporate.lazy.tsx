@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { AirlineTimeline } from "@/features/airline/components/Timeline";
 import { useBillingCycle } from "@/features/corporate/hooks/useBillingCycle";
 import type { FinancialPulse as FinancialPulseData } from "@/features/corporate/hooks/useFinancialPulse";
@@ -69,6 +70,7 @@ function FinancialPulse({
   fleetLease: FixedPoint;
   leasedCount: number;
 }) {
+  const { t } = useTranslation(["common", "game"]);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const billingCycle = useBillingCycle();
 
@@ -97,7 +99,7 @@ function FinancialPulse({
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0 space-y-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Corporate Balance
+              {t("corporate.corporateBalance", { ns: "game" })}
             </p>
             <p
               className="text-2xl font-black text-foreground"
@@ -110,7 +112,7 @@ function FinancialPulse({
           {pulse.flightCount > 0 && (
             <div className="shrink-0 text-left sm:text-right space-y-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Flight Revenue Rate
+                {t("corporate.flightRevenueRate", { ns: "game" })}
               </p>
               <div
                 className={`flex items-start sm:items-center sm:justify-end gap-1 text-lg font-black ${
@@ -150,7 +152,7 @@ function FinancialPulse({
             className="flex items-center justify-between text-xs text-muted-foreground"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
-            <span>Hub OPEX</span>
+            <span>{t("corporate.hubOpex", { ns: "game" })}</span>
             <span>
               {fpFormat(fp(hubOpex), 0)}/mo{" "}
               <span className="text-muted-foreground/50">(30 days)</span>
@@ -161,7 +163,7 @@ function FinancialPulse({
               className="flex items-center justify-between text-xs text-rose-400/80"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              <span>Fleet Leases ({leasedCount} aircraft)</span>
+              <span>{t("corporate.fleetLeases", { ns: "game", count: leasedCount })}</span>
               <span>{fpFormat(fleetLease, 0)}/mo (30 days)</span>
             </div>
           )}
@@ -169,7 +171,9 @@ function FinancialPulse({
             className="flex items-center justify-between text-xs font-bold border-t border-border/30 pt-1"
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
-            <span className="text-muted-foreground">Total Fixed Costs</span>
+            <span className="text-muted-foreground">
+              {t("corporate.totalFixedCosts", { ns: "game" })}
+            </span>
             <span className="text-rose-400">{fpFormat(totalFixedCosts, 0)}/mo (30 days)</span>
           </div>
         </div>
@@ -177,7 +181,9 @@ function FinancialPulse({
         {/* Billing cycle progress */}
         <div className="mt-3 space-y-1.5">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span className="font-bold uppercase tracking-wider">Billing Cycle</span>
+            <span className="font-bold uppercase tracking-wider">
+              {t("corporate.billingCycle", { ns: "game" })}
+            </span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
               {billingCycle.daysRemaining} day
               {billingCycle.daysRemaining !== 1 ? "s" : ""} remaining
@@ -187,7 +193,7 @@ function FinancialPulse({
             <div
               className={`h-full rounded-full transition-all duration-1000 ${cycleColor}`}
               role="progressbar"
-              aria-label="Billing cycle progress"
+              aria-label={t("corporate.billingCycleProgress", { ns: "game" })}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={billingCyclePercent}
@@ -226,7 +232,7 @@ function FinancialPulse({
                 ) : (
                   <TrendingDown className="h-3 w-3" aria-hidden="true" />
                 )}
-                Net Cash Flow
+                {t("corporate.netCashFlow", { ns: "game" })}
               </span>
               <span className="text-right">
                 <span>
@@ -240,7 +246,7 @@ function FinancialPulse({
               </span>
             </div>
             <p className="mt-0.5 text-[9px] text-muted-foreground/60">
-              Flight revenue minus fixed costs
+              {t("corporate.netCashFlowDescription", { ns: "game" })}
             </p>
           </div>
         )}
@@ -255,12 +261,12 @@ function FinancialPulse({
             {showBreakdown ? (
               <>
                 <ChevronUp className="h-3 w-3" aria-hidden="true" />
-                Hide P&L
+                {t("corporate.hidePnl", { ns: "game" })}
               </>
             ) : (
               <>
                 <ChevronDown className="h-3 w-3" aria-hidden="true" />
-                View P&L Breakdown
+                {t("corporate.viewPnl", { ns: "game" })}
               </>
             )}
           </button>
@@ -270,17 +276,17 @@ function FinancialPulse({
         {showBreakdown && pulse.flightCount > 0 && (
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/30 pt-4 animate-in fade-in slide-in-from-top-1 duration-200">
             <PnlCell
-              label="Total Revenue"
+              label={t("timeline.totalRevenue", { ns: "game" })}
               value={fpFormat(pulse.totalRevenue, 0)}
               color="text-emerald-400"
             />
             <PnlCell
-              label="Total Costs"
+              label={t("timeline.totalCosts", { ns: "game" })}
               value={fpFormat(pulse.totalCosts, 0)}
               color="text-rose-400"
             />
             <PnlCell
-              label="Avg Load Factor"
+              label={t("corporate.avgLoadFactor", { ns: "game" })}
               value={`${Math.round(pulse.avgLoadFactor * 100)}%`}
               color={
                 pulse.avgLoadFactor >= 0.75
@@ -291,7 +297,7 @@ function FinancialPulse({
               }
             />
             <PnlCell
-              label="Avg Profit/Flight"
+              label={t("corporate.avgProfitPerFlight", { ns: "game" })}
               value={fpFormat(pulse.avgProfitPerFlight, 0)}
               color={pulse.avgProfitPerFlight >= 0 ? "text-emerald-400" : "text-rose-400"}
             />
@@ -330,11 +336,13 @@ function NetworkHealth({
   projectedWeeklyProfit: FixedPoint;
   routesNeedingCuts: number;
 }) {
+  const { t } = useTranslation("game");
+
   return (
     <section className="rounded-xl border border-border/50 bg-background/50 p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          Network Health
+          {t("corporate.networkHealth")}
         </p>
         <span
           className={`text-xs font-mono font-bold ${projectedWeeklyProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
@@ -345,7 +353,7 @@ function NetworkHealth({
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 mb-3">
         <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
           <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-            Oversupplied
+            {t("corporate.oversupplied")}
           </div>
           <div className="mt-1 text-sm font-bold text-rose-400">
             {oversuppliedRoutes.length} routes
@@ -353,18 +361,18 @@ function NetworkHealth({
         </div>
         <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
           <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-            Needs fleet cuts
+            {t("corporate.needsFleetCuts")}
           </div>
           <div className="mt-1 text-sm font-bold text-amber-400">{routesNeedingCuts} routes</div>
         </div>
         <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
           <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-            Projected network
+            {t("corporate.projectedNetwork")}
           </div>
           <div
             className={`mt-1 text-sm font-bold ${projectedWeeklyProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}
           >
-            {projectedWeeklyProfit >= 0 ? "Profitable" : "Losing money"}
+            {projectedWeeklyProfit >= 0 ? t("corporate.profitable") : t("corporate.losingMoney")}
           </div>
         </div>
       </div>
@@ -417,6 +425,7 @@ function CompanyProfile({
   status: string;
   ceoPubkey?: string | null;
 }) {
+  const { t } = useTranslation("game");
   const profile = useNostrProfile(ceoPubkey ?? null);
   const npub = profile.npub;
   const airlinePrimary = useAirlineStore((s) => s.airline?.livery.primary);
@@ -433,10 +442,10 @@ function CompanyProfile({
   };
 
   const tierLabels: Record<number, string> = {
-    1: "Regional Startup",
-    2: "National Carrier",
-    3: "Intercontinental",
-    4: "Global Mega-Carrier",
+    1: t("corporate.tier1"),
+    2: t("corporate.tier2"),
+    3: t("corporate.tier3"),
+    4: t("corporate.tier4"),
   };
 
   return (
@@ -546,6 +555,7 @@ function BankruptcyPanel({
   dissolveError: string | null;
   onDissolve: () => Promise<void>;
 }) {
+  const { t } = useTranslation("common");
   const [confirmDissolve, setConfirmDissolve] = useState(false);
 
   return (
@@ -554,8 +564,8 @@ function BankruptcyPanel({
         <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
         <h3 className="text-sm font-bold text-rose-400">
           {airline.status === "chapter11"
-            ? "Chapter 11 — Operations Suspended"
-            : "Airline Liquidated"}
+            ? t("bankruptcy.panelChapter11Title")
+            : t("bankruptcy.panelLiquidatedTitle")}
         </h3>
       </div>
       <p className="text-xs text-rose-300/70 leading-relaxed">
@@ -566,7 +576,7 @@ function BankruptcyPanel({
       {airline.status === "chapter11" && (
         <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-rose-300/60">
-            What This Means
+            {t("bankruptcy.whatThisMeans")}
           </p>
           <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
             <li>All flights are grounded — no revenue is being generated</li>
@@ -581,7 +591,7 @@ function BankruptcyPanel({
           onClick={() => setConfirmDissolve(true)}
           className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
         >
-          Dissolve Airline & Start Fresh
+          {t("bankruptcy.dissolveStartFresh")}
         </button>
       )}
       {confirmDissolve && airline.status === "chapter11" && (
@@ -596,7 +606,7 @@ function BankruptcyPanel({
               onClick={() => setConfirmDissolve(false)}
               className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
             >
-              Cancel
+              {t("bankruptcy.cancel")}
             </button>
             <button
               type="button"
@@ -606,7 +616,7 @@ function BankruptcyPanel({
               disabled={isDissolving}
               className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
             >
-              {isDissolving ? "Dissolving…" : "Confirm Dissolution"}
+              {isDissolving ? t("bankruptcy.dissolving") : t("bankruptcy.confirmDissolution")}
             </button>
           </div>
         </div>
@@ -982,6 +992,7 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 /* ------------------------------------------------------------------ */
 
 export default function CorporateDashboard() {
+  const { t } = useTranslation(["identity", "game"]);
   const {
     airline,
     modifyHubs,
@@ -1094,8 +1105,8 @@ export default function CorporateDashboard() {
       <div className="flex h-full w-full items-center justify-center">
         <NostrAccessCard
           icon={Building2}
-          title="Corporate access locked"
-          description="Connect a Nostr wallet to create your airline and unlock balance sheets, hubs, and strategy tools."
+          title={t("access.corporateLockedTitle", { ns: "identity" })}
+          description={t("access.corporateLockedDescription", { ns: "identity" })}
           onConnect={initializeIdentity}
           onCreateFree={createNewIdentity}
           onLoginWithNsec={loginWithNsec}
@@ -1162,8 +1173,8 @@ export default function CorporateDashboard() {
   return (
     <PanelLayout>
       <PanelHeader
-        title="Corporate"
-        subtitle="Review your balance sheet, network health, and operating centers in one place."
+        title={t("corporate.pageTitle", { ns: "game" })}
+        subtitle={t("corporate.pageSubtitle", { ns: "game" })}
         badge={
           <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary sm:px-3 sm:text-xs">
             Tier {airline.tier}

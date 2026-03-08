@@ -27,6 +27,8 @@ describe("i18n", () => {
   it("loads English game namespace", () => {
     expect(i18n.t("leaderboard.fleetSize", { ns: "game" })).toBe("Fleet Size");
     expect(i18n.t("flightBoard.departures", { ns: "game" })).toBe("Departures");
+    expect(i18n.t("corporate.pageTitle", { ns: "game" })).toBe("Corporate");
+    expect(i18n.t("routeManager.suspended.title", { ns: "game" })).toBe("Suspended Routes");
   });
 
   it("switches to Spanish", async () => {
@@ -43,6 +45,18 @@ describe("i18n", () => {
     expect(i18n.t("guest.playFree", { ns: "identity" })).toBe(
       "Juega gratis — sin registro requerido",
     );
+    expect(i18n.t("access.corporateLockedTitle", { ns: "identity" })).toBe(
+      "Acceso corporativo bloqueado",
+    );
+  });
+
+  it("loads Spanish common and game additions for interface flows", async () => {
+    await i18n.changeLanguage("es");
+    expect(i18n.t("panel.closeAria", { ns: "common" })).toBe("Cerrar panel y ver mapa");
+    expect(i18n.t("join.features.realTimeFlights.title", { ns: "common" })).toBe(
+      "Vuelos en tiempo real",
+    );
+    expect(i18n.t("hubPicker.dialogTitle", { ns: "game" })).toBe("Elegir un aeropuerto hub");
   });
 
   it("falls back to English for unsupported language", async () => {

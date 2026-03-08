@@ -74,5 +74,15 @@
     "switchToWallet": "Cambiar a extensión de billetera",
     "switching": "Cambiando…",
     "keyExplainer": "Tu clave secreta comienza con nsec1… — trátala como una contraseña. ACARS la almacena localmente en este dispositivo y la exporta desde aquí cuando necesites tu copia de recuperación."
+  },
+  "access": {
+    "badge": "¿Nuevo en Nostr? Empieza aquí",
+    "nsecLabel": "Pega tu clave secreta de Nostr para iniciar sesión.",
+    "networkLockedTitle": "Acceso a red bloqueado",
+    "networkLockedDescription": "Abre rutas después de conectar una billetera Nostr y crear el perfil de tu aerolínea.",
+    "fleetLockedTitle": "Acceso a flota bloqueado",
+    "fleetLockedDescription": "Conecta primero una billetera Nostr y luego compra aeronaves, gestiona arrendamientos y mantén tu flota volando.",
+    "corporateLockedTitle": "Acceso corporativo bloqueado",
+    "corporateLockedDescription": "Conecta una billetera Nostr para crear tu aerolínea y desbloquear balances, hubs y herramientas de estrategia."
   }
 }

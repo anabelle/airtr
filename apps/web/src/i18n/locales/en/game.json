@@ -19,7 +19,9 @@
     "routes": "Routes",
     "noAirlines": "No active airlines on the board yet",
     "noAirlinesDesc": "Airlines appear here once they launch aircraft, open routes, or log real activity.",
-    "viewAs": "View As"
+    "viewAs": "View As",
+    "pageTitle": "Leaderboard",
+    "pageSubtitle": "Multiplayer standings across the active world."
   },
   "flightBoard": {
     "flightInfo": "{{iata}} — Flight Information",
@@ -80,7 +82,10 @@
     "usedMarket": "Used Market",
     "purchase": "Purchase",
     "buy": "Buy",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "pageTitle": "Fleet Manager",
+    "aircraftCount": "{{count}} Aircraft",
+    "aircraftCount_other": "{{count}} Aircraft"
   },
   "network": {
     "title": "Network",
@@ -99,7 +104,30 @@
     "corporateBalance": "Corporate Balance",
     "stockPrice": "Stock Price",
     "brandScore": "Brand Score",
-    "avgLoadFactor": "Avg Load Factor"
+    "avgLoadFactor": "Avg Load Factor",
+    "pageTitle": "Corporate",
+    "pageSubtitle": "Review your balance sheet, network health, and operating centers in one place.",
+    "flightRevenueRate": "Flight Revenue Rate",
+    "hubOpex": "Hub OPEX",
+    "fleetLeases": "Fleet Leases ({{count}} aircraft)",
+    "fleetLeases_other": "Fleet Leases ({{count}} aircraft)",
+    "totalFixedCosts": "Total Fixed Costs",
+    "billingCycle": "Billing Cycle",
+    "billingCycleProgress": "Billing cycle progress",
+    "netCashFlow": "Net Cash Flow",
+    "netCashFlowDescription": "Flight revenue minus fixed costs",
+    "hidePnl": "Hide P&L",
+    "viewPnl": "View P&L Breakdown",
+    "avgProfitPerFlight": "Avg Profit/Flight",
+    "oversupplied": "Oversupplied",
+    "needsFleetCuts": "Needs fleet cuts",
+    "projectedNetwork": "Projected network",
+    "profitable": "Profitable",
+    "losingMoney": "Losing money",
+    "tier1": "Regional Startup",
+    "tier2": "National Carrier",
+    "tier3": "Intercontinental",
+    "tier4": "Global Mega-Carrier"
   },
   "hub": {
     "title": "Select Your Home Hub",
@@ -122,5 +150,54 @@
     "operations": "Operations",
     "groundTraffic": "Ground Traffic",
     "flights": "Flights"
+  },
+  "routeManager": {
+    "subtitle": "Manage your routes and flight frequencies from {{airport}}.",
+    "activeBadge": "{{count}} Active",
+    "activeTab": "Active ({{count}})",
+    "selectPlanningHub": "Select planning hub",
+    "searchPlaceholder": "Search by IATA, ICAO, city, or name…",
+    "searchAria": "Search route opportunities",
+    "browseOpportunities": "Browse Market Opportunities",
+    "fares": {
+      "enterAtLeastOne": "Enter at least one fare value."
+    },
+    "suspended": {
+      "title": "Suspended Routes",
+      "description": "These routes lost their origin hub. Rebase them to an operational hub to resume service.",
+      "awaitingRebase": "{{count}} awaiting rebase"
+    }
+  },
+  "hubPicker": {
+    "changeTitle": "Change your hub airport",
+    "pickDifferent": "Pick a Different Hub",
+    "chooseManually": "Choose Your Hub Manually",
+    "closeSearch": "Close airport search",
+    "dialogTitle": "Choose a Hub Airport",
+    "closeDialog": "Close",
+    "dialogDescription": "Bigger hubs cost more to operate but unlock higher passenger demand.",
+    "searchPlaceholder": "Search city, code, or airport…",
+    "searchAria": "Search airports",
+    "noMatches": "No airports match “{{query}}”",
+    "searching": "Searching…",
+    "selected": "Selected",
+    "setupFee": "Setup Fee",
+    "monthlyCost": "Monthly Cost",
+    "confirm": "Confirm Hub"
+  },
+  "ticker": {
+    "liveData": "Live Data",
+    "gameTime": "Game Time",
+    "cycle": "Cycle {{tick}}",
+    "airlines": "Airlines",
+    "planes": "Planes",
+    "routes": "Routes",
+    "season": "Season",
+    "economy": "Economy",
+    "status": "Status",
+    "catchingUp": "Catching up ({{phase}} {{percent}}%)",
+    "yourAirline": "Your Airline",
+    "world": "World",
+    "normalOperations": "Normal Operations"
   }
 }

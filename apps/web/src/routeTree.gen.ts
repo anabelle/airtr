@@ -8,210 +8,210 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as NetworkRouteImport } from "./routes/network";
-import { Route as LeaderboardRouteImport } from "./routes/leaderboard";
-import { Route as JoinRouteImport } from "./routes/join";
-import { Route as FleetRouteImport } from "./routes/fleet";
-import { Route as CorporateRouteImport } from "./routes/corporate";
-import { Route as AboutRouteImport } from "./routes/about";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as AirportIataRouteImport } from "./routes/airport.$iata";
-import { Route as AircraftIdRouteImport } from "./routes/aircraft.$id";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as NetworkRouteImport } from './routes/network'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as JoinRouteImport } from './routes/join'
+import { Route as FleetRouteImport } from './routes/fleet'
+import { Route as CorporateRouteImport } from './routes/corporate'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AirportIataRouteImport } from './routes/airport.$iata'
+import { Route as AircraftIdRouteImport } from './routes/aircraft.$id'
 
 const NetworkRoute = NetworkRouteImport.update({
-  id: "/network",
-  path: "/network",
+  id: '/network',
+  path: '/network',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: "/leaderboard",
-  path: "/leaderboard",
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const JoinRoute = JoinRouteImport.update({
-  id: "/join",
-  path: "/join",
+  id: '/join',
+  path: '/join',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const FleetRoute = FleetRouteImport.update({
-  id: "/fleet",
-  path: "/fleet",
+  id: '/fleet',
+  path: '/fleet',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const CorporateRoute = CorporateRouteImport.update({
-  id: "/corporate",
-  path: "/corporate",
+  id: '/corporate',
+  path: '/corporate',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AboutRoute = AboutRouteImport.update({
-  id: "/about",
-  path: "/about",
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AirportIataRoute = AirportIataRouteImport.update({
-  id: "/airport/$iata",
-  path: "/airport/$iata",
+  id: '/airport/$iata',
+  path: '/airport/$iata',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AircraftIdRoute = AircraftIdRouteImport.update({
-  id: "/aircraft/$id",
-  path: "/aircraft/$id",
+  id: '/aircraft/$id',
+  path: '/aircraft/$id',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/about": typeof AboutRoute;
-  "/corporate": typeof CorporateRoute;
-  "/fleet": typeof FleetRoute;
-  "/join": typeof JoinRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/network": typeof NetworkRoute;
-  "/aircraft/$id": typeof AircraftIdRoute;
-  "/airport/$iata": typeof AirportIataRoute;
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/corporate': typeof CorporateRoute
+  '/fleet': typeof FleetRoute
+  '/join': typeof JoinRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/network': typeof NetworkRoute
+  '/aircraft/$id': typeof AircraftIdRoute
+  '/airport/$iata': typeof AirportIataRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/about": typeof AboutRoute;
-  "/corporate": typeof CorporateRoute;
-  "/fleet": typeof FleetRoute;
-  "/join": typeof JoinRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/network": typeof NetworkRoute;
-  "/aircraft/$id": typeof AircraftIdRoute;
-  "/airport/$iata": typeof AirportIataRoute;
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/corporate': typeof CorporateRoute
+  '/fleet': typeof FleetRoute
+  '/join': typeof JoinRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/network': typeof NetworkRoute
+  '/aircraft/$id': typeof AircraftIdRoute
+  '/airport/$iata': typeof AirportIataRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/about": typeof AboutRoute;
-  "/corporate": typeof CorporateRoute;
-  "/fleet": typeof FleetRoute;
-  "/join": typeof JoinRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/network": typeof NetworkRoute;
-  "/aircraft/$id": typeof AircraftIdRoute;
-  "/airport/$iata": typeof AirportIataRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/corporate': typeof CorporateRoute
+  '/fleet': typeof FleetRoute
+  '/join': typeof JoinRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/network': typeof NetworkRoute
+  '/aircraft/$id': typeof AircraftIdRoute
+  '/airport/$iata': typeof AirportIataRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/about"
-    | "/corporate"
-    | "/fleet"
-    | "/join"
-    | "/leaderboard"
-    | "/network"
-    | "/aircraft/$id"
-    | "/airport/$iata";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/about'
+    | '/corporate'
+    | '/fleet'
+    | '/join'
+    | '/leaderboard'
+    | '/network'
+    | '/aircraft/$id'
+    | '/airport/$iata'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/"
-    | "/about"
-    | "/corporate"
-    | "/fleet"
-    | "/join"
-    | "/leaderboard"
-    | "/network"
-    | "/aircraft/$id"
-    | "/airport/$iata";
+    | '/'
+    | '/about'
+    | '/corporate'
+    | '/fleet'
+    | '/join'
+    | '/leaderboard'
+    | '/network'
+    | '/aircraft/$id'
+    | '/airport/$iata'
   id:
-    | "__root__"
-    | "/"
-    | "/about"
-    | "/corporate"
-    | "/fleet"
-    | "/join"
-    | "/leaderboard"
-    | "/network"
-    | "/aircraft/$id"
-    | "/airport/$iata";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/corporate'
+    | '/fleet'
+    | '/join'
+    | '/leaderboard'
+    | '/network'
+    | '/aircraft/$id'
+    | '/airport/$iata'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  AboutRoute: typeof AboutRoute;
-  CorporateRoute: typeof CorporateRoute;
-  FleetRoute: typeof FleetRoute;
-  JoinRoute: typeof JoinRoute;
-  LeaderboardRoute: typeof LeaderboardRoute;
-  NetworkRoute: typeof NetworkRoute;
-  AircraftIdRoute: typeof AircraftIdRoute;
-  AirportIataRoute: typeof AirportIataRoute;
+  IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  CorporateRoute: typeof CorporateRoute
+  FleetRoute: typeof FleetRoute
+  JoinRoute: typeof JoinRoute
+  LeaderboardRoute: typeof LeaderboardRoute
+  NetworkRoute: typeof NetworkRoute
+  AircraftIdRoute: typeof AircraftIdRoute
+  AirportIataRoute: typeof AirportIataRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/network": {
-      id: "/network";
-      path: "/network";
-      fullPath: "/network";
-      preLoaderRoute: typeof NetworkRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/leaderboard": {
-      id: "/leaderboard";
-      path: "/leaderboard";
-      fullPath: "/leaderboard";
-      preLoaderRoute: typeof LeaderboardRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/join": {
-      id: "/join";
-      path: "/join";
-      fullPath: "/join";
-      preLoaderRoute: typeof JoinRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/fleet": {
-      id: "/fleet";
-      path: "/fleet";
-      fullPath: "/fleet";
-      preLoaderRoute: typeof FleetRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/corporate": {
-      id: "/corporate";
-      path: "/corporate";
-      fullPath: "/corporate";
-      preLoaderRoute: typeof CorporateRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/about": {
-      id: "/about";
-      path: "/about";
-      fullPath: "/about";
-      preLoaderRoute: typeof AboutRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/airport/$iata": {
-      id: "/airport/$iata";
-      path: "/airport/$iata";
-      fullPath: "/airport/$iata";
-      preLoaderRoute: typeof AirportIataRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/aircraft/$id": {
-      id: "/aircraft/$id";
-      path: "/aircraft/$id";
-      fullPath: "/aircraft/$id";
-      preLoaderRoute: typeof AircraftIdRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/network': {
+      id: '/network'
+      path: '/network'
+      fullPath: '/network'
+      preLoaderRoute: typeof NetworkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fleet': {
+      id: '/fleet'
+      path: '/fleet'
+      fullPath: '/fleet'
+      preLoaderRoute: typeof FleetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corporate': {
+      id: '/corporate'
+      path: '/corporate'
+      fullPath: '/corporate'
+      preLoaderRoute: typeof CorporateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/airport/$iata': {
+      id: '/airport/$iata'
+      path: '/airport/$iata'
+      fullPath: '/airport/$iata'
+      preLoaderRoute: typeof AirportIataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aircraft/$id': {
+      id: '/aircraft/$id'
+      path: '/aircraft/$id'
+      fullPath: '/aircraft/$id'
+      preLoaderRoute: typeof AircraftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,7 +225,7 @@ const rootRouteChildren: RootRouteChildren = {
   NetworkRoute: NetworkRoute,
   AircraftIdRoute: AircraftIdRoute,
   AirportIataRoute: AirportIataRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
