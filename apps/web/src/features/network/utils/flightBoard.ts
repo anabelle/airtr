@@ -36,10 +36,10 @@ type FlightBoardParams = {
   tick: number;
 };
 
-const aircraftIndex = new Map(aircraftModels.map((model) => [model.id, model]));
+export const aircraftModelIndex = new Map(aircraftModels.map((model) => [model.id, model]));
 const timeFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
-function formatTickTime(tick: number, timezone: string) {
+export function formatTickTime(tick: number, timezone: string) {
   const date = new Date(GENESIS_TIME + tick * TICK_DURATION);
   let formatter = timeFormatterCache.get(timezone);
   if (!formatter) {
@@ -54,7 +54,7 @@ function formatTickTime(tick: number, timezone: string) {
   return formatter.format(date);
 }
 
-function resolveAirline(
+export function resolveAirline(
   aircraft: AircraftInstance,
   airline: AirlineEntity | null,
   competitors: Map<string, AirlineEntity>,
@@ -63,7 +63,7 @@ function resolveAirline(
   return competitors.get(aircraft.ownerPubkey) ?? null;
 }
 
-const BOARDING_WINDOW_TICKS = Math.round(TICKS_PER_HOUR * 0.25);
+export const BOARDING_WINDOW_TICKS = Math.round(TICKS_PER_HOUR * 0.25);
 
 function getStatusLabel(aircraft: AircraftInstance, mode: FlightBoardMode, tick: number) {
   if (aircraft.status === "enroute") return "En Route";
@@ -78,7 +78,7 @@ function getStatusLabel(aircraft: AircraftInstance, mode: FlightBoardMode, tick:
   return "Scheduled";
 }
 
-function getStatusTone(status: string): FlightRow["statusTone"] {
+export function getStatusTone(status: string): FlightRow["statusTone"] {
   if (status === "Landed" || status === "Departed") return "emerald";
   if (status === "Boarding") return "amber";
   if (status === "En Route") return "sky";
@@ -143,7 +143,7 @@ function getOtherIata(aircraft: AircraftInstance, mode: FlightBoardMode) {
   return mode === "arrivals" ? flight.originIata : (flight.destinationIata ?? "--");
 }
 
-function getFlightSeed(aircraft: AircraftInstance) {
+export function getFlightSeed(aircraft: AircraftInstance) {
   return `${aircraft.assignedRouteId ?? aircraft.id}-${aircraft.id}`;
 }
 
@@ -215,7 +215,7 @@ export function buildFlightBoardRows({
     const airlineName = airlineInfo?.name ?? "Unknown Airline";
     const airlineColor = airlineInfo?.livery.primary ?? "#94a3b8";
     const flightLabel = getFlightNumber(airlineInfo?.icaoCode ?? "UNK", getFlightSeed(aircraft));
-    const model = aircraftIndex.get(aircraft.modelId);
+    const model = aircraftModelIndex.get(aircraft.modelId);
     const aircraftLabel = model ? model.name : aircraft.modelId;
     const status = getStatusLabel(aircraft, mode, tick);
 
