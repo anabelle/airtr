@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const EventIcon = ({ type }: { type: TimelineEvent["type"] }) => {
   switch (type) {
@@ -55,17 +56,19 @@ const DetailRow = ({ label, value, color }: { label: string; value: string; colo
 );
 
 const EventCard = ({ event }: { event: TimelineEvent }) => {
+  const { t } = useTranslation("game");
+  const { t: tc } = useTranslation("common");
   const tick = useEngineStore((state) => state.tick);
   const [isExpanded, setIsExpanded] = React.useState(false);
   const hasDetails = !!event.details;
 
   const getRelativeTime = (eventTick: number, currentTick: number) => {
     const diffSecs = Math.max(0, (currentTick - eventTick) * (TICK_DURATION / 1000));
-    if (diffSecs < 10) return "Just now";
-    if (diffSecs < 60) return `${Math.floor(diffSecs)}s ago`;
-    if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m ago`;
-    if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h ago`;
-    return `${Math.floor(diffSecs / 86400)}d ago`;
+    if (diffSecs < 10) return tc("time.justNow");
+    if (diffSecs < 60) return tc("time.secondsAgo", { count: Math.floor(diffSecs) });
+    if (diffSecs < 3600) return tc("time.minutesAgo", { count: Math.floor(diffSecs / 60) });
+    if (diffSecs < 86400) return tc("time.hoursAgo", { count: Math.floor(diffSecs / 3600) });
+    return tc("time.daysAgo", { count: Math.floor(diffSecs / 86400) });
   };
 
   return (
@@ -127,7 +130,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="ml-auto text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary-light transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 >
-                  {isExpanded ? "Hide Details" : "View Breakdown"}
+                  {isExpanded ? t("timeline.hideDetails") : t("timeline.viewBreakdown")}
                 </button>
               )}
             </div>
@@ -141,7 +144,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
                 <div className="flex items-center gap-2">
                   <Users className="w-3.5 h-3.5 text-sky-400" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
-                    Occupancy
+                    {t("timeline.occupancy")}
                   </span>
                 </div>
                 <span
@@ -173,7 +176,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="flex flex-col items-center p-2 rounded-lg bg-white/[0.03]">
                   <span className="text-[9px] uppercase font-bold text-white/30 tracking-widest mb-1">
-                    Economy
+                    {t("timeline.economy")}
                   </span>
                   <span className="text-sm font-mono font-black text-white/80">
                     {event.details.passengers.economy}
@@ -181,7 +184,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
                 </div>
                 <div className="flex flex-col items-center p-2 rounded-lg bg-white/[0.03]">
                   <span className="text-[9px] uppercase font-bold text-amber-400/60 tracking-widest mb-1">
-                    Business
+                    {t("timeline.business")}
                   </span>
                   <span className="text-sm font-mono font-black text-amber-400">
                     {event.details.passengers.business}
@@ -189,7 +192,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
                 </div>
                 <div className="flex flex-col items-center p-2 rounded-lg bg-white/[0.03]">
                   <span className="text-[9px] uppercase font-bold text-violet-400/60 tracking-widest mb-1">
-                    First
+                    {t("timeline.first")}
                   </span>
                   <span className="text-sm font-mono font-black text-violet-400">
                     {event.details.passengers.first}
@@ -229,37 +232,37 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
           {event.details.revenue && (
             <div className="space-y-1">
               <p className="text-[9px] uppercase font-bold text-white/20 mb-2 tracking-widest">
-                Revenue Breakdown
+                {t("timeline.revenueBreakdown")}
               </p>
               {event.details.revenue.economy !== undefined && (
                 <DetailRow
-                  label="Economy Tickets"
+                  label={t("timeline.economyTickets")}
                   value={fpFormat(event.details.revenue.economy, 0)}
                   color="text-emerald-400"
                 />
               )}
               {event.details.revenue.business !== undefined && (
                 <DetailRow
-                  label="Business Tickets"
+                  label={t("timeline.businessTickets")}
                   value={fpFormat(event.details.revenue.business, 0)}
                   color="text-amber-400"
                 />
               )}
               {event.details.revenue.first !== undefined && (
                 <DetailRow
-                  label="First Class Tickets"
+                  label={t("timeline.firstClassTickets")}
                   value={fpFormat(event.details.revenue.first, 0)}
                   color="text-violet-400"
                 />
               )}
               <DetailRow
-                label="Ancillary"
+                label={t("timeline.ancillary")}
                 value={fpFormat(event.details.revenue.ancillary, 0)}
                 color="text-emerald-400"
               />
               <div className="pt-2">
                 <DetailRow
-                  label="Total Revenue"
+                  label={t("timeline.totalRevenue")}
                   value={fpFormat(event.revenue!, 0)}
                   color="text-emerald-500"
                 />
@@ -269,46 +272,46 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
           {event.details.costs && (
             <div className="space-y-1">
               <p className="text-[9px] uppercase font-bold text-white/20 mb-2 tracking-widest">
-                Operating Costs
+                {t("timeline.operatingCosts")}
               </p>
               <DetailRow
-                label="Fuel Burn"
+                label={t("timeline.fuelBurn")}
                 value={fpFormat(event.details.costs.fuel, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Crew Wages"
+                label={t("timeline.crewWages")}
                 value={fpFormat(event.details.costs.crew, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Maintenance"
+                label={t("timeline.maintenance")}
                 value={fpFormat(event.details.costs.maintenance, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Airport Fees"
+                label={t("timeline.airportFees")}
                 value={fpFormat(event.details.costs.airport, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Navigation"
+                label={t("timeline.navigation")}
                 value={fpFormat(event.details.costs.navigation, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Leasing"
+                label={t("timeline.leasing")}
                 value={fpFormat(event.details.costs.leasing, 0)}
                 color="text-rose-400"
               />
               <DetailRow
-                label="Overhead"
+                label={t("timeline.overhead")}
                 value={fpFormat(event.details.costs.overhead, 0)}
                 color="text-rose-400"
               />
               <div className="pt-2">
                 <DetailRow
-                  label="Total Costs"
+                  label={t("timeline.totalCosts")}
                   value={fpFormat(event.cost!, 0)}
                   color="text-rose-500"
                 />
@@ -322,6 +325,7 @@ const EventCard = ({ event }: { event: TimelineEvent }) => {
 };
 
 export const AirlineTimeline: React.FC = () => {
+  const { t } = useTranslation("game");
   const timeline = useAirlineStore((state) => state.timeline);
   const parentRef = React.useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -336,8 +340,8 @@ export const AirlineTimeline: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center opacity-40">
         <Clock className="w-12 h-12 mb-4" />
-        <p className="text-lg font-medium">No events recorded yet.</p>
-        <p className="text-sm">Your airline's history will appear here as it grows.</p>
+        <p className="text-lg font-medium">{t("timeline.noEvents")}</p>
+        <p className="text-sm">{t("timeline.noEventsDesc")}</p>
       </div>
     );
   }
@@ -345,7 +349,7 @@ export const AirlineTimeline: React.FC = () => {
   return (
     <div className="space-y-4 p-4">
       <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent mb-6">
-        Operations Ledger
+        {t("timeline.operationsLedger")}
       </h2>
 
       <div ref={parentRef} className="relative max-h-[60vh] overflow-y-auto pr-2">

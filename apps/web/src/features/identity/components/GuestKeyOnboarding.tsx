@@ -1,5 +1,6 @@
 import { useAirlineStore } from "@acars/store";
 import { Loader2, Plane, Sparkles, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * One-click "Create Free Account" flow for users with no Nostr identity.
@@ -9,6 +10,7 @@ import { Loader2, Plane, Sparkles, Zap } from "lucide-react";
  * will then guide them to back up their key.
  */
 export function GuestKeyOnboarding({ onExistingAccount }: { onExistingAccount?: () => void }) {
+  const { t } = useTranslation("identity");
   const createNewIdentity = useAirlineStore((state) => state.createNewIdentity);
   const isLoading = useAirlineStore((state) => state.isLoading);
   const error = useAirlineStore((state) => state.error);
@@ -18,11 +20,9 @@ export function GuestKeyOnboarding({ onExistingAccount }: { onExistingAccount?: 
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Plane className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-bold tracking-tight text-foreground">Start your airline</h2>
+          <h2 className="text-base font-bold tracking-tight text-foreground">{t("guest.title")}</h2>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          No account, no download, no crypto knowledge needed. Your progress is saved automatically.
-        </p>
+        <p className="text-xs leading-relaxed text-muted-foreground">{t("guest.subtitle")}</p>
       </div>
 
       <button
@@ -34,12 +34,12 @@ export function GuestKeyOnboarding({ onExistingAccount }: { onExistingAccount?: 
         {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Creating your account…
+            {t("guest.creating")}
           </>
         ) : (
           <>
             <Sparkles className="h-4 w-4" />
-            Play for free — no sign-up required
+            {t("guest.playFree")}
           </>
         )}
       </button>
@@ -48,8 +48,8 @@ export function GuestKeyOnboarding({ onExistingAccount }: { onExistingAccount?: 
 
       <div className="grid grid-cols-2 gap-2">
         {[
-          { icon: Plane, label: "Real-time flights", sub: "Routes resolve in actual hours" },
-          { icon: Zap, label: "Earn Bitcoin", sub: "Real sats via Lightning zaps" },
+          { icon: Plane, label: t("guest.realTimeFlights"), sub: t("guest.realTimeFlightsDesc") },
+          { icon: Zap, label: t("guest.earnBitcoin"), sub: t("guest.earnBitcoinDesc") },
         ].map((item) => (
           <div
             key={item.label}
@@ -70,7 +70,7 @@ export function GuestKeyOnboarding({ onExistingAccount }: { onExistingAccount?: 
           onClick={onExistingAccount}
           className="mt-1 text-center text-[11px] text-muted-foreground underline-offset-2 transition hover:text-foreground hover:underline"
         >
-          I already have a Nostr account →
+          {t("guest.haveNostrAccount")}
         </button>
       )}
     </div>
