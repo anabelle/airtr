@@ -59,6 +59,36 @@ function getAirlineStatusLabel(aircraft: AircraftInstance, tick: number): string
   return "Scheduled";
 }
 
+function isPostMidpointTurnaround(aircraft: AircraftInstance, tick: number): boolean {
+  if (aircraft.status !== "turnaround" || !aircraft.flight) return false;
+
+  const arrivalTick = aircraft.arrivalTickProcessed ?? aircraft.flight.arrivalTick;
+  const turnaroundEndTick = aircraft.turnaroundEndTick ?? arrivalTick;
+  const turnaroundMidpoint = arrivalTick + Math.floor((turnaroundEndTick - arrivalTick) / 2);
+
+  return tick >= turnaroundMidpoint;
+}
+
+function getDisplayLeg(
+  aircraft: AircraftInstance,
+  tick: number,
+): { originIata: string; destinationIata: string } | null {
+  const flight = aircraft.flight;
+  if (!flight) return null;
+
+  if (isPostMidpointTurnaround(aircraft, tick)) {
+    return {
+      originIata: flight.destinationIata,
+      destinationIata: flight.originIata,
+    };
+  }
+
+  return {
+    originIata: flight.originIata,
+    destinationIata: flight.destinationIata,
+  };
+}
+
 function getRelevantTick(aircraft: AircraftInstance, tick: number): number {
   const flight = aircraft.flight;
   if (!flight) return Number.MAX_SAFE_INTEGER;
@@ -80,23 +110,19 @@ function getRelevantTimezone(aircraft: AircraftInstance, tick: number): string {
   const flight = aircraft.flight;
   if (!flight) return "UTC";
 
+  const displayLeg = getDisplayLeg(aircraft, tick);
+  if (!displayLeg) return "UTC";
+
   if (aircraft.status === "enroute") {
-    return airportByIata.get(flight.destinationIata)?.timezone ?? "UTC";
+    return airportByIata.get(displayLeg.destinationIata)?.timezone ?? "UTC";
   }
   if (aircraft.status === "turnaround") {
-    const arrivalTick = aircraft.arrivalTickProcessed ?? flight.arrivalTick;
-    const turnaroundEndTick = aircraft.turnaroundEndTick ?? arrivalTick;
-    const turnaroundMidpoint = arrivalTick + Math.floor((turnaroundEndTick - arrivalTick) / 2);
-    if (tick < turnaroundMidpoint) {
-      // Landed → destination timezone
-      return airportByIata.get(flight.destinationIata)?.timezone ?? "UTC";
+    if (isPostMidpointTurnaround(aircraft, tick)) {
+      return airportByIata.get(displayLeg.originIata)?.timezone ?? "UTC";
     }
-    // Boarding/Scheduled for next departure → origin timezone of next leg
-    // For turnaround, the aircraft is at the destination preparing to fly back
-    return airportByIata.get(flight.destinationIata)?.timezone ?? "UTC";
+    return airportByIata.get(displayLeg.destinationIata)?.timezone ?? "UTC";
   }
-  // Idle/Scheduled → origin timezone
-  return airportByIata.get(flight.originIata)?.timezone ?? "UTC";
+  return airportByIata.get(displayLeg.originIata)?.timezone ?? "UTC";
 }
 
 export function buildAirlineFlightBoardRows(
@@ -114,6 +140,8 @@ export function buildAirlineFlightBoardRows(
     if (!flight) continue;
     if (aircraft.status === "delivery" || aircraft.status === "maintenance") continue;
 
+    const displayLeg = getDisplayLeg(aircraft, tick);
+    if (!displayLeg) continue;
     const status = getAirlineStatusLabel(aircraft, tick);
     const relevantTick = getRelevantTick(aircraft, tick);
     const timezone = getRelevantTimezone(aircraft, tick);
@@ -129,9 +157,9 @@ export function buildAirlineFlightBoardRows(
       flightLabel: getFlightNumber(icaoCode, getFlightSeed(aircraft)),
       airlineName,
       airlineColor,
-      otherIata: flight.destinationIata,
-      originIata: flight.originIata,
-      destinationIata: flight.destinationIata,
+      otherIata: displayLeg.destinationIata,
+      originIata: displayLeg.originIata,
+      destinationIata: displayLeg.destinationIata,
       aircraft: model ? model.name : aircraft.modelId,
       timeLabel: `${timeLabel} ${offsetLabel}`,
       timeSort: relevantTick,
