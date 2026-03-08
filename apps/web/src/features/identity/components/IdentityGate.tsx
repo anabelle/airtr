@@ -1,9 +1,10 @@
 import { useAirlineStore } from "@acars/store";
 import { Loader2 } from "lucide-react";
 import { AirlineCreator } from "./AirlineCreator";
+import { SecurityUpgradeBanner } from "./SecurityUpgradeBanner";
 
 export function IdentityGate({ children }: { children: React.ReactNode }) {
-  const { identityStatus, airline } = useAirlineStore();
+  const { identityStatus, airline, isEphemeral } = useAirlineStore();
 
   if (identityStatus === "checking") {
     return (
@@ -31,6 +32,11 @@ export function IdentityGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Success
-  return <>{children}</>;
+  // Success — render the full app with optional security banner for ephemeral keys
+  return (
+    <div className="flex h-full w-full flex-col">
+      {isEphemeral && <SecurityUpgradeBanner />}
+      {children}
+    </div>
+  );
 }

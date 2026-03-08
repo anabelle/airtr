@@ -55,13 +55,22 @@ export function computeNetworkDistance(routeIds: string[], routeById: Map<string
   }, 0);
 }
 
+export function hasLeaderboardActivity(entry: AirlineEntity): boolean {
+  return (
+    entry.fleetIds.length > 0 ||
+    entry.routeIds.length > 0 ||
+    entry.cumulativeRevenue > 0 ||
+    (entry.timeline?.length ?? 0) > 0
+  );
+}
+
 export function buildLeaderboardRows(
   airlines: AirlineEntity[],
   aircraftById: Map<string, AircraftInstance>,
   routeById: Map<string, Route>,
   currentTick: number,
 ): LeaderboardRow[] {
-  return airlines.map((entry) => ({
+  return airlines.filter(hasLeaderboardActivity).map((entry) => ({
     id: entry.id,
     name: entry.name,
     icaoCode: entry.icaoCode,

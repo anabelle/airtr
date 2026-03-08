@@ -9,10 +9,15 @@ import { computeActionChainHash, fp, fpSub } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import {
   attachSigner,
+  clearEphemeralKey,
   ensureConnected,
+  generateNewKeypair,
   getPubkey,
+  loadEphemeralKey,
   loginWithNsec as loginWithNsecNostr,
   publishAction,
+  resetSigner,
+  saveEphemeralKey,
   waitForNip07,
 } from "@acars/nostr";
 import type { StateCreator } from "zustand";
@@ -24,6 +29,7 @@ import type { AirlineState } from "../types";
 export interface IdentitySlice {
   pubkey: string | null;
   identityStatus: "checking" | "no-extension" | "guest" | "ready";
+  isEphemeral: boolean;
   isLoading: boolean;
   error: string | null;
   airline: AirlineEntity | null;
@@ -35,6 +41,7 @@ export interface IdentitySlice {
   latestCheckpoint: Checkpoint | null;
   initializeIdentity: () => Promise<void>;
   loginWithNsec: (nsec: string) => Promise<void>;
+  createNewIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
   dissolveAirline: () => Promise<void>;
 }
@@ -50,6 +57,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 ) => ({
   pubkey: null,
   identityStatus: "checking",
+  isEphemeral: false,
   isLoading: false,
   error: null,
   airline: null,
@@ -63,11 +71,59 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
   initializeIdentity: async () => {
     const prevStatus = get().identityStatus;
-    set({ isLoading: true, error: null, airline: null, pubkey: null });
+    const hasExistingIdentity = prevStatus === "ready" && Boolean(get().airline || get().pubkey);
+    set({ isLoading: true, error: null });
 
     const extensionReady = await waitForNip07();
+
+    // If no extension, try to restore an ephemeral key from a previous session
     if (!extensionReady) {
-      set({ identityStatus: "no-extension", isLoading: false });
+      let savedNsec: string | null = null;
+      try {
+        savedNsec = await loadEphemeralKey();
+      } catch {
+        await clearEphemeralKey();
+      }
+      if (savedNsec) {
+        let pubkey: string;
+        try {
+          pubkey = await loginWithNsecNostr(savedNsec);
+        } catch {
+          await clearEphemeralKey();
+          set({
+            identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+            isEphemeral: false,
+            isLoading: false,
+            error: hasExistingIdentity ? "Browser wallet extension is unavailable." : null,
+          });
+          return;
+        }
+
+        try {
+          await ensureConnected();
+          set({ isEphemeral: true });
+          await hydrateIdentityFromStorage(pubkey, set);
+          return;
+        } catch (error) {
+          resetSigner();
+          set({
+            identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+            isEphemeral: hasExistingIdentity ? get().isEphemeral : false,
+            isLoading: false,
+            error: hasExistingIdentity
+              ? error instanceof Error
+                ? error.message
+                : "Unable to restore your saved browser account."
+              : "Saved browser account could not be restored right now.",
+          });
+          return;
+        }
+      }
+      set({
+        identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+        isLoading: false,
+        error: hasExistingIdentity ? "Browser wallet extension is unavailable." : null,
+      });
       return;
     }
 
@@ -83,17 +139,19 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
       if (!pubkey) {
         set({
-          identityStatus: "guest",
+          identityStatus: hasExistingIdentity ? "ready" : "guest",
           isLoading: false,
           error: isPassiveInit ? null : "Extension did not return a pubkey — check nos2x popup",
         });
         return;
       }
 
-      attachSigner();
-      ensureConnected();
+      attachSigner(true);
+      await ensureConnected();
+      set({ isEphemeral: false });
 
       await hydrateIdentityFromStorage(pubkey, set);
+      await clearEphemeralKey();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to initialize identity.";
       set({
@@ -105,18 +163,73 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   },
 
   loginWithNsec: async (nsec: string) => {
-    set({ isLoading: true, error: null, airline: null, pubkey: null });
+    set({ isLoading: true, error: null });
 
+    let pubkey: string;
     try {
-      const pubkey = await loginWithNsecNostr(nsec);
-      ensureConnected();
-
-      await hydrateIdentityFromStorage(pubkey, set);
+      pubkey = await loginWithNsecNostr(nsec);
     } catch (error) {
       console.warn("[IdentitySlice] nsec login failed", error);
       set({
         error: "Invalid nsec key.",
         identityStatus: "ready",
+        isLoading: false,
+      });
+      return;
+    }
+
+    try {
+      await ensureConnected();
+      set({ isEphemeral: false });
+      await hydrateIdentityFromStorage(pubkey, set);
+      await clearEphemeralKey();
+    } catch (error) {
+      resetSigner();
+      const message = error instanceof Error ? error.message : "Unable to load this account.";
+      set({
+        error: message,
+        identityStatus: "ready",
+        isEphemeral: false,
+        isLoading: false,
+      });
+    }
+  },
+
+  createNewIdentity: async () => {
+    set({ isLoading: true, error: null });
+
+    let pubkey: string;
+    try {
+      const { nsec } = generateNewKeypair();
+      await saveEphemeralKey(nsec);
+      pubkey = await loginWithNsecNostr(nsec);
+    } catch (error) {
+      await clearEphemeralKey();
+      const message = error instanceof Error ? error.message : "Unable to create identity.";
+      set({ error: message, isEphemeral: false, isLoading: false });
+      return;
+    }
+
+    try {
+      await ensureConnected();
+      set({ isEphemeral: true });
+      await hydrateIdentityFromStorage(pubkey, set);
+    } catch (error) {
+      resetSigner();
+      const message = error instanceof Error ? error.message : "Unable to create identity.";
+      set({
+        pubkey,
+        airline: null,
+        fleet: [],
+        routes: [],
+        timeline: [],
+        actionChainHash: "",
+        actionSeq: 0,
+        latestCheckpoint: null,
+        fleetDeletedDuringCatchup: [],
+        identityStatus: "ready",
+        error: message,
+        isEphemeral: true,
         isLoading: false,
       });
     }
@@ -126,7 +239,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
     set({ isLoading: true, error: null });
     try {
       attachSigner();
-      ensureConnected();
+      await ensureConnected();
 
       const initialHub = params.hubs[0];
       if (!initialHub) throw new Error("Primary hub is required");

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Leaderboard } from "./Leaderboard";
 
 vi.mock("@/shared/components/layout/panelScrollContext", () => ({
@@ -20,6 +20,8 @@ type EngineStoreState = { tick: number };
 
 const mockUseAirlineStore = vi.fn();
 const mockUseEngineStore = vi.fn();
+const mockBuildLeaderboardRows = vi.fn();
+const mockSortLeaderboardRows = vi.fn((...args) => args[0]);
 
 vi.mock("@acars/store", () => {
   return {
@@ -32,22 +34,13 @@ vi.mock("@acars/store", () => {
 
 vi.mock("@/features/competition/leaderboardMetrics", () => {
   return {
-    buildLeaderboardRows: () => [
-      {
-        id: "airline-1",
-        name: "Test Air",
-        icaoCode: "TST",
-        ceoPubkey: "pubkey",
-        liveryPrimary: "#ff3333",
-        balance: 0,
-        fleet: 1,
-        routes: 2,
-        brand: 0.5,
-        fleetValue: 0,
-        networkDistance: 1000,
-      },
-    ],
-    sortLeaderboardRows: <T,>(rows: T) => rows,
+    buildLeaderboardRows: (
+      airlines: unknown,
+      aircraftById: unknown,
+      routeById: unknown,
+      currentTick: unknown,
+    ) => mockBuildLeaderboardRows(airlines, aircraftById, routeById, currentTick),
+    sortLeaderboardRows: (rows: unknown, metric: unknown) => mockSortLeaderboardRows(rows, metric),
   };
 });
 
@@ -83,7 +76,30 @@ vi.mock("@/shared/hooks/useNostrProfile", () => {
 });
 
 describe("Leaderboard", () => {
+  beforeEach(() => {
+    mockUseAirlineStore.mockReset();
+    mockUseEngineStore.mockReset();
+    mockBuildLeaderboardRows.mockReset();
+    mockSortLeaderboardRows.mockReset();
+    mockSortLeaderboardRows.mockImplementation((rows) => rows);
+  });
+
   it("renders rows and toggles metrics", () => {
+    mockBuildLeaderboardRows.mockReturnValue([
+      {
+        id: "airline-1",
+        name: "Test Air",
+        icaoCode: "TST",
+        ceoPubkey: "pubkey",
+        liveryPrimary: "#ff3333",
+        balance: 0,
+        fleet: 1,
+        routes: 2,
+        brand: 0.5,
+        fleetValue: 0,
+        networkDistance: 1000,
+      },
+    ]);
     mockUseAirlineStore.mockReturnValue({
       competitors: new Map(),
       airline: { id: "airline-1" },
@@ -102,5 +118,23 @@ describe("Leaderboard", () => {
       target: { value: "fleet" },
     });
     expect(screen.getAllByText("Fleet Size").length).toBeGreaterThan(0);
+  });
+
+  it("renders an empty state when no airlines qualify for the leaderboard", () => {
+    mockBuildLeaderboardRows.mockReturnValue([]);
+    mockUseAirlineStore.mockReturnValue({
+      competitors: new Map(),
+      airline: { id: "airline-1" },
+      fleet: [],
+      routes: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
+      viewAs: vi.fn(),
+    });
+    mockUseEngineStore.mockReturnValue({ tick: 0 });
+
+    render(<Leaderboard />);
+
+    expect(screen.getByText("No active airlines on the board yet")).toBeInTheDocument();
   });
 });

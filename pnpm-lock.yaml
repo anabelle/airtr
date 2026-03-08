@@ -253,6 +253,9 @@ importers:
       "@nostr-dev-kit/ndk-blossom":
         specifier: ^2.0.2
         version: 2.0.2(@nostr-dev-kit/ndk@2.15.2(nostr-tools@2.23.1(typescript@5.9.3)))
+      nostr-tools:
+        specifier: ^2.23.1
+        version: 2.23.1(typescript@5.9.3)
     devDependencies:
       typescript:
         specifier: ^5.9.3

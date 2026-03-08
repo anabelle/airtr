@@ -1,4 +1,4 @@
-import type { AircraftInstance, AirlineEntity, Route } from "@acars/core";
+import type { AircraftInstance, AirlineEntity, Route, TimelineEvent } from "@acars/core";
 import { fp } from "@acars/core";
 import { describe, expect, it } from "vitest";
 import {
@@ -105,6 +105,27 @@ describe("leaderboardMetrics", () => {
     expect(rows[0].routes).toBe(1);
     expect(rows[0].networkDistance).toBe(987);
     expect(rows[0].fleetValue).toBeGreaterThan(0);
+  });
+
+  it("filters brand-new airlines with no assets or activity", () => {
+    const historyEvent: TimelineEvent = {
+      id: "evt-1",
+      tick: 12,
+      timestamp: 1700000000,
+      type: "purchase",
+      description: "Bought a starter aircraft",
+    };
+    const rows = buildLeaderboardRows(
+      [
+        makeAirline({ id: "inactive-shell" }),
+        makeAirline({ id: "historical-airline", timeline: [historyEvent] }),
+      ],
+      new Map(),
+      new Map(),
+      0,
+    );
+
+    expect(rows.map((row) => row.id)).toEqual(["historical-airline"]);
   });
 
   it("sorts leaderboard rows by fleet value", () => {
