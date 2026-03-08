@@ -41,9 +41,11 @@ import {
   clearEphemeralKey,
   generateNewKeypair,
   getPubkey,
+  hasStoredEphemeralKey,
   hasNip07,
   loadEphemeralKey,
   loginWithNsec,
+  resetSigner,
   saveEphemeralKey,
   waitForNip07,
 } from "./identity.js";
@@ -127,6 +129,16 @@ describe("identity", () => {
     expect(ndk.signer).not.toBe(privateSigner);
   });
 
+  it("can reset an attached signer explicitly", async () => {
+    privateSignerUserMock.mockResolvedValueOnce({ pubkey: "pubkey-1" });
+
+    await loginWithNsec("nsec1valid");
+    expect(ndk.signer).not.toBeNull();
+
+    resetSigner();
+    expect(ndk.signer).toBeUndefined();
+  });
+
   it("loginWithNsec validates before attaching signer", async () => {
     let resolveUser: ((value: { pubkey: string }) => void) | null = null;
     privateSignerUserMock.mockImplementation(
@@ -154,17 +166,21 @@ describe("identity", () => {
     expect(ndk.signer).toBeNull();
   });
 
-  it("persists and clears ephemeral keys from localStorage", () => {
+  it("persists and clears ephemeral keys from localStorage when secure storage is unavailable", async () => {
     (globalThis as any).window = {};
     (globalThis as any).localStorage = localStorageMock;
 
-    saveEphemeralKey("nsec1saved");
+    await saveEphemeralKey("nsec1saved");
     expect(localStorageMock.setItem).toHaveBeenCalledWith("acars:ephemeral:nsec", "nsec1saved");
 
-    localStorageMock.getItem.mockReturnValueOnce("nsec1saved");
-    expect(loadEphemeralKey()).toBe("nsec1saved");
+    localStorageMock.getItem.mockImplementation((key) =>
+      key === "acars:ephemeral:nsec" ? "nsec1saved" : null,
+    );
+    expect(hasStoredEphemeralKey()).toBe(true);
+    await expect(loadEphemeralKey()).resolves.toBe("nsec1saved");
 
-    clearEphemeralKey();
+    await clearEphemeralKey();
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec:secure");
     expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec");
   });
 

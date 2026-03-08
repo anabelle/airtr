@@ -6,9 +6,11 @@ export {
   clearEphemeralKey,
   generateNewKeypair,
   getPubkey,
+  hasStoredEphemeralKey,
   hasNip07,
   loadEphemeralKey,
   loginWithNsec,
+  resetSigner,
   saveEphemeralKey,
   waitForNip07,
 } from "./identity.js";

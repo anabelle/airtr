@@ -16,6 +16,7 @@ import {
   loadEphemeralKey,
   loginWithNsec as loginWithNsecNostr,
   publishAction,
+  resetSigner,
   saveEphemeralKey,
   waitForNip07,
 } from "@acars/nostr";
@@ -77,17 +78,45 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
     // If no extension, try to restore an ephemeral key from a previous session
     if (!extensionReady) {
-      const savedNsec = loadEphemeralKey();
+      let savedNsec: string | null = null;
+      try {
+        savedNsec = await loadEphemeralKey();
+      } catch {
+        await clearEphemeralKey();
+      }
       if (savedNsec) {
+        let pubkey: string;
         try {
-          const pubkey = await loginWithNsecNostr(savedNsec);
-          ensureConnected();
+          pubkey = await loginWithNsecNostr(savedNsec);
+        } catch {
+          await clearEphemeralKey();
+          set({
+            identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+            isEphemeral: false,
+            isLoading: false,
+            error: hasExistingIdentity ? "Browser wallet extension is unavailable." : null,
+          });
+          return;
+        }
+
+        try {
+          await ensureConnected();
           set({ isEphemeral: true });
           await hydrateIdentityFromStorage(pubkey, set);
           return;
-        } catch {
-          // Stored key is corrupt — clear it and fall through to no-extension
-          clearEphemeralKey();
+        } catch (error) {
+          resetSigner();
+          set({
+            identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+            isEphemeral: hasExistingIdentity ? get().isEphemeral : false,
+            isLoading: false,
+            error: hasExistingIdentity
+              ? error instanceof Error
+                ? error.message
+                : "Unable to restore your saved browser account."
+              : "Saved browser account could not be restored right now.",
+          });
+          return;
         }
       }
       set({
@@ -118,11 +147,11 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       }
 
       attachSigner(true);
-      ensureConnected();
-      clearEphemeralKey();
+      await ensureConnected();
       set({ isEphemeral: false });
 
       await hydrateIdentityFromStorage(pubkey, set);
+      await clearEphemeralKey();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to initialize identity.";
       set({
@@ -136,18 +165,31 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   loginWithNsec: async (nsec: string) => {
     set({ isLoading: true, error: null });
 
+    let pubkey: string;
     try {
-      const pubkey = await loginWithNsecNostr(nsec);
-      ensureConnected();
-      clearEphemeralKey();
-      set({ isEphemeral: false });
-
-      await hydrateIdentityFromStorage(pubkey, set);
+      pubkey = await loginWithNsecNostr(nsec);
     } catch (error) {
       console.warn("[IdentitySlice] nsec login failed", error);
       set({
         error: "Invalid nsec key.",
         identityStatus: "ready",
+        isLoading: false,
+      });
+      return;
+    }
+
+    try {
+      await ensureConnected();
+      set({ isEphemeral: false });
+      await hydrateIdentityFromStorage(pubkey, set);
+      await clearEphemeralKey();
+    } catch (error) {
+      resetSigner();
+      const message = error instanceof Error ? error.message : "Unable to load this account.";
+      set({
+        error: message,
+        identityStatus: "ready",
+        isEphemeral: false,
         isLoading: false,
       });
     }
@@ -156,17 +198,40 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   createNewIdentity: async () => {
     set({ isLoading: true, error: null });
 
+    let pubkey: string;
     try {
       const { nsec } = generateNewKeypair();
-      saveEphemeralKey(nsec);
-      const pubkey = await loginWithNsecNostr(nsec);
-      ensureConnected();
+      await saveEphemeralKey(nsec);
+      pubkey = await loginWithNsecNostr(nsec);
+    } catch (error) {
+      await clearEphemeralKey();
+      const message = error instanceof Error ? error.message : "Unable to create identity.";
+      set({ error: message, isEphemeral: false, isLoading: false });
+      return;
+    }
+
+    try {
+      await ensureConnected();
       set({ isEphemeral: true });
       await hydrateIdentityFromStorage(pubkey, set);
     } catch (error) {
-      clearEphemeralKey();
+      resetSigner();
       const message = error instanceof Error ? error.message : "Unable to create identity.";
-      set({ error: message, isEphemeral: false, isLoading: false });
+      set({
+        pubkey,
+        airline: null,
+        fleet: [],
+        routes: [],
+        timeline: [],
+        actionChainHash: "",
+        actionSeq: 0,
+        latestCheckpoint: null,
+        fleetDeletedDuringCatchup: [],
+        identityStatus: "ready",
+        error: message,
+        isEphemeral: true,
+        isLoading: false,
+      });
     }
   },
 
@@ -174,7 +239,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
     set({ isLoading: true, error: null });
     try {
       attachSigner();
-      ensureConnected();
+      await ensureConnected();
 
       const initialHub = params.hubs[0];
       if (!initialHub) throw new Error("Primary hub is required");

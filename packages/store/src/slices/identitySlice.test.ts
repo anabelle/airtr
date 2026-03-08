@@ -11,24 +11,27 @@ vi.mock("../localLoader", () => ({
 const loginWithNsecMock = vi.fn();
 const attachSignerMock = vi.fn();
 const clearEphemeralKeyMock = vi.fn();
+const ensureConnectedMock = vi.fn();
 const generateNewKeypairMock = vi.fn(() => ({
   nsec: "nsec1generated",
   pubkey: "generated-pubkey",
 }));
 const getPubkeyMock = vi.fn(() => Promise.resolve("pubkey-1"));
 const loadEphemeralKeyMock = vi.fn(() => null);
+const resetSignerMock = vi.fn();
 const saveEphemeralKeyMock = vi.fn();
 const waitForNip07Mock = vi.fn(() => Promise.resolve(true));
 
 vi.mock("@acars/nostr", () => ({
   attachSigner: (...args: unknown[]) => attachSignerMock(...args),
   clearEphemeralKey: (...args: unknown[]) => clearEphemeralKeyMock(...args),
-  ensureConnected: vi.fn(),
+  ensureConnected: (...args: unknown[]) => ensureConnectedMock(...args),
   generateNewKeypair: (...args: unknown[]) => generateNewKeypairMock(...args),
   getPubkey: (...args: unknown[]) => getPubkeyMock(...args),
   loadEphemeralKey: (...args: unknown[]) => loadEphemeralKeyMock(...args),
   loginWithNsec: (...args: unknown[]) => loginWithNsecMock(...args),
   publishAction: vi.fn(),
+  resetSigner: (...args: unknown[]) => resetSignerMock(...args),
   saveEphemeralKey: (...args: unknown[]) => saveEphemeralKeyMock(...args),
   waitForNip07: (...args: unknown[]) => waitForNip07Mock(...args),
 }));
@@ -78,6 +81,7 @@ beforeEach(() => {
   vi.mocked(hydrateIdentityFromStorage).mockReset();
   attachSignerMock.mockReset();
   clearEphemeralKeyMock.mockReset();
+  ensureConnectedMock.mockReset();
   generateNewKeypairMock.mockClear();
   generateNewKeypairMock.mockReturnValue({
     nsec: "nsec1generated",
@@ -86,8 +90,10 @@ beforeEach(() => {
   getPubkeyMock.mockReset();
   getPubkeyMock.mockResolvedValue("pubkey-1");
   loadEphemeralKeyMock.mockReset();
-  loadEphemeralKeyMock.mockReturnValue(null);
+  loadEphemeralKeyMock.mockResolvedValue(null);
   loginWithNsecMock.mockReset();
+  ensureConnectedMock.mockResolvedValue(undefined);
+  resetSignerMock.mockReset();
   saveEphemeralKeyMock.mockReset();
   waitForNip07Mock.mockReset();
   waitForNip07Mock.mockResolvedValue(true);
@@ -145,7 +151,7 @@ describe("identitySlice initializeIdentity", () => {
 
   it("restores a saved ephemeral key when no extension is available", async () => {
     waitForNip07Mock.mockResolvedValueOnce(false);
-    loadEphemeralKeyMock.mockReturnValueOnce("nsec1saved");
+    loadEphemeralKeyMock.mockResolvedValueOnce("nsec1saved");
     loginWithNsecMock.mockResolvedValueOnce("pubkey-ephemeral");
 
     const { state } = createSliceState();
@@ -163,7 +169,7 @@ describe("identitySlice initializeIdentity", () => {
 
   it("clears corrupt saved ephemeral keys and falls back to no-extension", async () => {
     waitForNip07Mock.mockResolvedValueOnce(false);
-    loadEphemeralKeyMock.mockReturnValueOnce("nsec1corrupt");
+    loadEphemeralKeyMock.mockResolvedValueOnce("nsec1corrupt");
     loginWithNsecMock.mockRejectedValueOnce(new Error("invalid key"));
 
     const { state } = createSliceState();
@@ -172,6 +178,22 @@ describe("identitySlice initializeIdentity", () => {
 
     expect(clearEphemeralKeyMock).toHaveBeenCalled();
     expect(state.identityStatus).toBe("no-extension");
+  });
+
+  it("resets the signer but preserves a saved key when restore fails after login succeeds", async () => {
+    waitForNip07Mock.mockResolvedValueOnce(false);
+    loadEphemeralKeyMock.mockResolvedValueOnce("nsec1saved");
+    loginWithNsecMock.mockResolvedValueOnce("pubkey-ephemeral");
+    vi.mocked(hydrateIdentityFromStorage).mockRejectedValueOnce(new Error("hydrate failed"));
+
+    const { state } = createSliceState();
+
+    await state.initializeIdentity();
+
+    expect(resetSignerMock).toHaveBeenCalled();
+    expect(clearEphemeralKeyMock).not.toHaveBeenCalled();
+    expect(state.identityStatus).toBe("no-extension");
+    expect(state.error).toBe("Saved browser account could not be restored right now.");
   });
 
   it("preserves a ready session when the browser wallet extension is unavailable", async () => {
@@ -237,5 +259,21 @@ describe("identitySlice createNewIdentity", () => {
     expect(loginWithNsecMock).toHaveBeenCalledWith("nsec1generated");
     expect(state.isEphemeral).toBe(true);
     expect(hydrateIdentityFromStorage).toHaveBeenCalledWith("pubkey-new", expect.any(Function));
+  });
+
+  it("keeps a valid new key and resets the signer when post-login setup fails", async () => {
+    loginWithNsecMock.mockResolvedValueOnce("pubkey-new");
+    ensureConnectedMock.mockRejectedValueOnce(new Error("relay unavailable"));
+
+    const { state } = createSliceState();
+
+    await state.createNewIdentity();
+
+    expect(resetSignerMock).toHaveBeenCalled();
+    expect(clearEphemeralKeyMock).not.toHaveBeenCalled();
+    expect(state.pubkey).toBe("pubkey-new");
+    expect(state.identityStatus).toBe("ready");
+    expect(state.isEphemeral).toBe(true);
+    expect(state.error).toBe("relay unavailable");
   });
 });

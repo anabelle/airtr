@@ -37,15 +37,15 @@ const features = [
 
 export default function JoinPage() {
   const identityStatus = useAirlineStore((state) => state.identityStatus);
-  const airline = useAirlineStore((state) => state.airline);
   const navigate = useNavigate();
 
-  // Redirect to app once identity + airline are ready
+  // Redirect to app once identity exists so users cannot overwrite
+  // a freshly generated local account by re-triggering onboarding.
   useEffect(() => {
-    if (identityStatus === "ready" && airline) {
+    if (identityStatus === "ready") {
       void navigate({ to: "/" });
     }
-  }, [identityStatus, airline, navigate]);
+  }, [identityStatus, navigate]);
 
   function handleExistingAccount() {
     void navigate({ to: "/" });

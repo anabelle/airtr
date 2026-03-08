@@ -2,14 +2,16 @@ import type { Airport } from "@acars/core";
 import { fp, fpFormat } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import { useAirlineStore, useEngineStore } from "@acars/store";
-import { CheckCircle2, PlaneTakeoff, ShieldAlert } from "lucide-react";
+import { CheckCircle2, KeyRound, PlaneTakeoff, ShieldAlert } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { HubPicker } from "../../network/components/HubPicker";
+import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 import { findAirlineConflicts } from "../utils/airlineConflicts";
 
 export function AirlineCreator() {
   const { createAirline, identityStatus, isLoading, error, competitors } = useAirlineStore();
+  const isEphemeral = useAirlineStore((state) => state.isEphemeral);
   const homeAirport = useEngineStore((s) => s.homeAirport);
   const setHub = useEngineStore((s) => s.setHub);
 
@@ -18,6 +20,7 @@ export function AirlineCreator() {
   const [callsign, setCallsign] = useState("");
   const [primary, setPrimary] = useState("#1a1a2e");
   const [secondary, setSecondary] = useState("#10b981"); // neon greenish accent
+  const [showKeyTools, setShowKeyTools] = useState(false);
 
   const { nameConflict, icaoConflict } = useMemo(
     () => findAirlineConflicts(competitors, name, icao),
@@ -70,17 +73,45 @@ export function AirlineCreator() {
   return (
     <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/80 shadow-2xl backdrop-blur-md">
       <div className="border-b border-border bg-muted px-8 py-6">
-        <div className="mb-3 inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-          Connected - create your airline
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="mb-3 inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              Connected - create your airline
+            </div>
+            <h2 className="flex items-center text-2xl font-bold tracking-tight text-foreground">
+              <PlaneTakeoff className="mr-3 h-6 w-6 text-primary" />
+              Launch Your Airline
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Pick a home hub, name your carrier, and choose its colors. You can be ready to operate
+              in under a minute.
+            </p>
+          </div>
+          {isEphemeral && (
+            <button
+              type="button"
+              onClick={() => setShowKeyTools((open) => !open)}
+              className="inline-flex items-center gap-2 self-start rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-200 transition hover:bg-amber-500/20"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              {showKeyTools ? "Hide key tools" : "Account key"}
+            </button>
+          )}
         </div>
-        <h2 className="flex items-center text-2xl font-bold tracking-tight text-foreground">
-          <PlaneTakeoff className="mr-3 h-6 w-6 text-primary" />
-          Launch Your Airline
-        </h2>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Pick a home hub, name your carrier, and choose its colors. You can be ready to operate in
-          under a minute.
-        </p>
+        {isEphemeral && showKeyTools && (
+          <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-950/30 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
+              Local account key
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
+              Export your recovery key before launch so this airline stays yours if you lose this
+              browser.
+            </p>
+            <div className="mt-3">
+              <EphemeralKeyBackupActions />
+            </div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 p-8">

@@ -5,11 +5,13 @@ import { SecurityUpgradeBanner } from "./SecurityUpgradeBanner";
 type Selector<T> = (state: T) => unknown;
 type AirlineStoreState = {
   initializeIdentity: () => Promise<void>;
+  isLoading: boolean;
   pubkey: string | null;
 };
 
 const mockUseAirlineStore = vi.fn();
 const mockHasNip07 = vi.fn();
+const mockHasStoredEphemeralKey = vi.fn();
 const mockLoadEphemeralKey = vi.fn();
 const mockWriteText = vi.fn().mockResolvedValue(undefined);
 const localStorageState = new Map<string, string>();
@@ -39,7 +41,15 @@ vi.mock("@acars/store", () => ({
 
 vi.mock("@acars/nostr", () => ({
   hasNip07: () => mockHasNip07(),
+  hasStoredEphemeralKey: () => mockHasStoredEphemeralKey(),
   loadEphemeralKey: () => mockLoadEphemeralKey(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 describe("SecurityUpgradeBanner", () => {
@@ -56,10 +66,12 @@ describe("SecurityUpgradeBanner", () => {
     });
     mockUseAirlineStore.mockReturnValue({
       initializeIdentity: vi.fn().mockResolvedValue(undefined),
+      isLoading: false,
       pubkey: "pubkey-1",
     });
     mockHasNip07.mockReturnValue(false);
-    mockLoadEphemeralKey.mockReturnValue("nsec1testvalue");
+    mockHasStoredEphemeralKey.mockReturnValue(true);
+    mockLoadEphemeralKey.mockResolvedValue("nsec1testvalue");
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: mockWriteText },
       configurable: true,
@@ -70,6 +82,7 @@ describe("SecurityUpgradeBanner", () => {
     cleanup();
     mockUseAirlineStore.mockReset();
     mockHasNip07.mockReset();
+    mockHasStoredEphemeralKey.mockReset();
     mockLoadEphemeralKey.mockReset();
     mockWriteText.mockReset();
     localStorageState.clear();

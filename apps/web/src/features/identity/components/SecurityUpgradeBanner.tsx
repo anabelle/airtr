@@ -1,15 +1,13 @@
-import { hasNip07, loadEphemeralKey } from "@acars/nostr";
 import { useAirlineStore } from "@acars/store";
-import { Check, Copy, Download, Shield, ShieldAlert, X } from "lucide-react";
-import { useState } from "react";
-
-function getDismissedBannerKey(pubkey: string) {
-  return `acars:banner:dismissed:${pubkey}`;
-}
-
-function getSecuredBannerKey(pubkey: string) {
-  return `acars:banner:secured:${pubkey}`;
-}
+import { ShieldAlert, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
+import {
+  dismissEphemeralBanner,
+  isEphemeralBannerDismissed,
+  isEphemeralKeySecured,
+  subscribeEphemeralKeySecurityChanges,
+} from "../lib/ephemeralBackup";
 
 /**
  * Non-blocking banner shown when the user is playing with an
@@ -21,67 +19,37 @@ function getSecuredBannerKey(pubkey: string) {
  * their secret key.
  */
 export function SecurityUpgradeBanner() {
-  const initializeIdentity = useAirlineStore((state) => state.initializeIdentity);
   const pubkey = useAirlineStore((state) => state.pubkey);
   const [dismissedAccounts, setDismissedAccounts] = useState<Record<string, true>>({});
-  const [securedAccounts, setSecuredAccounts] = useState<Record<string, true>>({});
-  const [copied, setCopied] = useState(false);
+  const [securityRefreshToken, setSecurityRefreshToken] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
   const dismissed = pubkey
-    ? dismissedAccounts[pubkey] || sessionStorage.getItem(getDismissedBannerKey(pubkey)) === "1"
+    ? dismissedAccounts[pubkey] || isEphemeralBannerDismissed(pubkey)
     : false;
-  const secured = pubkey
-    ? securedAccounts[pubkey] || localStorage.getItem(getSecuredBannerKey(pubkey)) === "1"
-    : false;
+  const secured = pubkey ? isEphemeralKeySecured(pubkey) : false;
+
+  useEffect(() => {
+    return subscribeEphemeralKeySecurityChanges((updatedPubkey) => {
+      if (updatedPubkey === pubkey) {
+        setSecurityRefreshToken((current) => current + 1);
+      }
+    });
+  }, [pubkey]);
 
   if (dismissed || secured) return null;
 
-  const nsec = loadEphemeralKey();
-
   function dismiss() {
     if (!pubkey) return;
-    sessionStorage.setItem(getDismissedBannerKey(pubkey), "1");
+    dismissEphemeralBanner(pubkey);
     setDismissedAccounts((current) => ({ ...current, [pubkey]: true }));
   }
 
-  function markSecured() {
-    if (!pubkey) return;
-    localStorage.setItem(getSecuredBannerKey(pubkey), "1");
-    setSecuredAccounts((current) => ({ ...current, [pubkey]: true }));
-  }
-
-  async function copyNsec() {
-    if (!nsec) return;
-    await navigator.clipboard.writeText(nsec);
-    markSecured();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  }
-
-  function downloadNsec() {
-    if (!nsec) return;
-    const blob = new Blob(
-      [
-        `ACARS Secret Key — keep this safe!\n\nDo NOT share this with anyone.\n\n${nsec}\n\nTo restore your account, paste this key in the ACARS login screen.`,
-      ],
-      { type: "text/plain" },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "acars-secret-key.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-    markSecured();
-  }
-
-  async function upgradeToExtension() {
-    await initializeIdentity();
-  }
-
   return (
-    <div className="pointer-events-auto w-full border-b border-amber-500/30 bg-amber-950/70 backdrop-blur-xl">
+    <div
+      key={securityRefreshToken}
+      className="pointer-events-auto w-full border-b border-amber-500/30 bg-amber-950/70 backdrop-blur-xl"
+    >
       <div className="flex items-center gap-3 px-4 py-2">
         <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
         <p className="flex-1 text-xs font-medium text-amber-200">
@@ -111,40 +79,7 @@ export function SecurityUpgradeBanner() {
             Your account key is saved only in this browser. Back it up so you can play from
             anywhere:
           </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={copyNsec}
-              disabled={!nsec}
-              className="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-40"
-            >
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied!" : "Copy my secret key"}
-            </button>
-            <button
-              type="button"
-              onClick={downloadNsec}
-              disabled={!nsec}
-              className="flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-40"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download key file
-            </button>
-            {hasNip07() && (
-              <button
-                type="button"
-                onClick={upgradeToExtension}
-                className="flex items-center gap-1.5 rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
-              >
-                <Shield className="h-3.5 w-3.5" />
-                Switch to wallet extension
-              </button>
-            )}
-          </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-amber-400/60">
-            Your secret key starts with <code className="font-mono">nsec1…</code> — treat it like a
-            password. Anyone who has it controls your airline.
-          </p>
+          <EphemeralKeyBackupActions />
         </div>
       )}
     </div>
