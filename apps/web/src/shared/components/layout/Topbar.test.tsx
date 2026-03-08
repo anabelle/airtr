@@ -53,7 +53,7 @@ describe("Topbar", () => {
     expect(screen.getAllByText("ACARS")).toHaveLength(2);
     expect(screen.getByRole("button", { name: /Play Free/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /I already have an nsec key/i })).toBeInTheDocument();
-    expect(screen.getByText(/New here\? Create a free account instantly/i)).toBeInTheDocument();
+    expect(screen.getByText(/New here\? Start free in one click/i)).toBeInTheDocument();
   });
 
   it("renders airline metrics when available", () => {
