@@ -70,7 +70,8 @@ describe("AirlineCreator", () => {
     });
 
     render(<AirlineCreator />);
-    expect(screen.getByText("JFK")).toBeInTheDocument();
+    expect(screen.getByText("Launch Your Airline")).toBeInTheDocument();
+    expect(screen.getAllByText("JFK").length).toBeGreaterThan(0);
     expect(screen.getByText(/John F Kennedy International/)).toBeInTheDocument();
   });
 
@@ -96,7 +97,7 @@ describe("AirlineCreator", () => {
     });
 
     render(<AirlineCreator />);
-    const submit = screen.getAllByRole("button", { name: /Establish Corporation/i })[0];
+    const submit = screen.getAllByRole("button", { name: /Launch Airline/i })[0];
     expect(submit).toBeDisabled();
 
     fireEvent.change(screen.getAllByPlaceholderText("Apex Global")[0], {
