@@ -72,6 +72,7 @@
     "preparing": "Preparando…",
     "downloadKey": "Descargar archivo de clave",
     "switchToWallet": "Cambiar a extensión de billetera",
+    "switching": "Cambiando…",
     "keyExplainer": "Tu clave secreta comienza con nsec1… — trátala como una contraseña. ACARS la almacena localmente en este dispositivo y la exporta desde aquí cuando necesites tu copia de recuperación."
   }
 }

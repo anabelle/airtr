@@ -8,10 +8,12 @@ export function LanguageSelector() {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value === "auto") {
-      // Remove manual override, let detector run
+      // Remove manual override so the detector falls back to browser prefs
       localStorage.removeItem("acars-language");
-      // Re-detect language from browser
-      i18n.changeLanguage(undefined);
+      // Detect from browser settings (navigator.language)
+      const detected = navigator.language.split("-")[0];
+      const supported = Object.keys(supportedLanguages);
+      i18n.changeLanguage(supported.includes(detected) ? detected : "en");
     } else {
       i18n.changeLanguage(value);
     }

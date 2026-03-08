@@ -136,7 +136,7 @@ export function EphemeralKeyBackupActions({
             ) : (
               <Shield className="h-3.5 w-3.5" />
             )}
-            {isLoading ? "Switching…" : t("backup.switchToWallet")}
+            {isLoading ? t("backup.switching") : t("backup.switchToWallet")}
           </button>
         )}
       </div>

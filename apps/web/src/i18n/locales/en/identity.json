@@ -72,6 +72,7 @@
     "preparing": "Preparing…",
     "downloadKey": "Download key file",
     "switchToWallet": "Switch to wallet extension",
+    "switching": "Switching…",
     "keyExplainer": "Your secret key starts with nsec1… — treat it like a password. ACARS stores it locally on this device and exports it from here whenever you need your recovery copy."
   }
 }

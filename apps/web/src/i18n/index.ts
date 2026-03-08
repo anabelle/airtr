@@ -48,7 +48,11 @@ i18n
     },
   });
 
-// Keep the <html lang> attribute in sync with the current language
+/**
+ * Keep the <html lang> attribute in sync with the current language.
+ * This is necessary for accessibility (screen readers use it to determine
+ * pronunciation rules) and for CSS :lang() selectors.
+ */
 function syncHtmlLang(lng: string) {
   const lang = lng.split("-")[0]; // "en-US" → "en"
   document.documentElement.lang = lang;
