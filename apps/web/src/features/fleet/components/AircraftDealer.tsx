@@ -432,7 +432,7 @@ function AircraftCard({
     >
       {/* Top Image Splash */}
       <div
-        className={`relative flex h-20 w-full items-center justify-center border-b border-border/30 bg-gradient-to-br ${bgGradient} sm:h-32`}
+        className={`relative flex h-32 w-full items-center justify-center border-b border-border/30 bg-gradient-to-br ${bgGradient} sm:h-40 lg:h-44`}
       >
         <div className="absolute left-3 top-3 flex gap-2 sm:left-4 sm:top-4">
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold text-foreground border border-border/50">
@@ -719,7 +719,7 @@ function PurchaseModal({
       <div className="relative flex h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
         {/* Header Graphic */}
         <div
-          className={`relative flex w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:h-32 sm:p-6`}
+          className={`relative flex min-h-40 w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:min-h-44 sm:p-6`}
         >
           <div className="z-10 min-w-0 flex-1">
             <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
@@ -729,7 +729,7 @@ function PurchaseModal({
               {aircraft.name}
             </h2>
           </div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-40 overflow-hidden border-l border-border/10 sm:block">
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-44 overflow-hidden border-l border-border/10 sm:block md:w-48">
             <CatalogImage
               model={aircraft}
               className="h-full w-full object-cover opacity-80"
