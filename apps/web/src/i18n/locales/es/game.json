@@ -127,7 +127,9 @@
     "tier1": "Inicio regional",
     "tier2": "Aerolínea nacional",
     "tier3": "Intercontinental",
-    "tier4": "Mega transportista global"
+    "tier4": "Mega transportista global",
+    "daysRemaining_one": "Queda {{count}} día",
+    "daysRemaining_other": "Quedan {{count}} días"
   },
   "hub": {
     "title": "Selecciona Tu Hub Principal",
@@ -166,7 +168,8 @@
       "title": "Rutas suspendidas",
       "description": "Estas rutas perdieron su hub de origen. Reubícalas a un hub operativo para reanudar el servicio.",
       "awaitingRebase": "{{count}} pendientes de rebase"
-    }
+    },
+    "pageTitle": "Red"
   },
   "hubPicker": {
     "changeTitle": "Cambiar tu aeropuerto hub",

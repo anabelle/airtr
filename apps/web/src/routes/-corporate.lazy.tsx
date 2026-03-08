@@ -185,8 +185,10 @@ function FinancialPulse({
               {t("corporate.billingCycle", { ns: "game" })}
             </span>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              {billingCycle.daysRemaining} day
-              {billingCycle.daysRemaining !== 1 ? "s" : ""} remaining
+              {t("corporate.daysRemaining", {
+                ns: "game",
+                count: billingCycle.daysRemaining,
+              })}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/30">

@@ -1,7 +1,7 @@
 import { useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
 import { Globe, Plane, TrendingUp, Users, Zap } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { GuestKeyOnboarding } from "@/features/identity/components/GuestKeyOnboarding";
 
@@ -10,33 +10,36 @@ export default function JoinPage() {
   const identityStatus = useAirlineStore((state) => state.identityStatus);
   const navigate = useNavigate();
 
-  const features = [
-    {
-      icon: Plane,
-      title: t("join.features.realTimeFlights.title", { ns: "common" }),
-      description: t("join.features.realTimeFlights.description", { ns: "common" }),
-    },
-    {
-      icon: TrendingUp,
-      title: t("join.features.corporation.title", { ns: "common" }),
-      description: t("join.features.corporation.description", { ns: "common" }),
-    },
-    {
-      icon: Zap,
-      title: t("join.features.bitcoin.title", { ns: "common" }),
-      description: t("join.features.bitcoin.description", { ns: "common" }),
-    },
-    {
-      icon: Globe,
-      title: t("join.features.decentralized.title", { ns: "common" }),
-      description: t("join.features.decentralized.description", { ns: "common" }),
-    },
-    {
-      icon: Users,
-      title: t("join.features.competition.title", { ns: "common" }),
-      description: t("join.features.competition.description", { ns: "common" }),
-    },
-  ];
+  const features = useMemo(
+    () => [
+      {
+        icon: Plane,
+        title: t("join.features.realTimeFlights.title", { ns: "common" }),
+        description: t("join.features.realTimeFlights.description", { ns: "common" }),
+      },
+      {
+        icon: TrendingUp,
+        title: t("join.features.corporation.title", { ns: "common" }),
+        description: t("join.features.corporation.description", { ns: "common" }),
+      },
+      {
+        icon: Zap,
+        title: t("join.features.bitcoin.title", { ns: "common" }),
+        description: t("join.features.bitcoin.description", { ns: "common" }),
+      },
+      {
+        icon: Globe,
+        title: t("join.features.decentralized.title", { ns: "common" }),
+        description: t("join.features.decentralized.description", { ns: "common" }),
+      },
+      {
+        icon: Users,
+        title: t("join.features.competition.title", { ns: "common" }),
+        description: t("join.features.competition.description", { ns: "common" }),
+      },
+    ],
+    [t],
+  );
 
   // Redirect to app once identity exists so users cannot overwrite
   // a freshly generated local account by re-triggering onboarding.

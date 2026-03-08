@@ -580,7 +580,7 @@ export function RouteManager() {
   return (
     <div className="flex flex-col">
       <PanelHeader
-        title={t("nav.network", { ns: "common" })}
+        title={t("routeManager.pageTitle", { ns: "game" })}
         subtitle={t("routeManager.subtitle", {
           ns: "game",
           airport: planningOriginAirport.name,

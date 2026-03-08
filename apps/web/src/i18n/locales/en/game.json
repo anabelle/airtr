@@ -127,7 +127,9 @@
     "tier1": "Regional Startup",
     "tier2": "National Carrier",
     "tier3": "Intercontinental",
-    "tier4": "Global Mega-Carrier"
+    "tier4": "Global Mega-Carrier",
+    "daysRemaining_one": "{{count}} day remaining",
+    "daysRemaining_other": "{{count}} days remaining"
   },
   "hub": {
     "title": "Select Your Home Hub",
@@ -166,7 +168,8 @@
       "title": "Suspended Routes",
       "description": "These routes lost their origin hub. Rebase them to an operational hub to resume service.",
       "awaitingRebase": "{{count}} awaiting rebase"
-    }
+    },
+    "pageTitle": "Network"
   },
   "hubPicker": {
     "changeTitle": "Change your hub airport",
