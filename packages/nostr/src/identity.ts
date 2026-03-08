@@ -111,13 +111,16 @@ export async function getPubkey(timeoutMs = 15000): Promise<string | null> {
  * Attach the NIP-07 signer to NDK for event signing.
  * Must be called after confirming NIP-07 is available.
  *
- * We create a NEW signer each time to avoid the cached _userPromise
- * issue when users switch identities in their extension.
+ * By default, we do not override an existing private-key signer because
+ * nsec/ephemeral sessions must keep signing with their current identity
+ * even when a browser extension is present. Pass forceRefresh=true when
+ * intentionally switching back to the browser extension.
  */
-export function attachSigner(): void {
+export function attachSigner(forceRefresh = false): void {
   if (!hasNip07()) return;
   const ndk = getNDK();
-  // Always create a fresh signer to avoid cached identity
+  if (!forceRefresh && ndk.signer instanceof NDKPrivateKeySigner) return;
+  // Always create a fresh NIP-07 signer to avoid cached identity.
   ndk.signer = new NDKNip07Signer(15000);
 }
 

@@ -1,4 +1,4 @@
-import { clearEphemeralKey, hasNip07, loadEphemeralKey } from "@acars/nostr";
+import { hasNip07, loadEphemeralKey } from "@acars/nostr";
 import { useAirlineStore } from "@acars/store";
 import { Check, Copy, Download, Shield, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
@@ -52,7 +52,6 @@ export function SecurityUpgradeBanner() {
   }
 
   async function upgradeToExtension() {
-    clearEphemeralKey();
     await initializeIdentity();
   }
 

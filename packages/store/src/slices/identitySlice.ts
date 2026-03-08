@@ -70,7 +70,8 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
   initializeIdentity: async () => {
     const prevStatus = get().identityStatus;
-    set({ isLoading: true, error: null, airline: null, pubkey: null });
+    const hasExistingIdentity = prevStatus === "ready" && Boolean(get().airline || get().pubkey);
+    set({ isLoading: true, error: null });
 
     const extensionReady = await waitForNip07();
 
@@ -89,7 +90,11 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
           clearEphemeralKey();
         }
       }
-      set({ identityStatus: "no-extension", isLoading: false });
+      set({
+        identityStatus: hasExistingIdentity ? "ready" : "no-extension",
+        isLoading: false,
+        error: hasExistingIdentity ? "Browser wallet extension is unavailable." : null,
+      });
       return;
     }
 
@@ -105,15 +110,17 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 
       if (!pubkey) {
         set({
-          identityStatus: "guest",
+          identityStatus: hasExistingIdentity ? "ready" : "guest",
           isLoading: false,
           error: isPassiveInit ? null : "Extension did not return a pubkey — check nos2x popup",
         });
         return;
       }
 
-      attachSigner();
+      attachSigner(true);
       ensureConnected();
+      clearEphemeralKey();
+      set({ isEphemeral: false });
 
       await hydrateIdentityFromStorage(pubkey, set);
     } catch (error) {
@@ -127,11 +134,13 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   },
 
   loginWithNsec: async (nsec: string) => {
-    set({ isLoading: true, error: null, airline: null, pubkey: null });
+    set({ isLoading: true, error: null });
 
     try {
       const pubkey = await loginWithNsecNostr(nsec);
       ensureConnected();
+      clearEphemeralKey();
+      set({ isEphemeral: false });
 
       await hydrateIdentityFromStorage(pubkey, set);
     } catch (error) {
@@ -145,7 +154,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
   },
 
   createNewIdentity: async () => {
-    set({ isLoading: true, error: null, airline: null, pubkey: null });
+    set({ isLoading: true, error: null });
 
     try {
       const { nsec } = generateNewKeypair();
@@ -155,8 +164,9 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
       set({ isEphemeral: true });
       await hydrateIdentityFromStorage(pubkey, set);
     } catch (error) {
+      clearEphemeralKey();
       const message = error instanceof Error ? error.message : "Unable to create identity.";
-      set({ error: message, isLoading: false });
+      set({ error: message, isEphemeral: false, isLoading: false });
     }
   },
 
