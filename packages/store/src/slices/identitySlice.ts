@@ -9,10 +9,14 @@ import { computeActionChainHash, fp, fpSub } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
 import {
   attachSigner,
+  clearEphemeralKey,
   ensureConnected,
+  generateNewKeypair,
   getPubkey,
+  loadEphemeralKey,
   loginWithNsec as loginWithNsecNostr,
   publishAction,
+  saveEphemeralKey,
   waitForNip07,
 } from "@acars/nostr";
 import type { StateCreator } from "zustand";
@@ -24,6 +28,7 @@ import type { AirlineState } from "../types";
 export interface IdentitySlice {
   pubkey: string | null;
   identityStatus: "checking" | "no-extension" | "guest" | "ready";
+  isEphemeral: boolean;
   isLoading: boolean;
   error: string | null;
   airline: AirlineEntity | null;
@@ -35,6 +40,7 @@ export interface IdentitySlice {
   latestCheckpoint: Checkpoint | null;
   initializeIdentity: () => Promise<void>;
   loginWithNsec: (nsec: string) => Promise<void>;
+  createNewIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
   dissolveAirline: () => Promise<void>;
 }
@@ -50,6 +56,7 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
 ) => ({
   pubkey: null,
   identityStatus: "checking",
+  isEphemeral: false,
   isLoading: false,
   error: null,
   airline: null,
@@ -66,7 +73,22 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
     set({ isLoading: true, error: null, airline: null, pubkey: null });
 
     const extensionReady = await waitForNip07();
+
+    // If no extension, try to restore an ephemeral key from a previous session
     if (!extensionReady) {
+      const savedNsec = loadEphemeralKey();
+      if (savedNsec) {
+        try {
+          const pubkey = await loginWithNsecNostr(savedNsec);
+          ensureConnected();
+          set({ isEphemeral: true });
+          await hydrateIdentityFromStorage(pubkey, set);
+          return;
+        } catch {
+          // Stored key is corrupt — clear it and fall through to no-extension
+          clearEphemeralKey();
+        }
+      }
       set({ identityStatus: "no-extension", isLoading: false });
       return;
     }
@@ -119,6 +141,22 @@ export const createIdentitySlice: StateCreator<AirlineState, [], [], IdentitySli
         identityStatus: "ready",
         isLoading: false,
       });
+    }
+  },
+
+  createNewIdentity: async () => {
+    set({ isLoading: true, error: null, airline: null, pubkey: null });
+
+    try {
+      const { nsec } = generateNewKeypair();
+      saveEphemeralKey(nsec);
+      const pubkey = await loginWithNsecNostr(nsec);
+      ensureConnected();
+      set({ isEphemeral: true });
+      await hydrateIdentityFromStorage(pubkey, set);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create identity.";
+      set({ error: message, isLoading: false });
     }
   },
 

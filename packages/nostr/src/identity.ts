@@ -1,5 +1,46 @@
 import { NDKNip07Signer, NDKPrivateKeySigner } from "@nostr-dev-kit/ndk";
+import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { getNDK } from "./ndk.js";
+
+const EPHEMERAL_KEY_STORAGE = "acars:ephemeral:nsec";
+
+/**
+ * Generate a brand-new Nostr keypair entirely in the browser.
+ * Returns the nsec1-encoded secret key and the hex pubkey.
+ */
+export function generateNewKeypair(): { nsec: string; pubkey: string } {
+  const sk = generateSecretKey();
+  const nsec = nip19.nsecEncode(sk);
+  const pubkey = getPublicKey(sk);
+  return { nsec, pubkey };
+}
+
+/**
+ * Persist an ephemeral nsec to localStorage so it survives page reload.
+ * This is intentionally "just localStorage" — the SecurityUpgradeBanner
+ * will prompt the user to export/protect it properly.
+ */
+export function saveEphemeralKey(nsec: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(EPHEMERAL_KEY_STORAGE, nsec);
+}
+
+/**
+ * Load a previously saved ephemeral nsec from localStorage.
+ * Returns null if nothing is stored.
+ */
+export function loadEphemeralKey(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(EPHEMERAL_KEY_STORAGE);
+}
+
+/**
+ * Remove the stored ephemeral key (e.g., after user exports it or upgrades to a proper signer).
+ */
+export function clearEphemeralKey(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(EPHEMERAL_KEY_STORAGE);
+}
 
 /**
  * Check if a NIP-07 extension (nos2x, Alby, etc.) is available RIGHT NOW.

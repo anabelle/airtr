@@ -1,7 +1,7 @@
 import { fpFormat } from "@acars/core";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CircleHelp, KeyRound, Menu, Wallet, X } from "lucide-react";
+import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
 import { useState } from "react";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 import { useRelayHealth } from "@/shared/hooks/useRelayHealth";
@@ -10,6 +10,7 @@ export function Topbar() {
   const airline = useAirlineStore((state) => state.airline);
   const initializeIdentity = useAirlineStore((state) => state.initializeIdentity);
   const loginWithNsec = useAirlineStore((state) => state.loginWithNsec);
+  const createNewIdentity = useAirlineStore((state) => state.createNewIdentity);
   const authError = useAirlineStore((state) => state.error);
   const isLoading = useAirlineStore((state) => state.isLoading);
   const viewAs = useAirlineStore((state) => state.viewAs);
@@ -179,18 +180,26 @@ export function Topbar() {
                   ) : (
                     <div className="flex w-full flex-col gap-2 sm:items-end">
                       <p className="text-[11px] text-muted-foreground sm:max-w-xs sm:text-right">
-                        New to Nostr? Start with a browser wallet. Already have a key? Import it
-                        directly.
+                        New here? Create a free account instantly — no sign-up needed.
                       </p>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                         <button
                           type="button"
+                          onClick={createNewIdentity}
+                          disabled={isLoading}
+                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60 sm:w-auto"
+                        >
+                          <Sparkles className="h-4 w-4 shrink-0" />
+                          {isLoading ? "Creating…" : "Play Free"}
+                        </button>
+                        <button
+                          type="button"
                           onClick={initializeIdentity}
                           disabled={isLoading}
-                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 sm:w-auto"
+                          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60 sm:w-auto"
                         >
                           <Wallet className="h-4 w-4 shrink-0" />
-                          {isLoading ? "Connecting…" : "Continue with browser wallet"}
+                          {isLoading ? "Connecting…" : "Browser wallet"}
                         </button>
                         <button
                           type="button"
@@ -305,18 +314,26 @@ export function Topbar() {
               ) : (
                 <div className="flex w-full flex-col gap-2 sm:items-end">
                   <p className="text-[11px] text-muted-foreground sm:max-w-xs sm:text-right">
-                    New to Nostr? Start with a browser wallet. Already have a key? Import it
-                    directly.
+                    New here? Create a free account instantly — no sign-up needed.
                   </p>
                   <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                     <button
                       type="button"
+                      onClick={createNewIdentity}
+                      disabled={isLoading}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60 sm:w-auto"
+                    >
+                      <Sparkles className="h-4 w-4 shrink-0" />
+                      {isLoading ? "Creating…" : "Play Free"}
+                    </button>
+                    <button
+                      type="button"
                       onClick={initializeIdentity}
                       disabled={isLoading}
-                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 sm:w-auto"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60 sm:w-auto"
                     >
                       <Wallet className="h-4 w-4 shrink-0" />
-                      {isLoading ? "Connecting…" : "Continue with browser wallet"}
+                      {isLoading ? "Connecting…" : "Browser wallet"}
                     </button>
                     <button
                       type="button"

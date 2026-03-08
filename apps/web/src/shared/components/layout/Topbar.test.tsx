@@ -36,7 +36,10 @@ describe("Topbar", () => {
       const state = {
         airline: null,
         initializeIdentity: vi.fn(),
+        createNewIdentity: vi.fn(),
+        loginWithNsec: vi.fn(),
         isLoading: false,
+        error: null,
         viewAs: vi.fn(),
       };
       return selector ? selector(state) : state;
@@ -48,11 +51,9 @@ describe("Topbar", () => {
     });
     render(<Topbar />);
     expect(screen.getAllByText("ACARS")).toHaveLength(2);
-    expect(
-      screen.getByRole("button", { name: /Continue with browser wallet/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Play Free/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /I already have an nsec key/i })).toBeInTheDocument();
-    expect(screen.getByText(/New to Nostr\? Start with a browser wallet/i)).toBeInTheDocument();
+    expect(screen.getByText(/New here\? Create a free account instantly/i)).toBeInTheDocument();
   });
 
   it("renders airline metrics when available", () => {

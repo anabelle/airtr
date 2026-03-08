@@ -28,12 +28,14 @@ export interface AirlineState {
   pubkey: string | null;
   viewedPubkey: string | null;
   identityStatus: IdentityStatus;
+  isEphemeral: boolean;
   isLoading: boolean;
   error: string | null;
 
   // Actions
   initializeIdentity: () => Promise<void>;
   loginWithNsec: (nsec: string) => Promise<void>;
+  createNewIdentity: () => Promise<void>;
   createAirline: (params: CreateAirlineParams) => Promise<void>;
   dissolveAirline: () => Promise<void>;
   modifyHubs: (action: HubAction) => Promise<void>;
@@ -56,11 +58,7 @@ export interface AirlineState {
   cancelListing: (aircraftId: string) => Promise<void>;
   performMaintenance: (aircraftId: string) => Promise<void>;
   ferryAircraft: (aircraftId: string, destinationIata: string) => Promise<void>;
-  updateAircraftLivery: (
-    aircraftId: string,
-    imageUrl: string,
-    promptHash: string,
-  ) => Promise<void>;
+  updateAircraftLivery: (aircraftId: string, imageUrl: string, promptHash: string) => Promise<void>;
   openRoute: (originIata: string, destinationIata: string, distanceKm: number) => Promise<void>;
   rebaseRoute: (routeId: string, newOriginIata: string) => Promise<void>;
   closeRoute: (routeId: string) => Promise<void>;

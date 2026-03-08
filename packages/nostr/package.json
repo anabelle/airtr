@@ -15,7 +15,8 @@
   "dependencies": {
     "@acars/core": "workspace:^",
     "@nostr-dev-kit/ndk": "^2.15.2",
-    "@nostr-dev-kit/ndk-blossom": "^2.0.2"
+    "@nostr-dev-kit/ndk-blossom": "^2.0.2",
+    "nostr-tools": "^2.23.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

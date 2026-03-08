@@ -3,9 +3,13 @@ export { NDKEvent } from "@nostr-dev-kit/ndk";
 export { uploadToBlossom } from "./blossom.js";
 export {
   attachSigner,
+  clearEphemeralKey,
+  generateNewKeypair,
   getPubkey,
   hasNip07,
+  loadEphemeralKey,
   loginWithNsec,
+  saveEphemeralKey,
   waitForNip07,
 } from "./identity.js";
 export {
