@@ -11,6 +11,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin, ViteDevServer } from "vite";
+import { isValidAircraftImagePrompt } from "../src/features/fleet/services/aircraftImagePromptValidation";
 
 const DEFAULT_MODELS = ["imagen-4.0-generate-001", "imagen-3.0-generate-002"];
 const ALLOWED_MODELS = new Set(DEFAULT_MODELS);
@@ -91,38 +92,6 @@ function isRateLimited(ip: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Prompt validation
-// ---------------------------------------------------------------------------
-
-/**
- * Validates that the prompt matches the expected livery prompt structure
- * produced by `buildLiveryPrompt()` in aircraftImageService.ts.
- *
- * Expected structure (all required phrases must be present):
- *   - "Professional aviation photography of a"
- *   - "commercial" + "aircraft"
- *   - "in the livery of" + "airline"
- *   - "photorealistic quality, cinematic aviation scene"
- *
- * This prevents abuse where someone uses the endpoint to generate
- * arbitrary images unrelated to the game.
- */
-const PROMPT_REQUIRED_PHRASES = [
-  "professional aviation photography of a",
-  "commercial",
-  "aircraft",
-  "in the livery of",
-  "airline",
-  "photorealistic quality, cinematic aviation scene",
-] as const;
-
-function isValidLiveryPrompt(prompt: string): boolean {
-  if (prompt.length > MAX_PROMPT_LENGTH) return false;
-  const lower = prompt.toLowerCase();
-  return PROMPT_REQUIRED_PHRASES.every((phrase) => lower.includes(phrase));
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -197,7 +166,7 @@ export default function geminiProxy(): Plugin {
           }
 
           // --- Prompt validation ---
-          if (!isValidLiveryPrompt(body.prompt)) {
+          if (!isValidAircraftImagePrompt(body.prompt, MAX_PROMPT_LENGTH)) {
             res.writeHead(400);
             res.end(JSON.stringify({ error: "Invalid prompt format" }));
             return;

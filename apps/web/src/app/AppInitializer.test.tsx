@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppInitializer } from "./AppInitializer";
 
 const mockUseAirlineStore = vi.hoisted(() => vi.fn());
@@ -45,8 +45,22 @@ vi.mock("@acars/store", () => {
 vi.mock("@acars/data", () => {
   return {
     airports: [
-      { iata: "JFK", latitude: 0, longitude: 0, timezone: "UTC", city: "City", population: 1 },
-      { iata: "EWR", latitude: 1, longitude: 1, timezone: "UTC", city: "City", population: 1 },
+      {
+        iata: "JFK",
+        latitude: 0,
+        longitude: 0,
+        timezone: "UTC",
+        city: "City",
+        population: 1,
+      },
+      {
+        iata: "EWR",
+        latitude: 1,
+        longitude: 1,
+        timezone: "UTC",
+        city: "City",
+        population: 1,
+      },
     ],
     findPreferredHub: mockFindPreferredHub,
   };
@@ -54,6 +68,7 @@ vi.mock("@acars/data", () => {
 
 describe("AppInitializer", () => {
   const originalGeolocation = navigator.geolocation;
+  const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
   let airlineState: AirlineStoreState;
   let engineState: EngineStoreState;
 
@@ -72,12 +87,26 @@ describe("AppInitializer", () => {
     };
     mockUseAirlineStore.mockImplementation(() => airlineState);
     mockUseEngineStore.mockImplementation(() => engineState);
-    mockFindPreferredHub.mockReturnValue({ iata: "JFK", latitude: 0, longitude: 0 });
+    mockFindPreferredHub.mockReturnValue({
+      iata: "JFK",
+      latitude: 0,
+      longitude: 0,
+    });
+    Intl.DateTimeFormat.prototype.resolvedOptions = vi.fn(() => ({
+      locale: "en-US",
+      calendar: "gregory",
+      numberingSystem: "latn",
+      timeZone: "Etc/GMT+5",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    })) as typeof Intl.DateTimeFormat.prototype.resolvedOptions;
     (navigator as unknown as { geolocation?: Geolocation }).geolocation = undefined;
   });
 
   afterEach(() => {
     (navigator as unknown as { geolocation?: Geolocation }).geolocation = originalGeolocation;
+    Intl.DateTimeFormat.prototype.resolvedOptions = originalResolvedOptions;
     vi.restoreAllMocks();
   });
 
@@ -123,6 +152,15 @@ describe("AppInitializer", () => {
     engineState.setHub = setHub;
     engineState.startEngine = startEngine;
     airlineState.competitors = new Map([["comp-1", { hubs: ["JFK"] }]]);
+    Intl.DateTimeFormat.prototype.resolvedOptions = vi.fn(() => ({
+      locale: "en-US",
+      calendar: "gregory",
+      numberingSystem: "latn",
+      timeZone: "UTC",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    })) as typeof Intl.DateTimeFormat.prototype.resolvedOptions;
     delete (navigator as unknown as { geolocation?: Geolocation }).geolocation;
 
     render(
@@ -145,7 +183,11 @@ describe("AppInitializer", () => {
     engineState.userLocation = null;
     engineState.setHub = setHub;
     airlineState.competitors = new Map([["comp-1", { hubs: ["JFK"] }]]);
-    mockFindPreferredHub.mockReturnValue({ iata: "EWR", latitude: 1, longitude: 1 });
+    mockFindPreferredHub.mockReturnValue({
+      iata: "EWR",
+      latitude: 1,
+      longitude: 1,
+    });
 
     const view = render(
       <AppInitializer>
@@ -159,7 +201,11 @@ describe("AppInitializer", () => {
       "auto-distributed",
     );
 
-    engineState.userLocation = { latitude: 40.6, longitude: -73.7, source: "gps" };
+    engineState.userLocation = {
+      latitude: 40.6,
+      longitude: -73.7,
+      source: "gps",
+    };
     view.rerender(
       <AppInitializer>
         <div>App</div>
@@ -201,7 +247,11 @@ describe("AppInitializer", () => {
       </AppInitializer>,
     );
 
-    engineState.userLocation = { latitude: 10, longitude: 20, source: "manual" };
+    engineState.userLocation = {
+      latitude: 10,
+      longitude: 20,
+      source: "manual",
+    };
 
     onSuccess?.({
       coords: {

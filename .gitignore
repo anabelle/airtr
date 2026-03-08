@@ -7,3 +7,4 @@ dist/
 .DS_Store
 coverage/
 packages/data/scripts/data-cache/
+apps/web/android/**/build/

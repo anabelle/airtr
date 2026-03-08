@@ -134,20 +134,7 @@ function isRateLimited(ip: string): boolean {
 // Prompt validation
 // ---------------------------------------------------------------------------
 
-/**
- * Validates that the prompt matches the expected livery prompt structure
- * produced by `buildLiveryPrompt()` in aircraftImageService.ts.
- *
- * Expected structure (all required phrases must be present):
- *   - "Professional aviation photography of a"
- *   - "commercial" + "aircraft"
- *   - "in the livery of" + "airline"
- *   - "photorealistic quality, cinematic aviation scene"
- *
- * This prevents abuse where someone uses the endpoint to generate
- * arbitrary images unrelated to the game.
- */
-const PROMPT_REQUIRED_PHRASES = [
+const LIVERY_REQUIRED_PHRASES = [
   "professional aviation photography of a",
   "commercial",
   "aircraft",
@@ -156,10 +143,21 @@ const PROMPT_REQUIRED_PHRASES = [
   "photorealistic quality, cinematic aviation scene",
 ] as const;
 
-function isValidLiveryPrompt(prompt: string): boolean {
+const CATALOG_REQUIRED_PHRASES = [
+  "professional aviation photography of a",
+  "commercial",
+  "aircraft",
+  "factory delivery configuration with manufacturer colors",
+  "delivery hangar",
+  "photorealistic quality, cinematic aviation scene",
+] as const;
+
+function isValidAircraftImagePrompt(prompt: string): boolean {
   if (prompt.length > MAX_PROMPT_LENGTH) return false;
   const lower = prompt.toLowerCase();
-  return PROMPT_REQUIRED_PHRASES.every((phrase) => lower.includes(phrase));
+  const matchesLivery = LIVERY_REQUIRED_PHRASES.every((phrase) => lower.includes(phrase));
+  const matchesCatalog = CATALOG_REQUIRED_PHRASES.every((phrase) => lower.includes(phrase));
+  return matchesLivery || matchesCatalog;
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +236,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // --- Prompt validation ---
-  if (!isValidLiveryPrompt(body.prompt)) {
+  if (!isValidAircraftImagePrompt(body.prompt)) {
     return Response.json({ error: "Invalid prompt format" }, { status: 400 });
   }
 

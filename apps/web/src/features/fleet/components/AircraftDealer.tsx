@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { useConfirm } from "@/shared/lib/useConfirm";
+import { CatalogImage } from "./CatalogImage";
 
 /**
  * Renders the aircraft dealer with factory and marketplace listings.
@@ -441,7 +442,13 @@ function AircraftCard({
             {aircraft.type}
           </span>
         </div>
-        <Plane className="h-10 w-10 rotate-[-15deg] text-foreground/20 transition-all duration-500 group-hover:scale-110 group-hover:text-foreground/40 sm:h-16 sm:w-16" />
+        <CatalogImage
+          model={aircraft}
+          className="h-full w-full object-cover"
+          fallback={
+            <Plane className="h-10 w-10 rotate-[-15deg] text-foreground/20 transition-all duration-500 group-hover:scale-110 group-hover:text-foreground/40 sm:h-16 sm:w-16" />
+          }
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
@@ -722,7 +729,18 @@ function PurchaseModal({
               {aircraft.name}
             </h2>
           </div>
-          <Plane className="pointer-events-none absolute right-4 top-4 h-16 w-16 rotate-[-15deg] text-foreground/10 sm:right-6 sm:h-24 sm:w-24" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-40 overflow-hidden border-l border-border/10 sm:block">
+            <CatalogImage
+              model={aircraft}
+              className="h-full w-full object-cover opacity-80"
+              fallback={
+                <div className="flex h-full w-full items-center justify-center">
+                  <Plane className="h-24 w-24 rotate-[-15deg] text-foreground/10" />
+                </div>
+              }
+            />
+            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-background/20 to-background/75" />
+          </div>
 
           <button
             type="button"

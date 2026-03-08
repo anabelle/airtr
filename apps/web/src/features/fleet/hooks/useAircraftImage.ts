@@ -8,81 +8,8 @@ import {
   generateLiveryImage,
   isLiveryApiUnavailable,
 } from "../services/aircraftImageService";
-
-// ---------------------------------------------------------------------------
-// IndexedDB cache for generated livery images (survives page reloads)
-// ---------------------------------------------------------------------------
-const DB_NAME = "acars-livery-cache";
-const DB_VERSION = 1;
-const STORE_NAME = "images";
-
-function openLiveryDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function getCachedImage(key: string): Promise<Blob | null> {
-  try {
-    const db = await openLiveryDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result instanceof Blob ? req.result : null);
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function setCachedImage(key: string, blob: Blob): Promise<void> {
-  try {
-    const db = await openLiveryDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put(blob, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.warn("[Livery] IndexedDB cache write failed:", e);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Concurrency gate — only one generation at a time globally
-// ---------------------------------------------------------------------------
-let generationInProgress = false;
-const pendingQueue: Array<() => void> = [];
-
-function enqueue(fn: () => void) {
-  if (!generationInProgress) {
-    generationInProgress = true;
-    fn();
-  } else {
-    pendingQueue.push(fn);
-  }
-}
-
-function dequeue() {
-  generationInProgress = false;
-  const next = pendingQueue.shift();
-  if (next) {
-    generationInProgress = true;
-    next();
-  }
-}
+import { getCachedImage, setCachedImage } from "../services/imageCache";
+import { enqueueImageGeneration } from "../services/imageGenerationQueue";
 
 /** Module-level set of aircraft IDs with generation in-flight or queued. */
 const activeGenerations = new Set<string>();
@@ -199,7 +126,7 @@ export function useAircraftImage(
 
       // Once enqueued, the callback runs independently of React lifecycle.
       // Do NOT check `cancelled` inside — parent re-renders must not abort queued work.
-      enqueue(async () => {
+      enqueueImageGeneration(async () => {
         try {
           const prompt = buildLiveryPrompt(airline!, model!, hubIata, aircraft.id);
           console.log(`[Livery] Generating for ${aircraft.id}…`);
@@ -241,7 +168,6 @@ export function useAircraftImage(
           if (isMountedRef.current) {
             setIsGenerating(false);
           }
-          dequeue();
         }
       });
     }

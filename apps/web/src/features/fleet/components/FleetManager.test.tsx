@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FLEET_TWO_COLUMN_BREAKPOINT, FleetManager } from "./FleetManager";
 
@@ -106,6 +106,14 @@ vi.mock("@/features/network/hooks/useRouteDemand", () => {
 vi.mock("./AircraftLiveryImage", () => {
   return {
     AircraftLiveryImage: () => null,
+  };
+});
+
+vi.mock("./CatalogImage", () => {
+  return {
+    CatalogImage: ({ model }: { model: { id: string; name: string } }) => (
+      <div data-testid={`catalog-image-${model.id}`}>{model.name} catalog image</div>
+    ),
   };
 });
 
@@ -330,5 +338,36 @@ describe("FleetManager", () => {
     expect(jet2Row).toBeTruthy();
     expect(jet1Row).toBe(jet2Row);
     expect(rowGrid).toHaveClass("grid-cols-2");
+  });
+
+  it("renders shared catalog images in the purchase aircraft dealer", () => {
+    mockVirtualItems = [];
+    mockUseAirlineStore.mockReturnValue({
+      airline: { tier: 2, corporateBalance: 500000000, hubs: ["JFK"] },
+      fleet: [],
+      purchaseAircraft: vi.fn(),
+      purchaseUsedAircraft: vi.fn(),
+      sellAircraft: vi.fn(),
+      buyoutAircraft: vi.fn(),
+      assignAircraftToRoute: vi.fn(),
+      listAircraft: vi.fn(),
+      cancelListing: vi.fn(),
+      ferryAircraft: vi.fn(),
+    });
+    mockUseActiveAirline.mockReturnValue({
+      airline: { hubs: ["JFK"] },
+      fleet: [],
+      routes: [],
+      timeline: [],
+      isViewingOther: false,
+    });
+    mockUseEngineStore.mockReturnValue({ tick: 0, tickProgress: 0 });
+
+    render(<FleetManager />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Open Global Marketplace" })[0]);
+
+    expect(screen.getByText("Factory New")).toBeInTheDocument();
+    expect(screen.getByTestId("catalog-image-atr72-600")).toBeInTheDocument();
   });
 });

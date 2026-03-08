@@ -1,9 +1,13 @@
 import type { Airport } from "@acars/core";
+import { getAircraftById } from "@acars/data";
 import { describe, expect, it } from "vitest";
 import {
+  buildCatalogPrompt,
   buildSceneDescriptor,
+  computeCatalogPromptHash,
   deriveWeather,
   fnv1aHash,
+  isValidAircraftImagePrompt,
   SCENE_VERSION,
 } from "./aircraftImageService";
 
@@ -234,5 +238,37 @@ describe("deriveWeather", () => {
 describe("SCENE_VERSION", () => {
   it("is set to 3 after the per-dimension hashing and beach-haze fix", () => {
     expect(SCENE_VERSION).toBe(3);
+  });
+});
+
+describe("catalog prompts", () => {
+  it("builds a factory-sale prompt for catalog images", () => {
+    const model = getAircraftById("a320neo");
+    expect(model).toBeDefined();
+
+    const prompt = buildCatalogPrompt(model!);
+
+    expect(prompt).toContain("factory delivery configuration with manufacturer colors");
+    expect(prompt).toContain("delivery hangar");
+    expect(prompt).toContain("no airline branding");
+    expect(prompt).toContain("premium catalogue presentation");
+  });
+
+  it("accepts catalog prompts in dual-mode validation", () => {
+    const model = getAircraftById("b787-9");
+    expect(model).toBeDefined();
+
+    expect(isValidAircraftImagePrompt(buildCatalogPrompt(model!))).toBe(true);
+  });
+
+  it("hashes catalog prompts deterministically per model", async () => {
+    const model = getAircraftById("a350-900");
+    expect(model).toBeDefined();
+
+    const hashA = await computeCatalogPromptHash(model!);
+    const hashB = await computeCatalogPromptHash(model!);
+
+    expect(hashA).toBe(hashB);
+    expect(hashA).toMatch(/^[a-f0-9]{64}$/);
   });
 });

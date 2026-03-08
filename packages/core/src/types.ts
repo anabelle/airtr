@@ -88,6 +88,7 @@ export interface AircraftModel {
   id: string; // e.g., "b737-800"
   manufacturer: string; // e.g., "Boeing"
   name: string; // e.g., "737-800"
+  catalogImageUrl?: string; // Shared factory catalog image cached on Blossom
   type: "turboprop" | "regional" | "narrowbody" | "widebody";
   generation: "legacy" | "modern" | "nextgen";
 

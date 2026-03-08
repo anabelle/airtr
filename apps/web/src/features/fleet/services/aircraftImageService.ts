@@ -11,6 +11,7 @@ const LIVERY_PROXY_ENDPOINTS = ["/api/generate-livery"];
  * It is included in the prompt hash, so changing it invalidates every cache entry.
  */
 export const SCENE_VERSION = 3;
+export const CATALOG_VERSION = 1;
 
 /** Circuit breaker: once the API reports a missing secret we stop retrying. */
 let apiSecretMissing = false;
@@ -94,6 +95,23 @@ function describeAircraftType(type: AircraftModel["type"]): string {
       return "narrow-body";
     case "widebody":
       return "wide-body";
+  }
+}
+
+function describeManufacturerLivery(manufacturer: string): string {
+  switch (manufacturer) {
+    case "Airbus":
+      return "white with deep blue tail accents and subtle silver detailing";
+    case "Boeing":
+      return "white with signature blue striping and a dark blue tail";
+    case "Embraer":
+      return "white with dark blue and gold manufacturer accents";
+    case "ATR":
+      return "white with blue factory presentation striping";
+    case "De Havilland":
+      return "white with bold red manufacturer presentation accents";
+    default:
+      return "white with tasteful manufacturer presentation graphics";
   }
 }
 
@@ -369,6 +387,22 @@ export function buildLiveryPrompt(
   ].join(" ");
 }
 
+export function buildCatalogPrompt(model: AircraftModel): string {
+  const typeDesc = describeAircraftType(model.type);
+  const manufacturerLivery = describeManufacturerLivery(model.manufacturer);
+
+  return [
+    `Professional aviation photography of a ${model.manufacturer} ${model.name} commercial ${typeDesc} aircraft`,
+    `in factory delivery configuration with manufacturer colors.`,
+    `Brand new aircraft inside a modern aircraft delivery hangar,`,
+    `product lit with dramatic studio lighting and soft reflections along the fuselage.`,
+    `The aircraft wears ${model.manufacturer} factory presentation livery: ${manufacturerLivery}.`,
+    `Pristine condition, no airline branding, fresh from the production line, offered for sale in a premium catalogue presentation.`,
+    `${model.engineCount}-engine ${typeDesc} aircraft with realistic proportions and landing gear visible.`,
+    `photorealistic quality, cinematic aviation scene`,
+  ].join(" ");
+}
+
 // ---------------------------------------------------------------------------
 // Prompt hash (cache key)
 // ---------------------------------------------------------------------------
@@ -409,6 +443,25 @@ export async function computePromptHash(
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+export async function computeCatalogPromptHash(model: AircraftModel): Promise<string> {
+  const inputs = [
+    model.id,
+    model.manufacturer,
+    model.name,
+    model.type,
+    String(model.engineCount),
+    String(CATALOG_VERSION),
+  ].join("|");
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(inputs);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export { isValidAircraftImagePrompt } from "./aircraftImagePromptValidation";
 
 /**
  * Generates a livery image by calling the server-side proxy at /api/generate-livery.

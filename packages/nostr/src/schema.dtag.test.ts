@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActionDTag } from "./schema.js";
+import { buildActionDTag, CATALOG_IMAGE_D_PREFIX } from "./schema.js";
 
 describe("buildActionDTag", () => {
   it("keeps action-only d-tags for airline create and tick update", () => {
@@ -45,7 +45,11 @@ describe("buildActionDTag", () => {
 
   it("adds entity id, tick, and seq for route actions when seq is provided", () => {
     const tag = buildActionDTag(
-      { schemaVersion: 2, action: "ROUTE_OPEN", payload: { routeId: "rt-123", tick: 100 } },
+      {
+        schemaVersion: 2,
+        action: "ROUTE_OPEN",
+        payload: { routeId: "rt-123", tick: 100 },
+      },
       7,
     );
 
@@ -110,5 +114,11 @@ describe("buildActionDTag", () => {
 
     // Without seq, the d-tag should be the same as before (backward compatible)
     expect(withoutSeq).toBe("airtr:world:v6-beta:action:route_assign_aircraft:rt-1:50");
+  });
+});
+
+describe("catalog image d-tags", () => {
+  it("uses a stable model-scoped d-tag prefix", () => {
+    expect(CATALOG_IMAGE_D_PREFIX).toBe("airtr:world:v6-beta:catalog-image:");
   });
 });

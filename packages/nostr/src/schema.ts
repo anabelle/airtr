@@ -52,6 +52,13 @@ export interface MarketplaceListing {
   };
 }
 
+export interface CatalogImageRecord {
+  modelId: string;
+  promptHash: string;
+  imageUrl: string;
+  updatedAt: number;
+}
+
 export type ActionEnvelope = import("@acars/core").GameActionEnvelope;
 
 export interface ActionLogEntry {
@@ -64,6 +71,8 @@ export const WORLD_ID = "v6-beta";
 const ACARS_SCHEMA_VERSION = 1;
 const ACTION_D_PREFIX = `airtr:world:${WORLD_ID}:action:`;
 const CHECKPOINT_D_TAG = `airtr:world:${WORLD_ID}:checkpoint`;
+export const CATALOG_IMAGE_KIND: NDKKind = 30080 as NDKKind;
+export const CATALOG_IMAGE_D_PREFIX = `airtr:world:${WORLD_ID}:catalog-image:`;
 
 const MAX_FUTURE_SKEW_SEC = 5 * 60;
 const MAX_EVENT_AGE_SEC = 365 * 24 * 60 * 60;
@@ -181,6 +190,145 @@ export const MARKETPLACE_D_PREFIX = `airtr:world:${WORLD_ID}:marketplace:`;
  */
 export async function publishAirline(): Promise<never> {
   throw new Error("Snapshot publishing is disabled for action-log worlds.");
+}
+
+export async function publishCatalogImage(record: CatalogImageRecord): Promise<NDKEvent> {
+  await ensureConnected();
+  const ndk = getNDK();
+
+  if (!ndk.signer) {
+    throw new Error("No signer available. Call attachSigner() first.");
+  }
+
+  const event = new NDKEvent(ndk);
+  event.kind = CATALOG_IMAGE_KIND;
+  event.tags = [
+    ["d", `${CATALOG_IMAGE_D_PREFIX}${record.modelId}`],
+    ["model", record.modelId],
+    ["prompt_hash", record.promptHash],
+    ["world", WORLD_ID],
+  ];
+  event.content = JSON.stringify({
+    schemaVersion: ACARS_SCHEMA_VERSION,
+    modelId: record.modelId,
+    promptHash: record.promptHash,
+    imageUrl: record.imageUrl,
+    updatedAt: record.updatedAt,
+  });
+
+  await event.publish();
+  return event;
+}
+
+function parseCatalogImageRecord(data: unknown): CatalogImageRecord | null {
+  if (!isRecord(data)) return null;
+  const promptHash = typeof data.promptHash === "string" ? data.promptHash : null;
+  const imageUrl = typeof data.imageUrl === "string" ? data.imageUrl : null;
+
+  if (!promptHash || !imageUrl) {
+    return null;
+  }
+
+  return {
+    modelId: "",
+    promptHash,
+    imageUrl,
+    updatedAt: 0,
+  };
+}
+
+export async function loadCatalogImages(): Promise<Map<string, CatalogImageRecord>> {
+  await ensureConnected();
+  const ndk = getNDK();
+
+  const latestByModel = new Map<string, CatalogImageRecord>();
+
+  const pageLimit = 100;
+  const pageCap = 10;
+  let page = 0;
+  let until: number | undefined;
+
+  while (page < pageCap) {
+    const filter: NDKFilter = {
+      kinds: [CATALOG_IMAGE_KIND],
+      limit: pageLimit,
+      ...(until ? { until } : {}),
+    };
+
+    const pageEvents: NDKEvent[] = [];
+
+    await new Promise<void>((resolve) => {
+      const sub = ndk.subscribe(filter, { closeOnEose: true });
+      const timeout = setTimeout(() => {
+        sub.stop();
+        resolve();
+      }, 6000);
+
+      sub.on("event", (event: NDKEvent) => {
+        pageEvents.push(event);
+      });
+
+      sub.on("eose", () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+
+    for (const event of pageEvents) {
+      if (!hasWorldTag(event, WORLD_ID)) continue;
+      const createdAt = event.created_at ?? 0;
+      if (!isValidEventTimestamp(createdAt)) continue;
+      const dTag = event.tags.find((tag) => tag[0] === "d")?.[1];
+      if (!dTag?.startsWith(CATALOG_IMAGE_D_PREFIX)) continue;
+      if (!event.content.trim().startsWith("{")) continue;
+
+      const modelTag = event.tags.find((tag) => tag[0] === "model")?.[1];
+      const modelIdFromDTag = dTag.slice(CATALOG_IMAGE_D_PREFIX.length);
+      if (!modelIdFromDTag || modelTag !== modelIdFromDTag) continue;
+
+      try {
+        const content = JSON.parse(event.content) as unknown;
+        const parsed = parseCatalogImageRecord(content);
+        if (!parsed) continue;
+
+        const payloadModelId =
+          isRecord(content) && typeof content.modelId === "string" ? content.modelId : null;
+        if (payloadModelId && payloadModelId !== modelIdFromDTag) continue;
+
+        const record: CatalogImageRecord = {
+          modelId: modelIdFromDTag,
+          promptHash: parsed.promptHash,
+          imageUrl: parsed.imageUrl,
+          updatedAt: createdAt,
+        };
+
+        const existing = latestByModel.get(modelIdFromDTag);
+        if (!existing || record.updatedAt >= existing.updatedAt) {
+          latestByModel.set(modelIdFromDTag, record);
+        }
+      } catch {
+        // Ignore malformed catalog image records
+      }
+    }
+
+    if (pageEvents.length < pageLimit) break;
+
+    const minCreatedAt = pageEvents.reduce(
+      (min, event) => {
+        const createdAt = event.created_at ?? 0;
+        if (createdAt <= 0) return min;
+        return min === null ? createdAt : Math.min(min, createdAt);
+      },
+      null as number | null,
+    );
+
+    if (!minCreatedAt || minCreatedAt <= 0) break;
+
+    until = minCreatedAt - 1;
+    page += 1;
+  }
+
+  return latestByModel;
 }
 
 /**
