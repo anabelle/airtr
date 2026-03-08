@@ -1,0 +1,21 @@
+{
+  "title": "About",
+  "subtitle": "Open-source decentralized airline management game on Nostr.",
+  "nostr": {
+    "title": "Decentralized on Nostr",
+    "desc": "All game state lives on the Nostr protocol — no central database, no single point of failure. Your airline is yours."
+  },
+  "realtime": {
+    "title": "Real-Time Aviation Sim",
+    "desc": "Flights resolve in real-world time. A 7-hour transatlantic route takes 7 real hours. Manage your fleet like a live ops dashboard."
+  },
+  "bitcoin": {
+    "title": "Bitcoin & Lightning",
+    "desc": "Earn real sats through play-to-earn prize pools and Zaps. Trade airline stock slots peer-to-peer on the Lightning Network."
+  },
+  "acarsTitle": "ACARS",
+  "acarsDesc": "ACARS (Aircraft Communication Addressing and Relay System) is a fully open-source, decentralized airline management MMO built on the Nostr protocol.",
+  "viewOnGithub": "View on GitHub",
+  "learnNostr": "Learn about Nostr",
+  "license": "MIT License · Contributions welcome"
+}

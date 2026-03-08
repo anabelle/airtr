@@ -1,24 +1,51 @@
 import { useAirlineStore } from "@acars/store";
 import { Link } from "@tanstack/react-router";
 import { Building2, Globe, Info, Map as MapIcon, Plane, Trophy } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNavBadges } from "@/shared/hooks/useNavBadges";
 import { NavBadge } from "./NavBadge";
 
-const navItems = [
-  { icon: MapIcon, label: "Map", mobileLabel: "Map", to: "/", requiresAirline: false },
-  { icon: Plane, label: "Fleet", mobileLabel: "Fleet", to: "/fleet", requiresAirline: true },
-  { icon: Globe, label: "Network", mobileLabel: "Net", to: "/network", requiresAirline: false },
+type NavItem = {
+  icon: typeof MapIcon;
+  labelKey: string;
+  mobileLabelKey: string;
+  to: string;
+  requiresAirline: boolean;
+};
+
+const navItems: NavItem[] = [
+  {
+    icon: MapIcon,
+    labelKey: "nav.map",
+    mobileLabelKey: "nav.map",
+    to: "/",
+    requiresAirline: false,
+  },
+  {
+    icon: Plane,
+    labelKey: "nav.fleet",
+    mobileLabelKey: "nav.fleet",
+    to: "/fleet",
+    requiresAirline: true,
+  },
+  {
+    icon: Globe,
+    labelKey: "nav.network",
+    mobileLabelKey: "nav.mobileNet",
+    to: "/network",
+    requiresAirline: false,
+  },
   {
     icon: Trophy,
-    label: "Leaderboard",
-    mobileLabel: "Rank",
+    labelKey: "nav.leaderboard",
+    mobileLabelKey: "nav.mobileRank",
     to: "/leaderboard",
     requiresAirline: false,
   },
   {
     icon: Building2,
-    label: "Corporate",
-    mobileLabel: "Corp",
+    labelKey: "nav.corporate",
+    mobileLabelKey: "nav.mobileCorp",
     to: "/corporate",
     requiresAirline: true,
   },
@@ -50,6 +77,7 @@ export function Sidebar() {
   const { airline, viewedPubkey } = useAirlineStore((state) => state);
   const hasAirlineContext = Boolean(airline || viewedPubkey);
   const badges = useNavBadges();
+  const { t } = useTranslation("common");
 
   return (
     <div className="pointer-events-auto hidden sm:flex h-full w-16 md:w-20 flex-col items-center border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all">
@@ -76,7 +104,7 @@ export function Sidebar() {
               {badge && <NavBadge count={badge.count} variant={badge.variant} />}
               {/* Tooltip on hover */}
               <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap">
-                {item.label}
+                {t(item.labelKey)}
               </span>
             </Link>
           );
@@ -96,7 +124,7 @@ export function Sidebar() {
         >
           <Info className="h-6 w-6" />
           <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap">
-            About
+            {t("nav.about")}
           </span>
         </Link>
       </div>
@@ -108,6 +136,7 @@ export function MobileNav() {
   const { airline, viewedPubkey } = useAirlineStore((state) => state);
   const hasAirlineContext = Boolean(airline || viewedPubkey);
   const badges = useNavBadges();
+  const { t } = useTranslation("common");
 
   return (
     <nav className="pointer-events-auto grid shrink-0 grid-cols-6 items-stretch border-t border-border bg-background/90 px-2 py-1.5 backdrop-blur-xl pb-[calc(0.375rem+env(safe-area-inset-bottom))] sm:hidden">
@@ -139,7 +168,7 @@ export function MobileNav() {
               )}
             </span>
             <span className="text-center text-[8px] font-semibold uppercase tracking-[0.12em] leading-none">
-              {item.mobileLabel}
+              {t(item.mobileLabelKey)}
             </span>
           </Link>
         );
@@ -158,7 +187,7 @@ export function MobileNav() {
           <Info className="h-5 w-5" />
         </span>
         <span className="text-center text-[8px] font-semibold uppercase tracking-[0.12em] leading-none">
-          Info
+          {t("nav.info")}
         </span>
       </Link>
     </nav>

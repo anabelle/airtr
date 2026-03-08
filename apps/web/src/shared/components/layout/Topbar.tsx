@@ -3,6 +3,7 @@ import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { EphemeralKeyBackupActions } from "@/features/identity/components/EphemeralKeyBackupActions";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
 import { useRelayHealth } from "@/shared/hooks/useRelayHealth";
@@ -26,8 +27,9 @@ export function Topbar() {
   const [nsecInputError, setNsecInputError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showKeyTools, setShowKeyTools] = useState(false);
+  const { t } = useTranslation("common");
 
-  const mobilePanelTitle = airline ? "Flight deck" : "Identity";
+  const mobilePanelTitle = airline ? t("topbar.flightDeck") : t("topbar.identity");
   const mobilePanelLabel = mobilePanelTitle.toLowerCase();
   const canManageLocalKey = isEphemeral && !isViewingOther;
 
@@ -64,15 +66,15 @@ export function Topbar() {
         <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
         <span className="text-xs font-semibold text-rose-300">
           {activeAirline.status === "chapter11"
-            ? "Chapter 11 Bankruptcy — All operations suspended"
-            : "Airline Liquidated — This airline has ceased operations"}
+            ? t("bankruptcy.chapter11Banner")
+            : t("bankruptcy.liquidatedBanner")}
         </span>
         <button
           type="button"
           onClick={() => navigate({ to: "/corporate" })}
           className="ml-2 shrink-0 rounded border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
         >
-          Details
+          {t("bankruptcy.details")}
         </button>
       </div>
     ) : null;
@@ -95,7 +97,7 @@ export function Topbar() {
                 ACARS
               </p>
               <h1 className="truncate text-sm leading-none font-bold tracking-tight text-primary">
-                Create Your Airline
+                {t("topbar.createYourAirline")}
               </h1>
             </div>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
@@ -122,10 +124,10 @@ export function Topbar() {
                       ACARS
                     </h1>
                     <p className="mt-0.5 hidden text-[10px] uppercase tracking-widest text-muted-foreground sm:block">
-                      Aircraft Communication Addressing and Relay System
+                      {t("topbar.acarsLong")}
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground sm:hidden">
-                      Build your airline on Nostr. New here? Start with a browser wallet.
+                      {t("topbar.buildOnNostr")}
                     </p>
                   </div>
                 </div>
@@ -142,7 +144,7 @@ export function Topbar() {
                           ?.trim()
                           ?.toLowerCase();
                         if (!normalized?.startsWith("nsec1")) {
-                          setNsecInputError("Enter a valid nsec1 key.");
+                          setNsecInputError(t("topbar.enterValidNsec"));
                           return;
                         }
                         setNsecInputError(null);
@@ -157,13 +159,13 @@ export function Topbar() {
                         htmlFor="topbar-nsec"
                         className="text-[11px] text-muted-foreground sm:max-w-xs sm:text-right"
                       >
-                        Already have a Nostr secret key? Paste your nsec1 to sign in.
+                        {t("topbar.nsecLabel")}
                       </label>
                       <input
                         id="topbar-nsec"
                         name="nsec"
                         type="password"
-                        placeholder="Paste your nsec1 key"
+                        placeholder={t("topbar.pasteNsec")}
                         autoComplete="off"
                         className="min-h-11 w-full rounded-md border border-border bg-background/70 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none"
                       />
@@ -173,7 +175,7 @@ export function Topbar() {
                           disabled={isLoading}
                           className="flex min-h-11 flex-1 items-center justify-center rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 sm:flex-none"
                         >
-                          {isLoading ? "Loading…" : "Sign in"}
+                          {isLoading ? t("topbar.loading") : t("topbar.signIn")}
                         </button>
                         <button
                           type="button"
@@ -181,7 +183,7 @@ export function Topbar() {
                             setNsecInputError(null);
                             setShowNsecInput(false);
                           }}
-                          aria-label="Cancel nsec login"
+                          aria-label={t("topbar.cancelNsecLogin")}
                           className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-border hover:text-foreground"
                         >
                           <X className="h-4 w-4" />
@@ -196,7 +198,7 @@ export function Topbar() {
                   ) : (
                     <div className="flex w-full flex-col gap-2 sm:items-end">
                       <p className="text-[11px] text-muted-foreground sm:max-w-xs sm:text-right">
-                        New here? Create a free account instantly — no sign-up needed.
+                        {t("topbar.newHereStart")}
                       </p>
                       <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                         <button
@@ -206,7 +208,7 @@ export function Topbar() {
                           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60 sm:w-auto"
                         >
                           <Sparkles className="h-4 w-4 shrink-0" />
-                          {isLoading ? "Creating…" : "Play Free"}
+                          {isLoading ? t("topbar.creating") : t("topbar.playFree")}
                         </button>
                         <button
                           type="button"
@@ -215,7 +217,7 @@ export function Topbar() {
                           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60 sm:w-auto"
                         >
                           <Wallet className="h-4 w-4 shrink-0" />
-                          {isLoading ? "Connecting…" : "Browser wallet"}
+                          {isLoading ? t("topbar.connecting") : t("topbar.browserWallet")}
                         </button>
                         <button
                           type="button"
@@ -224,9 +226,10 @@ export function Topbar() {
                             setShowNsecInput(true);
                           }}
                           className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground sm:w-auto"
-                          title="Sign in with an existing nsec key"
+                          title={t("topbar.nsecLabel")}
                         >
-                          <KeyRound className="h-4 w-4 shrink-0" />I already have an nsec key
+                          <KeyRound className="h-4 w-4 shrink-0" />
+                          {t("topbar.haveNsec")}
                         </button>
                       </div>
                       <a
@@ -236,7 +239,7 @@ export function Topbar() {
                         className="inline-flex min-h-11 items-center gap-2 self-start rounded-md border border-border/60 bg-background/50 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground sm:self-end"
                       >
                         <CircleHelp className="h-4 w-4 shrink-0" />
-                        What is Nostr?
+                        {t("topbar.whatIsNostr")}
                       </a>
                     </div>
                   )}
@@ -257,10 +260,10 @@ export function Topbar() {
                   ACARS
                 </h1>
                 <p className="mt-0.5 hidden text-[10px] uppercase tracking-widest text-muted-foreground sm:block">
-                  Aircraft Communication Addressing and Relay System
+                  {t("topbar.acarsLong")}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground sm:hidden">
-                  Build your airline on Nostr. New here? Start with a browser wallet.
+                  {t("topbar.buildOnNostr")}
                 </p>
               </div>
             </div>
@@ -277,7 +280,7 @@ export function Topbar() {
                       ?.trim()
                       ?.toLowerCase();
                     if (!normalized?.startsWith("nsec1")) {
-                      setNsecInputError("Enter a valid nsec1 key.");
+                      setNsecInputError(t("topbar.enterValidNsec"));
                       return;
                     }
                     setNsecInputError(null);
@@ -288,13 +291,13 @@ export function Topbar() {
                   }}
                 >
                   <label htmlFor="topbar-nsec" className="sr-only">
-                    Already have a Nostr secret key? Paste your nsec1 to sign in.
+                    {t("topbar.nsecLabel")}
                   </label>
                   <input
                     id="topbar-nsec"
                     name="nsec"
                     type="password"
-                    placeholder="Paste your nsec1 key"
+                    placeholder={t("topbar.pasteNsec")}
                     autoComplete="off"
                     className="min-h-11 w-full rounded-md border border-border bg-background/70 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none sm:w-72"
                   />
@@ -304,7 +307,7 @@ export function Topbar() {
                       disabled={isLoading}
                       className="flex min-h-11 flex-1 items-center justify-center rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 sm:flex-none"
                     >
-                      {isLoading ? "Loading…" : "Sign in"}
+                      {isLoading ? t("topbar.loading") : t("topbar.signIn")}
                     </button>
                     <button
                       type="button"
@@ -312,7 +315,7 @@ export function Topbar() {
                         setNsecInputError(null);
                         setShowNsecInput(false);
                       }}
-                      aria-label="Cancel nsec login"
+                      aria-label={t("topbar.cancelNsecLogin")}
                       className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border/60 bg-background/60 text-muted-foreground transition hover:border-border hover:text-foreground"
                     >
                       <X className="h-4 w-4" />
@@ -328,7 +331,7 @@ export function Topbar() {
                 <div className="flex w-full flex-col gap-2 sm:items-end">
                   <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                     <p className="mr-1 hidden text-[11px] text-muted-foreground lg:block">
-                      New here? Start free in one click.
+                      {t("topbar.newHereStartDesktop")}
                     </p>
                     <button
                       type="button"
@@ -337,7 +340,7 @@ export function Topbar() {
                       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-sm font-bold text-primary transition hover:bg-primary/25 disabled:opacity-60 sm:w-auto"
                     >
                       <Sparkles className="h-4 w-4 shrink-0" />
-                      {isLoading ? "Creating…" : "Play Free"}
+                      {isLoading ? t("topbar.creating") : t("topbar.playFree")}
                     </button>
                     <button
                       type="button"
@@ -346,7 +349,7 @@ export function Topbar() {
                       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60 sm:w-auto"
                     >
                       <Wallet className="h-4 w-4 shrink-0" />
-                      {isLoading ? "Connecting…" : "Browser wallet"}
+                      {isLoading ? t("topbar.connecting") : t("topbar.browserWallet")}
                     </button>
                     <button
                       type="button"
@@ -355,9 +358,10 @@ export function Topbar() {
                         setShowNsecInput(true);
                       }}
                       className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground sm:w-auto"
-                      title="Sign in with an existing nsec key"
+                      title={t("topbar.nsecLabel")}
                     >
-                      <KeyRound className="h-4 w-4 shrink-0" />I already have an nsec key
+                      <KeyRound className="h-4 w-4 shrink-0" />
+                      {t("topbar.haveNsec")}
                     </button>
                     <a
                       href="https://nostr.com"
@@ -366,7 +370,7 @@ export function Topbar() {
                       className="hidden min-h-11 items-center gap-2 rounded-md border border-border/60 bg-background/50 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-border hover:text-foreground xl:inline-flex"
                     >
                       <CircleHelp className="h-4 w-4 shrink-0" />
-                      What is Nostr?
+                      {t("topbar.whatIsNostr")}
                     </a>
                   </div>
                 </div>
@@ -431,7 +435,7 @@ export function Topbar() {
                   }}
                   className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 >
-                  Back to Your Airline
+                  {t("topbar.backToYourAirline")}
                 </button>
               )}
               {canManageLocalKey && (
@@ -442,7 +446,7 @@ export function Topbar() {
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <KeyRound className="h-3.5 w-3.5" />
-                    {showKeyTools ? "Hide key tools" : "Account key"}
+                    {showKeyTools ? t("topbar.hideKeyTools") : t("topbar.accountKey")}
                   </span>
                 </button>
               )}
@@ -457,8 +461,8 @@ export function Topbar() {
                 aria-live="polite"
                 title={
                   isConnected
-                    ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
-                    : "Disconnected from Nostr — changes may not save"
+                    ? t("topbar.relaysConnected", { count: relayCount })
+                    : t("topbar.disconnectedWarning")
                 }
               >
                 <span
@@ -466,13 +470,13 @@ export function Topbar() {
                 />
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {isConnected
-                    ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} online`
-                    : "Nostr relays offline"}
+                    ? t("topbar.relaysOnline", { count: relayCount })
+                    : t("topbar.relaysOffline")}
                 </span>
               </output>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Corporate Balance
+                  {t("topbar.corporateBalance")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-green-400">
                   {fpFormat(activeAirline.corporateBalance)}
@@ -480,7 +484,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Stock Price
+                  {t("topbar.stockPrice")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-primary">
                   {fpFormat(activeAirline.stockPrice)}
@@ -488,7 +492,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Brand / Tier
+                  {t("topbar.brandTier")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-foreground md:text-right">
                   {(activeAirline.brandScore * 10).toFixed(1)}{" "}
@@ -497,7 +501,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Avg Load Factor
+                  {t("topbar.avgLoadFactor")}
                 </span>
                 <span
                   className={`mt-1 font-mono text-sm font-bold ${avgLoadFactor >= 0.8 ? "text-emerald-400" : avgLoadFactor >= 0.6 ? "text-amber-400" : "text-rose-400"}`}
@@ -510,10 +514,10 @@ export function Topbar() {
           {canManageLocalKey && showKeyTools && (
             <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-950/40 p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                Local account key
+                {t("topbar.localAccountKey")}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
-                Export your recovery key anytime from here. Keep it somewhere only you can access.
+                {t("topbar.exportRecoveryKey")}
               </p>
               <div className="mt-3">
                 <EphemeralKeyBackupActions />
@@ -555,7 +559,7 @@ export function Topbar() {
                   }}
                   className="rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 >
-                  Back to Your Airline
+                  {t("topbar.backToYourAirline")}
                 </button>
               )}
               {canManageLocalKey && (
@@ -566,7 +570,7 @@ export function Topbar() {
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <KeyRound className="h-3.5 w-3.5" />
-                    {showKeyTools ? "Hide key tools" : "Account key"}
+                    {showKeyTools ? t("topbar.hideKeyTools") : t("topbar.accountKey")}
                   </span>
                 </button>
               )}
@@ -581,8 +585,8 @@ export function Topbar() {
                 aria-live="polite"
                 title={
                   isConnected
-                    ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} connected`
-                    : "Disconnected from Nostr — changes may not save"
+                    ? t("topbar.relaysConnected", { count: relayCount })
+                    : t("topbar.disconnectedWarning")
                 }
               >
                 <span
@@ -590,13 +594,13 @@ export function Topbar() {
                 />
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {isConnected
-                    ? `${relayCount} relay${relayCount !== 1 ? "s" : ""} online`
-                    : "Nostr relays offline"}
+                    ? t("topbar.relaysOnline", { count: relayCount })
+                    : t("topbar.relaysOffline")}
                 </span>
               </output>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Corporate Balance
+                  {t("topbar.corporateBalance")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-green-400">
                   {fpFormat(activeAirline.corporateBalance)}
@@ -604,7 +608,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Stock Price
+                  {t("topbar.stockPrice")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-primary">
                   {fpFormat(activeAirline.stockPrice)}
@@ -612,7 +616,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Brand / Tier
+                  {t("topbar.brandTier")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-foreground md:text-right">
                   {(activeAirline.brandScore * 10).toFixed(1)}{" "}
@@ -621,7 +625,7 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  Avg Load Factor
+                  {t("topbar.avgLoadFactor")}
                 </span>
                 <span
                   className={`mt-1 font-mono text-sm font-bold ${avgLoadFactor >= 0.8 ? "text-emerald-400" : avgLoadFactor >= 0.6 ? "text-amber-400" : "text-rose-400"}`}
@@ -634,10 +638,10 @@ export function Topbar() {
           {canManageLocalKey && showKeyTools && (
             <div className="rounded-2xl border border-amber-500/20 bg-amber-950/40 p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-                Local account key
+                {t("topbar.localAccountKey")}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
-                Export your recovery key anytime from here. Keep it somewhere only you can access.
+                {t("topbar.exportRecoveryKey")}
               </p>
               <div className="mt-3">
                 <EphemeralKeyBackupActions />

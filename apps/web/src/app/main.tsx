@@ -4,6 +4,8 @@ import ReactDOM from "react-dom/client";
 // Import the generated route tree
 import { routeTree } from "../routeTree.gen";
 import "../index.css";
+// Initialize i18n (must be imported before any component that uses useTranslation)
+import "../i18n";
 import { TimelineToastBridge } from "@/shared/components/feedback/TimelineToastBridge";
 import { ToastHost } from "@/shared/components/feedback/ToastHost";
 import { BankruptcyOverlay } from "@/features/identity/components/BankruptcyOverlay";
