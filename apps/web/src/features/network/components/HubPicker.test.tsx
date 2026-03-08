@@ -32,9 +32,9 @@ describe("HubPicker", () => {
   it("opens modal and selects airport", () => {
     const onSelect = vi.fn();
     render(<HubPicker currentHub={null} onSelect={onSelect} />);
-    fireEvent.click(screen.getByText("Select Hub"));
+    fireEvent.click(screen.getByText("Choose Your Hub Manually"));
     fireEvent.click(screen.getByText("JFK"));
-    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText("Confirm Hub"));
     expect(onSelect).toHaveBeenCalled();
   });
 });

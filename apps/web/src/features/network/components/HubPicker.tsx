@@ -86,16 +86,16 @@ export function HubPicker({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background h-10 px-4 py-2"
+        className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background h-10 px-4 py-2"
         title="Change your hub airport"
       >
-        <MapPin className="mr-2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        {currentHub ? "Change Hub" : "Select Hub"}
+        <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        {currentHub ? "Pick a Different Hub" : "Choose Your Hub Manually"}
       </button>
 
       {open &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center sm:items-center p-4 sm:p-0">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
             {/* Backdrop */}
             <button
               type="button"
@@ -103,38 +103,38 @@ export function HubPicker({
               onClick={() => setOpen(false)}
               aria-label="Close airport search"
             />
-            {/* Modal */}
+            {/* Modal — full-height sheet on mobile, centered dialog on sm+ */}
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-50 grid w-full max-w-lg gap-4 rounded-xl border bg-card text-card-foreground shadow-lg duration-200 animate-in fade-in-90 zoom-in-95 sm:max-w-[480px]"
+              className="relative z-50 flex w-full flex-col rounded-t-xl border bg-card text-card-foreground shadow-lg sm:mx-4 sm:max-w-[480px] sm:rounded-xl max-h-[90dvh] sm:max-h-[85dvh]"
             >
-              <div className="flex flex-col space-y-1.5 p-6 pb-4">
+              <div className="flex flex-col space-y-1 px-5 pt-5 pb-3 shrink-0">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold leading-none tracking-tight">
-                    Search Airports
+                    Choose a Hub Airport
                   </h2>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="rounded-sm p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label="Close"
                   >
-                    <X className="h-4 w-4" aria-hidden="true" />
+                    <X className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Hub fees scale by tier. Global hubs carry the highest capex and monthly OPEX.
+                <p className="text-xs text-muted-foreground">
+                  Bigger hubs cost more to operate but unlock higher passenger demand.
                 </p>
               </div>
 
-              <div className="px-6 pb-2">
-                <div className="relative flex items-center border-b pb-2">
+              <div className="px-5 pb-2 shrink-0">
+                <div className="relative flex items-center rounded-lg border border-input bg-background/50 px-3">
                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" aria-hidden="true" />
                   <input
                     ref={inputRef}
-                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Search by city, IATA code, or airport name…"
+                    className="flex h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Search city, code, or airport…"
                     aria-label="Search airports"
                     name="airport-search"
                     value={search}
@@ -143,7 +143,7 @@ export function HubPicker({
                 </div>
               </div>
 
-              <div ref={scrollRef} className="max-h-[300px] overflow-y-auto px-2 pb-2">
+              <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
                 <div
                   className="relative w-full"
                   style={{ height: `${virtualizer.getTotalSize()}px` }}
@@ -151,6 +151,7 @@ export function HubPicker({
                   {virtualizer.getVirtualItems().map((virtualRow) => {
                     const airport = filtered[virtualRow.index];
                     const isActive = currentHub && airport.iata === currentHub.iata;
+                    const isSelected = selectedAirport?.iata === airport.iata;
                     const pricing = getHubPricingForIata(airport.iata);
                     const hubMeta = HUB_CLASSIFICATIONS[airport.iata];
                     const isSlotControlled = hubMeta?.slotControlled ?? false;
@@ -171,19 +172,23 @@ export function HubPicker({
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
-                        className={`flex w-full items-center justify-between rounded-md px-4 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
-                          isActive ? "bg-primary/10 text-primary" : ""
+                        className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground ${
+                          isSelected
+                            ? "bg-primary/15 ring-1 ring-primary/40"
+                            : isActive
+                              ? "bg-primary/10 text-primary"
+                              : ""
                         }`}
                         onClick={() => {
                           setSelectedAirport(airport);
                         }}
                       >
                         <div className="flex flex-col overflow-hidden">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center gap-1.5">
                             <span className="font-bold text-foreground">{airport.iata}</span>
                             <span className="truncate text-muted-foreground">{airport.city}</span>
                             <span
-                              className={`ml-1 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${getTierBadge(pricing.tier)}`}
+                              className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${getTierBadge(pricing.tier)}`}
                             >
                               {tierLabel}
                             </span>
@@ -192,17 +197,17 @@ export function HubPicker({
                             {airport.name}
                           </span>
                         </div>
-                        <div className="ml-4 shrink-0 flex flex-col items-end text-[10px] font-semibold uppercase opacity-70">
+                        <div className="ml-2 shrink-0 flex flex-col items-end text-[10px] font-semibold uppercase opacity-70">
                           <span>{airport.country}</span>
                           <span className="text-[9px] text-muted-foreground">Setup {openFee}</span>
                           <span className="text-[9px] text-muted-foreground">
                             OPEX {monthlyOpex}/mo
                           </span>
                           <span className="text-[9px] text-muted-foreground">
-                            Capacity {capacityPerHour ?? "—"}/hr
+                            Cap {capacityPerHour ?? "—"}/hr
                           </span>
                           {isSlotControlled && (
-                            <span className="text-[9px] text-amber-300">Slot Controlled</span>
+                            <span className="text-[9px] text-amber-300">Slot Ctrl</span>
                           )}
                         </div>
                       </button>
@@ -212,58 +217,53 @@ export function HubPicker({
 
                 {filtered.length === 0 && !isPending && (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    No airports match "{search}"
+                    No airports match &ldquo;{search}&rdquo;
                   </div>
                 )}
                 {isPending && (
-                  <div className="py-6 text-center text-sm text-muted-foreground">Searching...</div>
+                  <div className="py-6 text-center text-sm text-muted-foreground">Searching…</div>
                 )}
               </div>
               {selectedAirport && selectedPricing && (
-                <div className="border-t border-white/5 px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] uppercase text-muted-foreground">Selected Hub</p>
-                      <p className="text-sm font-semibold text-foreground">
-                        {selectedAirport.iata} • {selectedAirport.city}
+                <div className="border-t border-border px-5 py-4 shrink-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase text-muted-foreground">Selected</p>
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {selectedAirport.iata} — {selectedAirport.city}
                       </p>
                     </div>
                     <span
-                      className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${getTierBadge(selectedPricing.tier)}`}
+                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${getTierBadge(selectedPricing.tier)}`}
                     >
                       {selectedPricing.tier}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                      <p className="text-[10px] uppercase text-white/40">Setup Fee</p>
-                      <p className="mt-1 text-sm font-mono font-black text-white">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-border/50 bg-muted/30 p-2">
+                      <p className="text-[10px] uppercase text-muted-foreground">Setup Fee</p>
+                      <p className="mt-0.5 text-sm font-mono font-bold text-foreground">
                         {fpFormat(fp(selectedPricing.openFee), 0)}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                      <p className="text-[10px] uppercase text-white/40">Monthly OPEX</p>
-                      <p className="mt-1 text-sm font-mono font-black text-white">
+                    <div className="rounded-lg border border-border/50 bg-muted/30 p-2">
+                      <p className="text-[10px] uppercase text-muted-foreground">Monthly Cost</p>
+                      <p className="mt-0.5 text-sm font-mono font-bold text-foreground">
                         {fpFormat(fp(selectedPricing.monthlyOpex), 0)}
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="text-[10px] text-muted-foreground">
-                      {HUB_CLASSIFICATIONS[selectedAirport.iata]?.slotControlled
-                        ? `Slot Controlled • Capacity ${HUB_CLASSIFICATIONS[selectedAirport.iata]?.baseCapacityPerHour ?? "—"}/hr`
-                        : `Capacity ${HUB_CLASSIFICATIONS[selectedAirport.iata]?.baseCapacityPerHour ?? "—"}/hr`}
-                    </div>
+                  <div className="mt-3 flex items-center gap-2">
                     <button
                       type="button"
-                      className="text-xs font-bold uppercase text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                      className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => setSelectedAirport(null)}
                     >
-                      Clear
+                      Cancel
                     </button>
                     <button
                       type="button"
-                      className="rounded-md bg-primary px-4 py-2 text-xs font-bold uppercase text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => {
                         onSelect(selectedAirport);
                         setSelectedAirport(null);
@@ -272,7 +272,7 @@ export function HubPicker({
                         setDeferredSearch("");
                       }}
                     >
-                      Continue
+                      Confirm Hub
                     </button>
                   </div>
                 </div>
