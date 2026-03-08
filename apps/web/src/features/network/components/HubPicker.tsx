@@ -5,6 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { MapPin, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 export function HubPicker({
   currentHub,
@@ -13,6 +14,7 @@ export function HubPicker({
   currentHub: Airport | null;
   onSelect: (airport: Airport | null) => void;
 }) {
+  const { t } = useTranslation(["common", "game"]);
   const [open, setOpen] = useState(false);
   const [selectedAirport, setSelectedAirport] = useState<Airport | null>(null);
   const [search, setSearch] = useState("");
@@ -87,10 +89,12 @@ export function HubPicker({
         type="button"
         onClick={() => setOpen(true)}
         className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background h-10 px-4 py-2"
-        title="Change your hub airport"
+        title={t("hubPicker.changeTitle", { ns: "game" })}
       >
         <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        {currentHub ? "Pick a Different Hub" : "Choose Your Hub Manually"}
+        {currentHub
+          ? t("hubPicker.pickDifferent", { ns: "game" })
+          : t("hubPicker.chooseManually", { ns: "game" })}
       </button>
 
       {open &&
@@ -101,7 +105,7 @@ export function HubPicker({
               type="button"
               className="fixed inset-0 bg-background/80 backdrop-blur-sm"
               onClick={() => setOpen(false)}
-              aria-label="Close airport search"
+              aria-label={t("hubPicker.closeSearch", { ns: "game" })}
             />
             {/* Modal — full-height sheet on mobile, centered dialog on sm+ */}
             <div
@@ -112,19 +116,19 @@ export function HubPicker({
               <div className="flex flex-col space-y-1 px-5 pt-5 pb-3 shrink-0">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold leading-none tracking-tight">
-                    Choose a Hub Airport
+                    {t("hubPicker.dialogTitle", { ns: "game" })}
                   </h2>
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
                     className="rounded-sm p-1 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label="Close"
+                    aria-label={t("hubPicker.closeDialog", { ns: "game" })}
                   >
                     <X className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Bigger hubs cost more to operate but unlock higher passenger demand.
+                  {t("hubPicker.dialogDescription", { ns: "game" })}
                 </p>
               </div>
 
@@ -134,8 +138,8 @@ export function HubPicker({
                   <input
                     ref={inputRef}
                     className="flex h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    placeholder="Search city, code, or airport…"
-                    aria-label="Search airports"
+                    placeholder={t("hubPicker.searchPlaceholder", { ns: "game" })}
+                    aria-label={t("hubPicker.searchAria", { ns: "game" })}
                     name="airport-search"
                     value={search}
                     onChange={(e) => handleSearchChange(e.target.value)}
@@ -217,18 +221,22 @@ export function HubPicker({
 
                 {filtered.length === 0 && !isPending && (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    No airports match &ldquo;{search}&rdquo;
+                    {t("hubPicker.noMatches", { ns: "game", query: search })}
                   </div>
                 )}
                 {isPending && (
-                  <div className="py-6 text-center text-sm text-muted-foreground">Searching…</div>
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    {t("hubPicker.searching", { ns: "game" })}
+                  </div>
                 )}
               </div>
               {selectedAirport && selectedPricing && (
                 <div className="border-t border-border px-5 py-4 shrink-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase text-muted-foreground">Selected</p>
+                      <p className="text-[10px] uppercase text-muted-foreground">
+                        {t("hubPicker.selected", { ns: "game" })}
+                      </p>
                       <p className="text-sm font-semibold text-foreground truncate">
                         {selectedAirport.iata} — {selectedAirport.city}
                       </p>
@@ -241,13 +249,17 @@ export function HubPicker({
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div className="rounded-lg border border-border/50 bg-muted/30 p-2">
-                      <p className="text-[10px] uppercase text-muted-foreground">Setup Fee</p>
+                      <p className="text-[10px] uppercase text-muted-foreground">
+                        {t("hubPicker.setupFee", { ns: "game" })}
+                      </p>
                       <p className="mt-0.5 text-sm font-mono font-bold text-foreground">
                         {fpFormat(fp(selectedPricing.openFee), 0)}
                       </p>
                     </div>
                     <div className="rounded-lg border border-border/50 bg-muted/30 p-2">
-                      <p className="text-[10px] uppercase text-muted-foreground">Monthly Cost</p>
+                      <p className="text-[10px] uppercase text-muted-foreground">
+                        {t("hubPicker.monthlyCost", { ns: "game" })}
+                      </p>
                       <p className="mt-0.5 text-sm font-mono font-bold text-foreground">
                         {fpFormat(fp(selectedPricing.monthlyOpex), 0)}
                       </p>
@@ -259,7 +271,7 @@ export function HubPicker({
                       className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => setSelectedAirport(null)}
                     >
-                      Cancel
+                      {t("bankruptcy.cancel", { ns: "common" })}
                     </button>
                     <button
                       type="button"
@@ -272,7 +284,7 @@ export function HubPicker({
                         setDeferredSearch("");
                       }}
                     >
-                      Confirm Hub
+                      {t("hubPicker.confirm", { ns: "game" })}
                     </button>
                   </div>
                 </div>

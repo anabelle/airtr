@@ -19,7 +19,9 @@
     "routes": "Rutas",
     "noAirlines": "Aún no hay aerolíneas activas en el tablero",
     "noAirlinesDesc": "Las aerolíneas aparecen aquí una vez que lanzan aeronaves, abren rutas o registran actividad real.",
-    "viewAs": "Ver Como"
+    "viewAs": "Ver Como",
+    "pageTitle": "Clasificación",
+    "pageSubtitle": "Posiciones multijugador a través del mundo activo."
   },
   "flightBoard": {
     "flightInfo": "{{iata}} — Información de Vuelo",
@@ -80,7 +82,10 @@
     "usedMarket": "Mercado de Usados",
     "purchase": "Comprar",
     "buy": "Comprar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "pageTitle": "Gestor de Flota",
+    "aircraftCount": "{{count}} aeronave",
+    "aircraftCount_other": "{{count}} aeronaves"
   },
   "network": {
     "title": "Red",
@@ -99,7 +104,32 @@
     "corporateBalance": "Balance Corporativo",
     "stockPrice": "Precio de Acción",
     "brandScore": "Puntuación de Marca",
-    "avgLoadFactor": "Factor de Carga Prom."
+    "avgLoadFactor": "Factor de Carga Prom.",
+    "pageTitle": "Corporativo",
+    "pageSubtitle": "Revisa tu balance general, la salud de la red y los centros operativos en un solo lugar.",
+    "flightRevenueRate": "Ritmo de ingresos de vuelo",
+    "hubOpex": "OPEX de hubs",
+    "fleetLeases": "Arrendamientos de flota ({{count}} aeronave)",
+    "fleetLeases_other": "Arrendamientos de flota ({{count}} aeronaves)",
+    "totalFixedCosts": "Costos fijos totales",
+    "billingCycle": "Ciclo de facturación",
+    "billingCycleProgress": "Progreso del ciclo de facturación",
+    "netCashFlow": "Flujo neto de caja",
+    "netCashFlowDescription": "Ingresos de vuelo menos costos fijos",
+    "hidePnl": "Ocultar P&L",
+    "viewPnl": "Ver desglose de P&L",
+    "avgProfitPerFlight": "Ganancia prom./vuelo",
+    "oversupplied": "Sobreofertadas",
+    "needsFleetCuts": "Necesitan recortes de flota",
+    "projectedNetwork": "Red proyectada",
+    "profitable": "Rentable",
+    "losingMoney": "Pierde dinero",
+    "tier1": "Inicio regional",
+    "tier2": "Aerolínea nacional",
+    "tier3": "Intercontinental",
+    "tier4": "Mega transportista global",
+    "daysRemaining_one": "Queda {{count}} día",
+    "daysRemaining_other": "Quedan {{count}} días"
   },
   "hub": {
     "title": "Selecciona Tu Hub Principal",
@@ -122,5 +152,55 @@
     "operations": "Operaciones",
     "groundTraffic": "Tráfico Terrestre",
     "flights": "Vuelos"
+  },
+  "routeManager": {
+    "subtitle": "Gestiona tus rutas y frecuencias de vuelo desde {{airport}}.",
+    "activeBadge": "{{count}} activas",
+    "activeTab": "Activas ({{count}})",
+    "selectPlanningHub": "Seleccionar hub de planificación",
+    "searchPlaceholder": "Busca por IATA, ICAO, ciudad o nombre…",
+    "searchAria": "Buscar oportunidades de ruta",
+    "browseOpportunities": "Explorar oportunidades de mercado",
+    "fares": {
+      "enterAtLeastOne": "Ingresa al menos un valor de tarifa."
+    },
+    "suspended": {
+      "title": "Rutas suspendidas",
+      "description": "Estas rutas perdieron su hub de origen. Reubícalas a un hub operativo para reanudar el servicio.",
+      "awaitingRebase": "{{count}} pendientes de rebase"
+    },
+    "pageTitle": "Red"
+  },
+  "hubPicker": {
+    "changeTitle": "Cambiar tu aeropuerto hub",
+    "pickDifferent": "Elegir un hub diferente",
+    "chooseManually": "Elegir tu hub manualmente",
+    "closeSearch": "Cerrar búsqueda de aeropuertos",
+    "dialogTitle": "Elegir un aeropuerto hub",
+    "closeDialog": "Cerrar",
+    "dialogDescription": "Los hubs más grandes cuestan más de operar, pero desbloquean mayor demanda de pasajeros.",
+    "searchPlaceholder": "Buscar ciudad, código o aeropuerto…",
+    "searchAria": "Buscar aeropuertos",
+    "noMatches": "Ningún aeropuerto coincide con “{{query}}”",
+    "searching": "Buscando…",
+    "selected": "Seleccionado",
+    "setupFee": "Tarifa de apertura",
+    "monthlyCost": "Costo mensual",
+    "confirm": "Confirmar hub"
+  },
+  "ticker": {
+    "liveData": "Datos en vivo",
+    "gameTime": "Hora del juego",
+    "cycle": "Ciclo {{tick}}",
+    "airlines": "Aerolíneas",
+    "planes": "Aviones",
+    "routes": "Rutas",
+    "season": "Temporada",
+    "economy": "Economía",
+    "status": "Estado",
+    "catchingUp": "Sincronizando ({{phase}} {{percent}}%)",
+    "yourAirline": "Tu aerolínea",
+    "world": "Mundo",
+    "normalOperations": "Operaciones normales"
   }
 }

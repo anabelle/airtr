@@ -41,6 +41,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
 import {
@@ -106,6 +107,7 @@ const calculateElasticityDisplay = (
 };
 
 export function RouteManager() {
+  const { t } = useTranslation(["common", "game"]);
   const { airline, routes, fleet, isViewingOther } = useActiveAirline();
   const {
     pubkey,
@@ -521,7 +523,7 @@ export function RouteManager() {
     const fVal = parseInt(fareInputs.f.replace(/[^0-9]/g, ""), 10);
 
     if ([eVal, bVal, fVal].every((val) => Number.isNaN(val))) {
-      setFareError("Enter at least one fare value.");
+      setFareError(t("routeManager.fares.enterAtLeastOne", { ns: "game" }));
       return;
     }
 
@@ -578,11 +580,14 @@ export function RouteManager() {
   return (
     <div className="flex flex-col">
       <PanelHeader
-        title="Network"
-        subtitle={`Manage your routes and flight frequencies from ${planningOriginAirport.name}.`}
+        title={t("routeManager.pageTitle", { ns: "game" })}
+        subtitle={t("routeManager.subtitle", {
+          ns: "game",
+          airport: planningOriginAirport.name,
+        })}
         badge={
           <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary sm:px-3 sm:text-xs">
-            {activeRoutes.length} Active
+            {t("routeManager.activeBadge", { ns: "game", count: activeRoutes.length })}
           </span>
         }
       />
@@ -594,7 +599,7 @@ export function RouteManager() {
               <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
                 <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
                 <select
-                  aria-label="Select planning hub"
+                  aria-label={t("routeManager.selectPlanningHub", { ns: "game" })}
                   value={planningOriginIata ?? ""}
                   onChange={(event) => setPlanningOriginIata(event.target.value || null)}
                   className="h-9 flex-1 rounded-lg border border-border/50 bg-background px-3 text-xs font-bold text-foreground sm:flex-none"
@@ -614,14 +619,14 @@ export function RouteManager() {
                 onClick={() => setTab("active")}
                 className={`rounded-lg px-3 py-2 text-xs font-bold transition-all sm:text-sm ${tab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Active ({activeRoutes.length})
+                {t("routeManager.activeTab", { ns: "game", count: activeRoutes.length })}
               </button>
               <button
                 type="button"
                 onClick={() => setTab("opportunities")}
                 className={`rounded-lg px-3 py-2 text-xs font-bold transition-all sm:text-sm ${tab === "opportunities" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Opportunities
+                {t("network.opportunities", { ns: "game" })}
               </button>
             </div>
           </div>
@@ -633,15 +638,17 @@ export function RouteManager() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
-                    Suspended Routes
+                    {t("routeManager.suspended.title", { ns: "game" })}
                   </p>
                   <p className="text-sm text-amber-100/80 mt-2">
-                    These routes lost their origin hub. Rebase them to an operational hub to resume
-                    service.
+                    {t("routeManager.suspended.description", { ns: "game" })}
                   </p>
                 </div>
                 <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-200">
-                  {suspendedRoutes.length} awaiting rebase
+                  {t("routeManager.suspended.awaitingRebase", {
+                    ns: "game",
+                    count: suspendedRoutes.length,
+                  })}
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3">
@@ -762,12 +769,12 @@ export function RouteManager() {
                 <input
                   type="text"
                   name="routeSearch"
-                  placeholder="Search by IATA, ICAO, city, or name…"
+                  placeholder={t("routeManager.searchPlaceholder", { ns: "game" })}
                   className="w-full bg-background border border-border/50 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoComplete="off"
-                  aria-label="Search route opportunities"
+                  aria-label={t("routeManager.searchAria", { ns: "game" })}
                 />
               </div>
               {searchQuery && (
@@ -793,7 +800,7 @@ export function RouteManager() {
                     onClick={() => setTab("opportunities")}
                     className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
                   >
-                    Browse Market Opportunities
+                    {t("routeManager.browseOpportunities", { ns: "game" })}
                   </button>
                 )}
               </div>
