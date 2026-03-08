@@ -26,7 +26,7 @@ export function IdentityGate({ children }: { children: React.ReactNode }) {
   // If we have an identity but no airline entity
   if (identityStatus === "ready" && !airline) {
     return (
-      <div className="flex h-full w-full items-center justify-center overflow-auto p-4 py-12 pointer-events-auto backdrop-blur-[2px] bg-background/20">
+      <div className="flex h-full w-full items-start justify-center overflow-auto p-4 py-8 sm:py-12 pointer-events-auto backdrop-blur-[2px] bg-background/20">
         <AirlineCreator />
       </div>
     );

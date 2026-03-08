@@ -5,7 +5,8 @@ import { PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { Globe } from "lucide-react";
 
 export default function NetworkPage() {
-  const { airline, initializeIdentity, isLoading } = useAirlineStore();
+  const { airline, initializeIdentity, createNewIdentity, loginWithNsec, isLoading } =
+    useAirlineStore();
   const isViewingOther = useAirlineStore((state) => Boolean(state.viewedPubkey));
 
   if (!airline && !isViewingOther) {
@@ -17,6 +18,8 @@ export default function NetworkPage() {
             title="Network access locked"
             description="Open routes after you connect a Nostr wallet and create your airline profile."
             onConnect={initializeIdentity}
+            onCreateFree={createNewIdentity}
+            onLoginWithNsec={loginWithNsec}
             isLoading={isLoading}
           />
         </div>
