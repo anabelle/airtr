@@ -133,7 +133,7 @@ export function buildAirlineFlightBoardRows(
   const rows: AirlineFlightRow[] = [];
   const icaoCode = airline?.icaoCode ?? "UNK";
   const airlineName = airline?.name ?? "Unknown Airline";
-  const airlineColor = airline?.livery.primary ?? "#94a3b8";
+  const airlineColor = airline?.livery?.primary ?? "#94a3b8";
 
   for (const aircraft of fleet) {
     const flight = aircraft.flight;
