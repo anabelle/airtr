@@ -1,4 +1,4 @@
-const LIVERY_REQUIRED_PHRASES = [
+export const LIVERY_REQUIRED_PHRASES = [
   "professional aviation photography of a",
   "commercial",
   "aircraft",
@@ -7,7 +7,7 @@ const LIVERY_REQUIRED_PHRASES = [
   "photorealistic quality, cinematic aviation scene",
 ] as const;
 
-const CATALOG_REQUIRED_PHRASES = [
+export const CATALOG_REQUIRED_PHRASES = [
   "professional aviation photography of a",
   "commercial",
   "aircraft",

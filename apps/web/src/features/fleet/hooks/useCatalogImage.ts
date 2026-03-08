@@ -13,10 +13,10 @@ import {
   isLiveryApiUnavailable,
 } from "../services/aircraftImageService";
 import { getCachedImage, setCachedImage } from "../services/imageCache";
-import { dequeueImageGeneration, enqueueImageGeneration } from "../services/imageGenerationQueue";
+import { enqueueImageGeneration } from "../services/imageGenerationQueue";
 
-const activeCatalogGenerations = new Set<string>();
 const loadedCatalogImages = new Map<string, CatalogImageRecord>();
+const inFlightCatalogGenerations = new Map<string, Promise<void>>();
 let catalogImagesLoaded = false;
 let catalogImagesPromise: Promise<Map<string, CatalogImageRecord>> | null = null;
 
@@ -59,22 +59,38 @@ export function useCatalogImage(model: AircraftModel): UseCatalogImageResult {
 
   useEffect(() => {
     isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
+    const revokeLocalObjectUrl = () => {
       if (localObjectUrlRef.current) {
         URL.revokeObjectURL(localObjectUrlRef.current);
         localObjectUrlRef.current = null;
       }
     };
+
+    return () => {
+      isMountedRef.current = false;
+      revokeLocalObjectUrl();
+    };
   }, []);
 
   useEffect(() => {
+    const revokeLocalObjectUrl = () => {
+      if (localObjectUrlRef.current) {
+        URL.revokeObjectURL(localObjectUrlRef.current);
+        localObjectUrlRef.current = null;
+      }
+    };
+
+    const promoteToRemoteUrl = (nextUrl: string) => {
+      revokeLocalObjectUrl();
+      if (isMountedRef.current) {
+        setImageUrl(nextUrl);
+      }
+    };
+
     if (model.catalogImageUrl) {
-      setImageUrl(model.catalogImageUrl);
+      promoteToRemoteUrl(model.catalogImageUrl);
       return;
     }
-
-    if (activeCatalogGenerations.has(model.id)) return;
 
     let cancelled = false;
 
@@ -87,7 +103,7 @@ export function useCatalogImage(model: AircraftModel): UseCatalogImageResult {
       if (cancelled) return;
 
       if (sharedRecord && sharedRecord.promptHash === promptHash) {
-        setImageUrl(sharedRecord.imageUrl);
+        promoteToRemoteUrl(sharedRecord.imageUrl);
         return;
       }
 
@@ -98,97 +114,125 @@ export function useCatalogImage(model: AircraftModel): UseCatalogImageResult {
       if (cached) {
         const objectUrl = URL.createObjectURL(cached);
         if (isMountedRef.current) {
-          if (localObjectUrlRef.current) {
-            URL.revokeObjectURL(localObjectUrlRef.current);
-          }
+          revokeLocalObjectUrl();
           localObjectUrlRef.current = objectUrl;
           setImageUrl(objectUrl);
         } else {
           URL.revokeObjectURL(objectUrl);
         }
 
-        activeCatalogGenerations.add(model.id);
-        try {
-          const filename = `catalog-${model.id}.png`;
-          const blossomUrl = await uploadToBlossom(cached, filename, "image/png");
-          const record = {
-            modelId: model.id,
-            promptHash,
-            imageUrl: blossomUrl,
-            updatedAt: Date.now(),
-          };
-          await publishCatalogImage(record);
-          loadedCatalogImages.set(model.id, record);
-          if (isMountedRef.current) {
-            setImageUrl(blossomUrl);
+        const existingUpload = inFlightCatalogGenerations.get(model.id);
+        if (existingUpload) {
+          await existingUpload;
+          if (cancelled) return;
+          const refreshedRecord = loadedCatalogImages.get(model.id);
+          if (refreshedRecord?.promptHash === promptHash) {
+            promoteToRemoteUrl(refreshedRecord.imageUrl);
           }
-        } catch (uploadError) {
-          console.warn(
-            `[CatalogImage] Failed to persist cached catalog image for ${model.id}:`,
-            uploadError,
-          );
-        } finally {
-          activeCatalogGenerations.delete(model.id);
+          return;
         }
+
+        const uploadPromise = (async () => {
+          try {
+            const filename = `catalog-${model.id}.png`;
+            const blossomUrl = await uploadToBlossom(cached, filename, "image/png");
+            const record = {
+              modelId: model.id,
+              promptHash,
+              imageUrl: blossomUrl,
+              updatedAt: Date.now(),
+            };
+            await publishCatalogImage(record);
+            loadedCatalogImages.set(model.id, record);
+            if (!cancelled) {
+              promoteToRemoteUrl(blossomUrl);
+            }
+          } catch (uploadError) {
+            console.warn(
+              `[CatalogImage] Failed to persist cached catalog image for ${model.id}:`,
+              uploadError,
+            );
+          } finally {
+            inFlightCatalogGenerations.delete(model.id);
+          }
+        })();
+
+        inFlightCatalogGenerations.set(model.id, uploadPromise);
+        await uploadPromise;
         return;
       }
 
       if (isLiveryApiUnavailable()) return;
 
-      activeCatalogGenerations.add(model.id);
+      const existingGeneration = inFlightCatalogGenerations.get(model.id);
+      if (existingGeneration) {
+        setIsGenerating(true);
+        await existingGeneration;
+        if (cancelled) return;
+        setIsGenerating(false);
+        const refreshedRecord = loadedCatalogImages.get(model.id);
+        if (refreshedRecord?.promptHash === promptHash) {
+          promoteToRemoteUrl(refreshedRecord.imageUrl);
+        }
+        return;
+      }
+
       setIsGenerating(true);
       setError(null);
 
-      enqueueImageGeneration(async () => {
-        try {
-          const prompt = buildCatalogPrompt(model);
-          const imageBlob = await generateLiveryImage(prompt);
-          await setCachedImage(cacheKey, imageBlob);
+      const generationPromise = new Promise<void>((resolve) => {
+        enqueueImageGeneration(async () => {
+          try {
+            const prompt = buildCatalogPrompt(model);
+            const imageBlob = await generateLiveryImage(prompt);
+            await setCachedImage(cacheKey, imageBlob);
 
-          const objectUrl = URL.createObjectURL(imageBlob);
-          if (isMountedRef.current) {
-            if (localObjectUrlRef.current) {
-              URL.revokeObjectURL(localObjectUrlRef.current);
+            const objectUrl = URL.createObjectURL(imageBlob);
+            if (isMountedRef.current) {
+              revokeLocalObjectUrl();
+              localObjectUrlRef.current = objectUrl;
+              setImageUrl(objectUrl);
+            } else {
+              URL.revokeObjectURL(objectUrl);
             }
-            localObjectUrlRef.current = objectUrl;
-            setImageUrl(objectUrl);
-          } else {
-            URL.revokeObjectURL(objectUrl);
-          }
 
-          const filename = `catalog-${model.id}.png`;
-          const blossomUrl = await uploadToBlossom(imageBlob, filename, "image/png");
-          const record = {
-            modelId: model.id,
-            promptHash,
-            imageUrl: blossomUrl,
-            updatedAt: Date.now(),
-          };
-          await publishCatalogImage(record);
-          loadedCatalogImages.set(model.id, record);
-          if (isMountedRef.current) {
-            setImageUrl(blossomUrl);
+            const filename = `catalog-${model.id}.png`;
+            const blossomUrl = await uploadToBlossom(imageBlob, filename, "image/png");
+            const record = {
+              modelId: model.id,
+              promptHash,
+              imageUrl: blossomUrl,
+              updatedAt: Date.now(),
+            };
+            await publishCatalogImage(record);
+            loadedCatalogImages.set(model.id, record);
+            if (!cancelled) {
+              promoteToRemoteUrl(blossomUrl);
+            }
+          } catch (generationError) {
+            const message =
+              generationError instanceof Error
+                ? generationError.message
+                : "Catalog image generation failed";
+            if (isMountedRef.current) {
+              setError(message);
+            }
+            console.error(`[CatalogImage] Generation failed for ${model.id}:`, generationError);
+          } finally {
+            inFlightCatalogGenerations.delete(model.id);
+            if (isMountedRef.current) {
+              setIsGenerating(false);
+            }
+            resolve();
           }
-        } catch (generationError) {
-          const message =
-            generationError instanceof Error
-              ? generationError.message
-              : "Catalog image generation failed";
-          if (isMountedRef.current) {
-            setError(message);
-          }
-          console.error(`[CatalogImage] Generation failed for ${model.id}:`, generationError);
-        } finally {
-          activeCatalogGenerations.delete(model.id);
-          if (isMountedRef.current) {
-            setIsGenerating(false);
-          }
-          dequeueImageGeneration();
-        }
+        });
       });
+
+      inFlightCatalogGenerations.set(model.id, generationPromise);
+      await generationPromise;
     }
 
-    maybeResolveImage();
+    void maybeResolveImage();
 
     return () => {
       cancelled = true;

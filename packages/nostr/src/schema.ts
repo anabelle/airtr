@@ -222,60 +222,111 @@ export async function publishCatalogImage(record: CatalogImageRecord): Promise<N
 
 function parseCatalogImageRecord(data: unknown): CatalogImageRecord | null {
   if (!isRecord(data)) return null;
-  const modelId = typeof data.modelId === "string" ? data.modelId : null;
   const promptHash = typeof data.promptHash === "string" ? data.promptHash : null;
   const imageUrl = typeof data.imageUrl === "string" ? data.imageUrl : null;
-  const updatedAt = clampInt(data.updatedAt, 0, Number.MAX_SAFE_INTEGER);
 
-  if (!modelId || !promptHash || !imageUrl || updatedAt == null) {
+  if (!promptHash || !imageUrl) {
     return null;
   }
 
-  return { modelId, promptHash, imageUrl, updatedAt };
+  return {
+    modelId: "",
+    promptHash,
+    imageUrl,
+    updatedAt: 0,
+  };
 }
 
 export async function loadCatalogImages(): Promise<Map<string, CatalogImageRecord>> {
   await ensureConnected();
   const ndk = getNDK();
 
-  const filter: NDKFilter = {
-    kinds: [CATALOG_IMAGE_KIND],
-    limit: 100,
-  };
-
   const latestByModel = new Map<string, CatalogImageRecord>();
 
-  await new Promise<void>((resolve) => {
-    const sub = ndk.subscribe(filter, { closeOnEose: true });
-    const timeout = setTimeout(() => {
-      sub.stop();
-      resolve();
-    }, 6000);
+  const pageLimit = 100;
+  const pageCap = 10;
+  let page = 0;
+  let until: number | undefined;
 
-    sub.on("event", (event: NDKEvent) => {
-      if (!hasWorldTag(event, WORLD_ID)) return;
-      if (!isValidEventTimestamp(event.created_at ?? 0)) return;
+  while (page < pageCap) {
+    const filter: NDKFilter = {
+      kinds: [CATALOG_IMAGE_KIND],
+      limit: pageLimit,
+      ...(until ? { until } : {}),
+    };
+
+    const pageEvents: NDKEvent[] = [];
+
+    await new Promise<void>((resolve) => {
+      const sub = ndk.subscribe(filter, { closeOnEose: true });
+      const timeout = setTimeout(() => {
+        sub.stop();
+        resolve();
+      }, 6000);
+
+      sub.on("event", (event: NDKEvent) => {
+        pageEvents.push(event);
+      });
+
+      sub.on("eose", () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+
+    for (const event of pageEvents) {
+      if (!hasWorldTag(event, WORLD_ID)) continue;
+      const createdAt = event.created_at ?? 0;
+      if (!isValidEventTimestamp(createdAt)) continue;
       const dTag = event.tags.find((tag) => tag[0] === "d")?.[1];
-      if (!dTag?.startsWith(CATALOG_IMAGE_D_PREFIX)) return;
-      if (!event.content.trim().startsWith("{")) return;
+      if (!dTag?.startsWith(CATALOG_IMAGE_D_PREFIX)) continue;
+      if (!event.content.trim().startsWith("{")) continue;
+
+      const modelTag = event.tags.find((tag) => tag[0] === "model")?.[1];
+      const modelIdFromDTag = dTag.slice(CATALOG_IMAGE_D_PREFIX.length);
+      if (!modelIdFromDTag || modelTag !== modelIdFromDTag) continue;
 
       try {
-        const parsed = parseCatalogImageRecord(JSON.parse(event.content));
-        if (!parsed) return;
-        const existing = latestByModel.get(parsed.modelId);
-        if (!existing || parsed.updatedAt >= existing.updatedAt) {
-          latestByModel.set(parsed.modelId, parsed);
+        const content = JSON.parse(event.content) as unknown;
+        const parsed = parseCatalogImageRecord(content);
+        if (!parsed) continue;
+
+        const payloadModelId =
+          isRecord(content) && typeof content.modelId === "string" ? content.modelId : null;
+        if (payloadModelId && payloadModelId !== modelIdFromDTag) continue;
+
+        const record: CatalogImageRecord = {
+          modelId: modelIdFromDTag,
+          promptHash: parsed.promptHash,
+          imageUrl: parsed.imageUrl,
+          updatedAt: createdAt,
+        };
+
+        const existing = latestByModel.get(modelIdFromDTag);
+        if (!existing || record.updatedAt >= existing.updatedAt) {
+          latestByModel.set(modelIdFromDTag, record);
         }
       } catch {
         // Ignore malformed catalog image records
       }
-    });
+    }
 
-    sub.on("eose", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
+    if (pageEvents.length < pageLimit) break;
+
+    const minCreatedAt = pageEvents.reduce(
+      (min, event) => {
+        const createdAt = event.created_at ?? 0;
+        if (createdAt <= 0) return min;
+        return min === null ? createdAt : Math.min(min, createdAt);
+      },
+      null as number | null,
+    );
+
+    if (!minCreatedAt || minCreatedAt <= 0) break;
+
+    until = minCreatedAt - 1;
+    page += 1;
+  }
 
   return latestByModel;
 }

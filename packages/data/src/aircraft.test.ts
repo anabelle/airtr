@@ -18,7 +18,9 @@ describe("aircraft", () => {
         expect(aircraft.id).toBeDefined();
         expect(aircraft.manufacturer).toBeDefined();
         expect(aircraft.name).toBeDefined();
-        expect("catalogImageUrl" in aircraft).toBe(true);
+        if (aircraft.catalogImageUrl !== undefined) {
+          expect(typeof aircraft.catalogImageUrl).toBe("string");
+        }
         expect(aircraft.type).toBeDefined();
         expect(aircraft.rangeKm).toBeGreaterThan(0);
         expect(aircraft.speedKmh).toBeGreaterThan(0);

@@ -9,7 +9,7 @@ import {
   isLiveryApiUnavailable,
 } from "../services/aircraftImageService";
 import { getCachedImage, setCachedImage } from "../services/imageCache";
-import { dequeueImageGeneration, enqueueImageGeneration } from "../services/imageGenerationQueue";
+import { enqueueImageGeneration } from "../services/imageGenerationQueue";
 
 /** Module-level set of aircraft IDs with generation in-flight or queued. */
 const activeGenerations = new Set<string>();
@@ -168,7 +168,6 @@ export function useAircraftImage(
           if (isMountedRef.current) {
             setIsGenerating(false);
           }
-          dequeueImageGeneration();
         }
       });
     }
