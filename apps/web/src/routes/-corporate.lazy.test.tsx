@@ -100,7 +100,10 @@ const mockAirline = {
 const corporateRouteState = {
   airline: mockAirline as typeof mockAirline | null,
   modifyHubs: vi.fn(),
+  dissolveAirline: vi.fn(),
   initializeIdentity: vi.fn(),
+  createNewIdentity: vi.fn(),
+  loginWithNsec: vi.fn(),
   isLoading: false,
   viewedPubkey: null as string | null,
 };
@@ -168,9 +171,8 @@ describe("Corporate route", () => {
     corporateRouteState.airline = null;
     render(<CorporateRoute />);
     expect(screen.getByText("Corporate access locked")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Continue with browser wallet/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Play Free/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Browser wallet/i })).toBeInTheDocument();
     expect(screen.getByText("What is Nostr?").closest("a")).toHaveAttribute(
       "href",
       "https://nostr.com",

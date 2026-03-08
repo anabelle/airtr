@@ -81,16 +81,28 @@ export function Topbar() {
   if (!airline) {
     return (
       <>
-        {renderMobileToggle(
-          <>
-            <h1 className="truncate text-sm leading-none font-bold tracking-tight text-foreground">
-              ACARS
-            </h1>
-            <p className="mt-1 truncate text-[11px] text-muted-foreground">
-              Open identity controls
-            </p>
-          </>,
-        )}
+        <div className="pointer-events-auto absolute top-3 left-3 right-3 z-30 sm:hidden">
+          <button
+            type="button"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-topbar-panel"
+            aria-label={`${mobileMenuOpen ? "Close" : "Open"} ${mobilePanelLabel}`}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary/70">
+                ACARS
+              </p>
+              <h1 className="truncate text-sm leading-none font-bold tracking-tight text-primary">
+                Create Your Airline
+              </h1>
+            </div>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+            </span>
+          </button>
+        </div>
 
         {mobileMenuOpen && (
           <div className="pointer-events-auto absolute top-[4.75rem] left-3 right-3 z-30 sm:hidden">

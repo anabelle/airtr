@@ -5,7 +5,8 @@ import { NostrAccessCard } from "@/shared/components/identity/NostrAccessCard";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
-  const { airline, initializeIdentity, isLoading } = useAirlineStore();
+  const { airline, initializeIdentity, createNewIdentity, loginWithNsec, isLoading } =
+    useAirlineStore();
   const { airline: activeAirline, fleet, isViewingOther } = useActiveAirline();
   const fleetSize = fleet.length;
 
@@ -21,6 +22,8 @@ export default function FleetDashboard() {
             title="Fleet access locked"
             description="Connect a Nostr wallet first, then buy aircraft, manage leases, and keep your fleet flying."
             onConnect={initializeIdentity}
+            onCreateFree={createNewIdentity}
+            onLoginWithNsec={loginWithNsec}
             isLoading={isLoading}
           />
         </div>

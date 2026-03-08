@@ -982,7 +982,15 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 /* ------------------------------------------------------------------ */
 
 export default function CorporateDashboard() {
-  const { airline, modifyHubs, dissolveAirline, initializeIdentity, isLoading } = useAirlineStore();
+  const {
+    airline,
+    modifyHubs,
+    dissolveAirline,
+    initializeIdentity,
+    createNewIdentity,
+    loginWithNsec,
+    isLoading,
+  } = useAirlineStore();
   const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
   const homeAirport = useEngineStore((s) => s.homeAirport);
   const setActiveHubIata = useEngineStore((s) => s.setActiveHubIata);
@@ -1089,6 +1097,8 @@ export default function CorporateDashboard() {
           title="Corporate access locked"
           description="Connect a Nostr wallet to create your airline and unlock balance sheets, hubs, and strategy tools."
           onConnect={initializeIdentity}
+          onCreateFree={createNewIdentity}
+          onLoginWithNsec={loginWithNsec}
           isLoading={isLoading}
         />
       </div>
