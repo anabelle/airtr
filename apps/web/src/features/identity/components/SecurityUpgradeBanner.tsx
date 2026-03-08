@@ -1,6 +1,7 @@
 import { useAirlineStore } from "@acars/store";
 import { ShieldAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 import {
   dismissEphemeralBanner,
@@ -19,6 +20,7 @@ import {
  * their secret key.
  */
 export function SecurityUpgradeBanner() {
+  const { t } = useTranslation("identity");
   const pubkey = useAirlineStore((state) => state.pubkey);
   const [dismissedAccounts, setDismissedAccounts] = useState<Record<string, true>>({});
   const [securityRefreshToken, setSecurityRefreshToken] = useState(0);
@@ -52,21 +54,18 @@ export function SecurityUpgradeBanner() {
     >
       <div className="flex items-center gap-3 px-4 py-2">
         <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
-        <p className="flex-1 text-xs font-medium text-amber-200">
-          Your account isn&apos;t backed up yet — if you lose this browser/tab, your airline is
-          gone.
-        </p>
+        <p className="flex-1 text-xs font-medium text-amber-200">{t("security.notBackedUp")}</p>
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
           className="shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300 transition hover:bg-amber-500/20"
         >
-          {expanded ? "Hide" : "Secure it"}
+          {expanded ? t("security.hide") : t("security.secureIt")}
         </button>
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Dismiss security warning"
+          aria-label={t("security.dismissWarning")}
           className="shrink-0 rounded p-1 text-amber-400/60 transition hover:text-amber-300"
         >
           <X className="h-3.5 w-3.5" />
@@ -76,8 +75,7 @@ export function SecurityUpgradeBanner() {
       {expanded && (
         <div className="border-t border-amber-500/20 px-4 py-3">
           <p className="mb-3 text-xs leading-relaxed text-amber-200/80">
-            Your account key is saved only in this browser. Back it up so you can play from
-            anywhere:
+            {t("security.keyBrowserOnly")}
           </p>
           <EphemeralKeyBackupActions />
         </div>

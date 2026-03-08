@@ -1,10 +1,12 @@
 import { useAirlineStore } from "@acars/store";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AirlineCreator } from "./AirlineCreator";
 import { SecurityUpgradeBanner } from "./SecurityUpgradeBanner";
 
 export function IdentityGate({ children }: { children: React.ReactNode }) {
   const { identityStatus, airline, isEphemeral } = useAirlineStore();
+  const { t } = useTranslation("identity");
 
   if (identityStatus === "checking") {
     return (
@@ -12,7 +14,7 @@ export function IdentityGate({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center justify-center space-y-4 rounded-2xl border border-border/50 bg-background/60 p-8 shadow-2xl backdrop-blur-xl">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm font-medium text-muted-foreground animate-pulse">
-            Establishing secure connection to Nostr network...
+            {t("gate.connecting")}
           </p>
         </div>
       </div>

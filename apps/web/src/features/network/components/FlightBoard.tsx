@@ -2,6 +2,7 @@ import type { AircraftInstance } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { buildFlightBoardRows, type FlightRow } from "@/features/network/utils/flightBoard";
 import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNavigation";
 
@@ -71,6 +72,7 @@ function FidsSection({
   flights: FlightRow[];
   emptyLabel: string;
 }) {
+  const { t } = useTranslation("game");
   return (
     <div>
       {/* Section header — yellow bar like real FIDS */}
@@ -83,12 +85,12 @@ function FidsSection({
 
       {/* Column headers */}
       <div className="grid grid-cols-[72px_1fr_52px_52px_56px_42px] gap-1.5 border-b border-slate-600 bg-slate-800/80 px-3 py-1 text-[9px] uppercase tracking-[0.15em] text-slate-400 font-mono font-semibold">
-        <span>Status</span>
-        <span>Flight</span>
+        <span>{t("flightBoard.status")}</span>
+        <span>{t("flightBoard.flight")}</span>
         <span>{columns.to}</span>
-        <span>A/C</span>
+        <span>{t("flightBoard.aircraft")}</span>
         <span className="text-right">{columns.time}</span>
-        <span className="text-right">LF</span>
+        <span className="text-right">{t("flightBoard.loadFactor")}</span>
       </div>
 
       {/* Rows */}
@@ -102,6 +104,7 @@ function FidsSection({
 }
 
 export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) {
+  const { t } = useTranslation("game");
   const { airline, fleet, fleetByOwner, competitors, pubkey } = useAirlineStore();
   const tick = useEngineStore((s) => s.tick);
 
@@ -145,7 +148,7 @@ export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) 
       {/* FIDS header bar */}
       <div className="flex items-center justify-between bg-slate-950 px-3 py-2 border-b border-slate-700/60">
         <span className="text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-slate-300">
-          {airportIata} — Flight Information
+          {t("flightBoard.flightInfo", { iata: airportIata })}
         </span>
         <span className="text-[10px] font-mono tabular-nums text-slate-500">
           {departures.length + arrivals.length} flights
@@ -154,20 +157,20 @@ export function FlightBoard({ airportIata, airportTimezone }: FlightBoardProps) 
 
       {/* Departures section */}
       <FidsSection
-        title="Departures"
+        title={t("flightBoard.departures")}
         icon={<PlaneTakeoff className="h-3 w-3 text-slate-950" />}
-        columns={{ to: "To", time: "Dep" }}
+        columns={{ to: t("flightBoard.to"), time: t("flightBoard.dep") }}
         flights={departures}
-        emptyLabel="No scheduled departures"
+        emptyLabel={t("flightBoard.noDepartures")}
       />
 
       {/* Arrivals section */}
       <FidsSection
-        title="Arrivals"
+        title={t("flightBoard.arrivals")}
         icon={<PlaneLanding className="h-3 w-3 text-slate-950" />}
-        columns={{ to: "From", time: "Arr" }}
+        columns={{ to: t("flightBoard.from"), time: t("flightBoard.arr") }}
         flights={arrivals}
-        emptyLabel="No incoming flights"
+        emptyLabel={t("flightBoard.noArrivals")}
       />
     </div>
   );

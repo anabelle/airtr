@@ -4,12 +4,14 @@ import { getHubPricingForIata } from "@acars/data";
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { CheckCircle2, KeyRound, PlaneTakeoff, ShieldAlert } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HubPicker } from "../../network/components/HubPicker";
 import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 import { findAirlineConflicts } from "../utils/airlineConflicts";
 
 export function AirlineCreator() {
+  const { t } = useTranslation("identity");
   const { createAirline, identityStatus, isLoading, error, competitors } = useAirlineStore();
   const isEphemeral = useAirlineStore((state) => state.isEphemeral);
   const homeAirport = useEngineStore((s) => s.homeAirport);
@@ -57,7 +59,7 @@ export function AirlineCreator() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Airline creation failed", { description: message });
+      toast.error(t("creator.creationFailed"), { description: message });
     }
   };
 
@@ -76,15 +78,14 @@ export function AirlineCreator() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-              Connected - create your airline
+              {t("creator.connectedSubtitle")}
             </div>
             <h2 className="flex items-center text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               <PlaneTakeoff className="mr-3 h-6 w-6 text-primary" />
-              Launch Your Airline
+              {t("creator.title")}
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Set up your home airport, name your airline, and pick your colors. You&apos;ll be
-              flying in under a minute.
+              {t("creator.subtitle")}
             </p>
           </div>
           {isEphemeral && (
@@ -104,8 +105,7 @@ export function AirlineCreator() {
               Local account key
             </p>
             <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
-              Export your recovery key before launch so this airline stays yours if you lose this
-              browser.
+              {t("creator.exportKeyWarning")}
             </p>
             <div className="mt-3">
               <EphemeralKeyBackupActions />
@@ -125,11 +125,8 @@ export function AirlineCreator() {
         {/* Hub Selection */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold tracking-tight">Home Hub</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              This is where your airline will be based. It determines your starting region and
-              costs.
-            </p>
+            <h3 className="text-lg font-semibold tracking-tight">{t("creator.homeHub")}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t("creator.homeHubDesc")}</p>
           </div>
 
           {homeAirport ? (
@@ -152,7 +149,7 @@ export function AirlineCreator() {
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <div className="rounded-lg border border-border/70 bg-muted/30 px-2 py-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Tier
+                      {t("creator.tier")}
                     </p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground capitalize">
                       {hubPricing.tier}
@@ -160,7 +157,7 @@ export function AirlineCreator() {
                   </div>
                   <div className="rounded-lg border border-border/70 bg-muted/30 px-2 py-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Setup
+                      {t("creator.setup")}
                     </p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground">
                       {fpFormat(fp(hubPricing.openFee), 0)}
@@ -168,7 +165,7 @@ export function AirlineCreator() {
                   </div>
                   <div className="rounded-lg border border-border/70 bg-muted/30 px-2 py-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Monthly
+                      {t("creator.monthly")}
                     </p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground">
                       {fpFormat(fp(hubPricing.monthlyOpex), 0)}
@@ -181,12 +178,8 @@ export function AirlineCreator() {
           ) : (
             <div className="rounded-xl border border-dashed border-border bg-background p-5">
               <div className="text-center space-y-3">
-                <p className="text-sm font-medium text-foreground">
-                  Finding your best starting hub…
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  We&apos;re using your location to suggest a nearby airport.
-                </p>
+                <p className="text-sm font-medium text-foreground">{t("creator.findingHub")}</p>
+                <p className="text-xs text-muted-foreground">{t("creator.usingLocation")}</p>
                 <HubPicker currentHub={null} onSelect={handleHubChange} />
               </div>
             </div>
@@ -198,11 +191,8 @@ export function AirlineCreator() {
         {/* Corporate Identity */}
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold tracking-tight">Airline Identity</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Choose a name, a short code, and an optional callsign. Other players will see these on
-              the map and leaderboards.
-            </p>
+            <h3 className="text-lg font-semibold tracking-tight">{t("creator.airlineIdentity")}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t("creator.identityDesc")}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -210,24 +200,22 @@ export function AirlineCreator() {
                 htmlFor="airline-name"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Airline Name
+                {t("creator.airlineName")}
               </label>
               <input
                 id="airline-name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Apex Global"
+                placeholder={t("creator.namePlaceholder")}
                 className="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               {nameConflict ? (
                 <p className="text-xs text-destructive">
-                  An airline named "{nameConflict}" already exists.
+                  {t("creator.nameConflict", { name: nameConflict })}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  Keep it short, memorable, and easy to spot on the map.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("creator.nameHint")}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -235,7 +223,7 @@ export function AirlineCreator() {
                 htmlFor="airline-icao"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                ICAO Code <span className="text-muted-foreground font-normal">(3 letters)</span>
+                {t("creator.icaoCode")}
               </label>
               <input
                 id="airline-icao"
@@ -243,17 +231,15 @@ export function AirlineCreator() {
                 maxLength={3}
                 value={icao}
                 onChange={(e) => setIcao(e.target.value.replace(/[^a-z]/gi, "").toUpperCase())}
-                placeholder="APX"
+                placeholder={t("creator.icaoPlaceholder")}
                 className="flex h-10 w-full uppercase rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               {icaoConflict ? (
                 <p className="text-xs text-destructive">
-                  ICAO code "{icaoConflict}" is already in use.
+                  {t("creator.icaoConflict", { code: icaoConflict })}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  A unique 3-letter shortcode shown on routes and aircraft tails.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("creator.icaoHint")}</p>
               )}
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -261,7 +247,7 @@ export function AirlineCreator() {
                 htmlFor="airline-callsign"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Radio Callsign
+                {t("creator.callsign")}
               </label>
               <input
                 id="airline-callsign"
@@ -271,8 +257,7 @@ export function AirlineCreator() {
                 className="flex h-10 w-full uppercase rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank to use{" "}
-                <span className="font-semibold text-foreground">{suggestedCallsign}</span>.
+                {t("creator.callsignHint", { callsign: suggestedCallsign })}
               </p>
             </div>
           </div>
@@ -281,10 +266,10 @@ export function AirlineCreator() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Livery Colors</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                These two colors will appear on your aircraft and brand.
-              </p>
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {t("creator.liveryColors")}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t("creator.liveryDesc")}</p>
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1">
               <span
@@ -295,7 +280,9 @@ export function AirlineCreator() {
                 className="h-3.5 w-3.5 rounded-full border border-black/10"
                 style={{ backgroundColor: secondary }}
               />
-              <span className="text-[11px] font-medium text-muted-foreground">Preview</span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {t("creator.preview")}
+              </span>
             </div>
           </div>
           <div className="flex flex-wrap gap-6">
@@ -306,7 +293,7 @@ export function AirlineCreator() {
                 onChange={(e) => setPrimary(e.target.value)}
                 className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background"
               />
-              <span className="text-sm font-medium">Primary</span>
+              <span className="text-sm font-medium">{t("creator.primary")}</span>
             </div>
             <div className="flex items-center space-x-3">
               <input
@@ -315,21 +302,21 @@ export function AirlineCreator() {
                 onChange={(e) => setSecondary(e.target.value)}
                 className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background"
               />
-              <span className="text-sm font-medium">Secondary</span>
+              <span className="text-sm font-medium">{t("creator.secondary")}</span>
             </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Ready to Launch
+            {t("creator.readyToLaunch")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground">
             <span className="rounded-full bg-background px-3 py-1 font-semibold">
-              {homeAirport?.iata ?? "Hub pending"}
+              {homeAirport?.iata ?? t("creator.hubPending")}
             </span>
             <span className="rounded-full bg-background px-3 py-1 font-semibold">
-              {normalizedIcao || "ICAO pending"}
+              {normalizedIcao || t("creator.icaoPending")}
             </span>
             <span className="rounded-full bg-background px-3 py-1 font-semibold">
               {suggestedCallsign}
@@ -350,11 +337,11 @@ export function AirlineCreator() {
           className="w-full inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
         >
           {isLoading ? (
-            "Launching airline..."
+            t("creator.launchingAirline")
           ) : (
             <>
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Launch Airline
+              {t("creator.launchAirline")}
             </>
           )}
         </button>

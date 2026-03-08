@@ -4,6 +4,7 @@ import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Trophy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   LeaderboardMetric,
   LeaderboardRow as LeaderboardRowData,
@@ -21,21 +22,21 @@ const metricMeta: Record<
   { label: string; description: string; isMoney?: boolean }
 > = {
   balance: {
-    label: "Liquidity",
-    description: "Ranked by corporate cash position",
+    label: "leaderboard.liquidity",
+    description: "leaderboard.liquidityDesc",
     isMoney: true,
   },
-  fleet: { label: "Fleet Size", description: "Ranked by total aircraft count" },
-  routes: { label: "Route Count", description: "Ranked by active route count" },
-  brand: { label: "Brand Score", description: "Ranked by service reputation" },
+  fleet: { label: "leaderboard.fleetSize", description: "leaderboard.fleetSizeDesc" },
+  routes: { label: "leaderboard.routeCount", description: "leaderboard.routeCountDesc" },
+  brand: { label: "leaderboard.brandScore", description: "leaderboard.brandScoreDesc" },
   fleetValue: {
-    label: "Fleet Value",
-    description: "Ranked by depreciated fleet value",
+    label: "leaderboard.fleetValue",
+    description: "leaderboard.fleetValueDesc",
     isMoney: true,
   },
   networkDistance: {
-    label: "Network Distance",
-    description: "Ranked by total route kilometers",
+    label: "leaderboard.networkDistance",
+    description: "leaderboard.networkDistanceDesc",
   },
 };
 const ROW_HEIGHT = 116;
@@ -66,6 +67,7 @@ function LeaderboardRow({
   value: number | FixedPoint;
   onView: (pubkey: string) => void;
 }) {
+  const { t } = useTranslation("game");
   const profile = useNostrProfile(row.ceoPubkey);
   const npub = profile.npub;
   const displayName =
@@ -114,7 +116,7 @@ function LeaderboardRow({
             </span>
             {isOwn && (
               <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
-                Your Airline
+                {t("leaderboard.yourAirline")}
               </span>
             )}
           </div>
@@ -141,25 +143,29 @@ function LeaderboardRow({
       <div className="flex items-end justify-between gap-3 sm:shrink-0 sm:items-center sm:justify-end sm:gap-6">
         <div className="flex min-w-0 flex-1 items-center gap-3 sm:hidden">
           <div className="min-w-0 text-left">
-            <div className="text-[10px] uppercase text-muted-foreground">Fleet</div>
+            <div className="text-[10px] uppercase text-muted-foreground">
+              {t("leaderboard.fleet")}
+            </div>
             <div className="font-mono text-sm text-foreground">{row.fleet}</div>
           </div>
           <div className="min-w-0 text-left">
-            <div className="text-[10px] uppercase text-muted-foreground">Routes</div>
+            <div className="text-[10px] uppercase text-muted-foreground">
+              {t("leaderboard.routes")}
+            </div>
             <div className="font-mono text-sm text-foreground">{row.routes}</div>
           </div>
         </div>
         <div className="hidden text-right text-xs text-muted-foreground sm:block">
-          <div className="text-[10px] uppercase">Fleet</div>
+          <div className="text-[10px] uppercase">{t("leaderboard.fleet")}</div>
           <div className="font-mono text-sm text-foreground">{row.fleet}</div>
         </div>
         <div className="hidden text-right text-xs text-muted-foreground sm:block">
-          <div className="text-[10px] uppercase">Routes</div>
+          <div className="text-[10px] uppercase">{t("leaderboard.routes")}</div>
           <div className="font-mono text-sm text-foreground">{row.routes}</div>
         </div>
         <div className="min-w-0 text-right">
           <div className="flex items-center justify-end gap-1 text-[10px] uppercase text-muted-foreground">
-            {metricMeta[metric].label}
+            {t(metricMeta[metric].label)}
             {index === 0 ? (
               <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             ) : (
@@ -176,7 +182,7 @@ function LeaderboardRow({
             onClick={() => onView(row.ceoPubkey)}
             className="rounded-full border border-border/60 bg-background/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground hover:border-primary/40 hover:text-foreground"
           >
-            View As
+            {t("leaderboard.viewAs")}
           </button>
         )}
       </div>
@@ -185,6 +191,7 @@ function LeaderboardRow({
 }
 
 export function Leaderboard() {
+  const { t } = useTranslation("game");
   const competitors = useAirlineStore((s) => s.competitors);
   const airline = useAirlineStore((s) => s.airline);
   const fleetByOwner = useAirlineStore((s) => s.fleetByOwner);
@@ -252,10 +259,10 @@ export function Leaderboard() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-              Active Metric
+              {t("leaderboard.activeMetric")}
             </p>
             <p className="text-sm font-semibold text-foreground sm:text-base">
-              {metricMeta[metric].description}
+              {t(metricMeta[metric].description)}
             </p>
           </div>
         </div>
@@ -264,12 +271,12 @@ export function Leaderboard() {
           <select
             value={metric}
             onChange={handleMetricChange}
-            aria-label="Sort leaderboard by metric"
+            aria-label={t("leaderboard.sortBy")}
             className="h-10 w-full appearance-none rounded-xl border border-border/60 bg-background/70 px-3 pr-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition hover:border-primary/40 hover:text-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/30 sm:text-[11px]"
           >
             {(Object.keys(metricMeta) as LeaderboardMetric[]).map((key) => (
               <option key={key} value={key}>
-                {metricMeta[key].label}
+                {t(metricMeta[key].label)}
               </option>
             ))}
           </select>
@@ -279,12 +286,8 @@ export function Leaderboard() {
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-8 text-center">
-          <p className="text-sm font-semibold text-foreground">
-            No active airlines on the board yet
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Airlines appear here once they launch aircraft, open routes, or log real activity.
-          </p>
+          <p className="text-sm font-semibold text-foreground">{t("leaderboard.noAirlines")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("leaderboard.noAirlinesDesc")}</p>
         </div>
       ) : (
         <div ref={parentRef}>

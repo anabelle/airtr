@@ -2,6 +2,7 @@ import { hasNip07, hasStoredEphemeralKey, loadEphemeralKey } from "@acars/nostr"
 import { useAirlineStore } from "@acars/store";
 import { Check, Copy, Download, Loader2, Shield } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { markEphemeralKeySecured } from "../lib/ephemeralBackup";
 
@@ -10,6 +11,7 @@ export function EphemeralKeyBackupActions({
 }: {
   showUpgradeButton?: boolean;
 }) {
+  const { t } = useTranslation("identity");
   const initializeIdentity = useAirlineStore((state) => state.initializeIdentity);
   const isLoading = useAirlineStore((state) => state.isLoading);
   const pubkey = useAirlineStore((state) => state.pubkey);
@@ -22,8 +24,8 @@ export function EphemeralKeyBackupActions({
     try {
       const nsec = await loadEphemeralKey();
       if (!nsec) {
-        toast.error("Secret key unavailable", {
-          description: "No local recovery key was found on this device.",
+        toast.error(t("backup.unavailable"), {
+          description: t("backup.noKeyFound"),
         });
         return;
       }
@@ -37,7 +39,7 @@ export function EphemeralKeyBackupActions({
         error instanceof Error
           ? error.message
           : "Unable to access your locally stored account key.";
-      toast.error(action === "copy" ? "Copy failed" : "Download failed", {
+      toast.error(action === "copy" ? t("backup.copyFailed") : t("backup.downloadFailed"), {
         description: message,
       });
     } finally {
@@ -47,8 +49,8 @@ export function EphemeralKeyBackupActions({
 
   async function copyNsec() {
     if (!navigator.clipboard?.writeText) {
-      toast.error("Copy failed", {
-        description: "Clipboard access is unavailable in this browser context.",
+      toast.error(t("backup.copyFailed"), {
+        description: t("backup.clipboardUnavailable"),
       });
       return;
     }
@@ -57,8 +59,8 @@ export function EphemeralKeyBackupActions({
       await navigator.clipboard.writeText(nsec);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
-      toast.success("Secret key copied", {
-        description: "Store it somewhere only you can access.",
+      toast.success(t("backup.keyCopied"), {
+        description: t("backup.keyCopiedDesc"),
       });
     });
   }
@@ -77,8 +79,8 @@ export function EphemeralKeyBackupActions({
       anchor.download = "acars-secret-key.txt";
       anchor.click();
       URL.revokeObjectURL(url);
-      toast.success("Key file downloaded", {
-        description: "Move it to a password manager or another safe place.",
+      toast.success(t("backup.keyDownloaded"), {
+        description: t("backup.keyDownloadedDesc"),
       });
     });
   }
@@ -103,7 +105,11 @@ export function EphemeralKeyBackupActions({
           ) : (
             <Copy className="h-3.5 w-3.5" />
           )}
-          {busyAction === "copy" ? "Copying…" : copied ? "Copied!" : "Copy my secret key"}
+          {busyAction === "copy"
+            ? t("backup.copying")
+            : copied
+              ? t("backup.copied")
+              : t("backup.copyKey")}
         </button>
         <button
           type="button"
@@ -116,7 +122,7 @@ export function EphemeralKeyBackupActions({
           ) : (
             <Download className="h-3.5 w-3.5" />
           )}
-          {busyAction === "download" ? "Preparing…" : "Download key file"}
+          {busyAction === "download" ? t("backup.preparing") : t("backup.downloadKey")}
         </button>
         {showUpgradeButton && hasNip07() && (
           <button
@@ -130,14 +136,12 @@ export function EphemeralKeyBackupActions({
             ) : (
               <Shield className="h-3.5 w-3.5" />
             )}
-            {isLoading ? "Switching…" : "Switch to wallet extension"}
+            {isLoading ? t("backup.switching") : t("backup.switchToWallet")}
           </button>
         )}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-amber-400/60">
-        Your secret key starts with <code className="font-mono">nsec1…</code> — treat it like a
-        password. ACARS stores it locally on this device and exports it from here whenever you need
-        your recovery copy.
+        {t("backup.keyExplainer")}
       </p>
     </>
   );
