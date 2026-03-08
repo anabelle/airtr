@@ -31,6 +31,7 @@ vi.mock("@acars/store", () => {
 
 vi.mock("@acars/data", () => {
   return {
+    aircraftModels: [],
     airports: [
       {
         iata: "JFK",
@@ -40,6 +41,7 @@ vi.mock("@acars/data", () => {
         country: "US",
         latitude: 0,
         longitude: 0,
+        timezone: "America/New_York",
         population: 1,
       },
       {
@@ -50,6 +52,7 @@ vi.mock("@acars/data", () => {
         country: "US",
         latitude: 1,
         longitude: 1,
+        timezone: "America/Los_Angeles",
         population: 1,
       },
     ],

@@ -52,6 +52,7 @@ import { PanelHeader } from "@/shared/components/layout/PanelLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
+import { AirlineFlightBoard } from "@/features/network/components/AirlineFlightBoard";
 
 const toneDotClass = {
   emerald: "bg-emerald-500",
@@ -790,570 +791,577 @@ export function RouteManager() {
           )}
 
           {tab === "active" ? (
-            activeRoutes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
-                <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-muted-foreground font-medium">Your network is empty.</p>
-                {!isViewingOther && (
-                  <button
-                    type="button"
-                    onClick={() => setTab("opportunities")}
-                    className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+            <>
+              <AirlineFlightBoard />
+              {activeRoutes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
+                  <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <p className="text-muted-foreground font-medium">Your network is empty.</p>
+                  {!isViewingOther && (
+                    <button
+                      type="button"
+                      onClick={() => setTab("opportunities")}
+                      className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                    >
+                      {t("routeManager.browseOpportunities", { ns: "game" })}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div ref={listParentRef}>
+                  <div
+                    style={{
+                      height: `${activeRoutesVirtualizer.getTotalSize()}px`,
+                      position: "relative",
+                    }}
                   >
-                    {t("routeManager.browseOpportunities", { ns: "game" })}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div ref={listParentRef}>
-                <div
-                  style={{
-                    height: `${activeRoutesVirtualizer.getTotalSize()}px`,
-                    position: "relative",
-                  }}
-                >
-                  {activeRoutesVirtualizer.getVirtualItems().map((virtualItem) => {
-                    const route = activeRoutes[virtualItem.index];
-                    const destinationAirport = airportIndex.get(route.destinationIata);
-                    const assignedCount = route.assignedAircraftIds.length;
-                    const demandSnapshot = getRouteDemandSnapshot(route, tick, fleet, routes);
-                    const { addressableDemand } = demandSnapshot;
-                    const marketDemand =
-                      demandSnapshot.totalDemand.economy +
-                      demandSnapshot.totalDemand.business +
-                      demandSnapshot.totalDemand.first;
-                    const addressableTotal =
-                      addressableDemand.economy +
-                      addressableDemand.business +
-                      addressableDemand.first;
-                    const totalWeeklySeats = demandSnapshot.totalWeeklySeats;
-                    const loadFactor = Math.round(demandSnapshot.pressureMultiplier * 100);
-                    const supplyRatio =
-                      addressableTotal > 0 ? totalWeeklySeats / addressableTotal : 0;
-                    const lfTone =
-                      loadFactor >= 80
-                        ? "text-emerald-400"
-                        : loadFactor >= 60
-                          ? "text-amber-400"
-                          : "text-rose-400";
-                    const lfFill =
-                      loadFactor >= 80
-                        ? "bg-emerald-500"
-                        : loadFactor >= 60
-                          ? "bg-amber-500"
-                          : "bg-rose-500";
-                    const supplyLabel =
-                      supplyRatio > 1.05
-                        ? "Over-Supplied"
-                        : supplyRatio < 0.7
-                          ? "Underserved"
-                          : "Balanced";
-                    const economyTone = getFareTone(
-                      route.fareEconomy,
-                      demandSnapshot.referenceFareEconomy,
-                    );
-                    const businessTone = getFareTone(
-                      route.fareBusiness,
-                      demandSnapshot.referenceFareBusiness,
-                    );
-                    const firstTone = getFareTone(
-                      route.fareFirst,
-                      demandSnapshot.referenceFareFirst,
-                    );
-                    const economyElasticity = demandSnapshot.elasticityEconomy;
-                    const businessElasticity = demandSnapshot.elasticityBusiness;
-                    const firstElasticity = demandSnapshot.elasticityFirst;
-                    const showPriceEffect =
-                      Math.abs(1 - economyElasticity) > 0.05 ||
-                      Math.abs(1 - businessElasticity) > 0.05 ||
-                      Math.abs(1 - firstElasticity) > 0.05;
-                    const primaryAssignment = getPrimaryAssignedAircraft(
-                      route.assignedAircraftIds,
-                      fleet,
-                      getAircraftById,
-                    );
-                    const routeEconomics = primaryAssignment
-                      ? estimateRouteEconomics({
-                          route,
-                          addressableDemand: demandSnapshot.addressableDemand,
-                          pressureMultiplier: demandSnapshot.pressureMultiplier,
-                          effectiveLoadFactor: demandSnapshot.effectiveLoadFactor,
-                          aircraft: primaryAssignment.model,
-                          aircraftCount: Math.max(1, route.assignedAircraftIds.length),
-                          cabinConfig: primaryAssignment.aircraft.configuration,
-                          includeFixedCosts: true,
-                        })
-                      : null;
+                    {activeRoutesVirtualizer.getVirtualItems().map((virtualItem) => {
+                      const route = activeRoutes[virtualItem.index];
+                      const destinationAirport = airportIndex.get(route.destinationIata);
+                      const assignedCount = route.assignedAircraftIds.length;
+                      const demandSnapshot = getRouteDemandSnapshot(route, tick, fleet, routes);
+                      const { addressableDemand } = demandSnapshot;
+                      const marketDemand =
+                        demandSnapshot.totalDemand.economy +
+                        demandSnapshot.totalDemand.business +
+                        demandSnapshot.totalDemand.first;
+                      const addressableTotal =
+                        addressableDemand.economy +
+                        addressableDemand.business +
+                        addressableDemand.first;
+                      const totalWeeklySeats = demandSnapshot.totalWeeklySeats;
+                      const loadFactor = Math.round(demandSnapshot.pressureMultiplier * 100);
+                      const supplyRatio =
+                        addressableTotal > 0 ? totalWeeklySeats / addressableTotal : 0;
+                      const lfTone =
+                        loadFactor >= 80
+                          ? "text-emerald-400"
+                          : loadFactor >= 60
+                            ? "text-amber-400"
+                            : "text-rose-400";
+                      const lfFill =
+                        loadFactor >= 80
+                          ? "bg-emerald-500"
+                          : loadFactor >= 60
+                            ? "bg-amber-500"
+                            : "bg-rose-500";
+                      const supplyLabel =
+                        supplyRatio > 1.05
+                          ? "Over-Supplied"
+                          : supplyRatio < 0.7
+                            ? "Underserved"
+                            : "Balanced";
+                      const economyTone = getFareTone(
+                        route.fareEconomy,
+                        demandSnapshot.referenceFareEconomy,
+                      );
+                      const businessTone = getFareTone(
+                        route.fareBusiness,
+                        demandSnapshot.referenceFareBusiness,
+                      );
+                      const firstTone = getFareTone(
+                        route.fareFirst,
+                        demandSnapshot.referenceFareFirst,
+                      );
+                      const economyElasticity = demandSnapshot.elasticityEconomy;
+                      const businessElasticity = demandSnapshot.elasticityBusiness;
+                      const firstElasticity = demandSnapshot.elasticityFirst;
+                      const showPriceEffect =
+                        Math.abs(1 - economyElasticity) > 0.05 ||
+                        Math.abs(1 - businessElasticity) > 0.05 ||
+                        Math.abs(1 - firstElasticity) > 0.05;
+                      const primaryAssignment = getPrimaryAssignedAircraft(
+                        route.assignedAircraftIds,
+                        fleet,
+                        getAircraftById,
+                      );
+                      const routeEconomics = primaryAssignment
+                        ? estimateRouteEconomics({
+                            route,
+                            addressableDemand: demandSnapshot.addressableDemand,
+                            pressureMultiplier: demandSnapshot.pressureMultiplier,
+                            effectiveLoadFactor: demandSnapshot.effectiveLoadFactor,
+                            aircraft: primaryAssignment.model,
+                            aircraftCount: Math.max(1, route.assignedAircraftIds.length),
+                            cabinConfig: primaryAssignment.aircraft.configuration,
+                            includeFixedCosts: true,
+                          })
+                        : null;
 
-                    return (
-                      <div
-                        key={virtualItem.key}
-                        data-index={virtualItem.index}
-                        ref={activeRoutesVirtualizer.measureElement}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          width: "100%",
-                          transform: `translateY(${virtualItem.start - activeRoutesVirtualizer.options.scrollMargin}px)`,
-                        }}
-                      >
-                        <div className="group relative rounded-2xl bg-card border border-border overflow-hidden p-4 sm:p-5 transition-all hover:border-primary/50 hover:shadow-md mb-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-3 sm:gap-6">
-                              <div className="flex flex-col">
-                                <span className="text-2xl font-black text-primary leading-none tracking-tighter flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => navigateToAirport(route.originIata)}
-                                    className="hover:text-foreground transition-colors cursor-pointer"
-                                  >
-                                    {route.originIata}
-                                  </button>
-                                  <span className="text-muted-foreground">→</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => navigateToAirport(route.destinationIata)}
-                                    className="hover:text-foreground transition-colors cursor-pointer"
-                                  >
-                                    {route.destinationIata}
-                                  </button>
-                                </span>
-                                <span className="text-xs text-muted-foreground font-semibold mt-1">
-                                  {destinationAirport?.city}, {destinationAirport?.country} •{" "}
-                                  {Math.round(route.distanceKm).toLocaleString()}
-                                  km
-                                </span>
-                              </div>
-
-                              <div className="hidden sm:block h-10 w-px bg-border/50" />
-
-                              <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                                  Pricing
-                                </span>
-                                <div className="flex gap-3 mt-1">
-                                  <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20 inline-flex items-center gap-1.5">
-                                    {economyTone && (
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full ${toneDotClass[economyTone]}`}
-                                      />
-                                    )}
-                                    E: {fpFormat(route.fareEconomy, 0)}
+                      return (
+                        <div
+                          key={virtualItem.key}
+                          data-index={virtualItem.index}
+                          ref={activeRoutesVirtualizer.measureElement}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${virtualItem.start - activeRoutesVirtualizer.options.scrollMargin}px)`,
+                          }}
+                        >
+                          <div className="group relative rounded-2xl bg-card border border-border overflow-hidden p-4 sm:p-5 transition-all hover:border-primary/50 hover:shadow-md mb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+                                <div className="flex flex-col">
+                                  <span className="text-2xl font-black text-primary leading-none tracking-tighter flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToAirport(route.originIata)}
+                                      className="hover:text-foreground transition-colors cursor-pointer"
+                                    >
+                                      {route.originIata}
+                                    </button>
+                                    <span className="text-muted-foreground">→</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToAirport(route.destinationIata)}
+                                      className="hover:text-foreground transition-colors cursor-pointer"
+                                    >
+                                      {route.destinationIata}
+                                    </button>
                                   </span>
-                                  <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400 inline-flex items-center gap-1.5">
-                                    {businessTone && (
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full ${toneDotClass[businessTone]}`}
-                                      />
-                                    )}
-                                    B: {fpFormat(route.fareBusiness, 0)}
-                                  </span>
-                                  <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500 inline-flex items-center gap-1.5">
-                                    {firstTone && (
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full ${toneDotClass[firstTone]}`}
-                                      />
-                                    )}
-                                    F: {fpFormat(route.fareFirst, 0)}
+                                  <span className="text-xs text-muted-foreground font-semibold mt-1">
+                                    {destinationAirport?.city}, {destinationAirport?.country} •{" "}
+                                    {Math.round(route.distanceKm).toLocaleString()}
+                                    km
                                   </span>
                                 </div>
+
+                                <div className="hidden sm:block h-10 w-px bg-border/50" />
+
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                                    Pricing
+                                  </span>
+                                  <div className="flex gap-3 mt-1">
+                                    <span className="text-xs font-mono bg-zinc-500/10 px-2 py-0.5 rounded border border-zinc-500/20 inline-flex items-center gap-1.5">
+                                      {economyTone && (
+                                        <span
+                                          className={`h-1.5 w-1.5 rounded-full ${toneDotClass[economyTone]}`}
+                                        />
+                                      )}
+                                      E: {fpFormat(route.fareEconomy, 0)}
+                                    </span>
+                                    <span className="text-xs font-mono bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 text-blue-400 inline-flex items-center gap-1.5">
+                                      {businessTone && (
+                                        <span
+                                          className={`h-1.5 w-1.5 rounded-full ${toneDotClass[businessTone]}`}
+                                        />
+                                      )}
+                                      B: {fpFormat(route.fareBusiness, 0)}
+                                    </span>
+                                    <span className="text-xs font-mono bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 text-yellow-500 inline-flex items-center gap-1.5">
+                                      {firstTone && (
+                                        <span
+                                          className={`h-1.5 w-1.5 rounded-full ${toneDotClass[firstTone]}`}
+                                        />
+                                      )}
+                                      F: {fpFormat(route.fareFirst, 0)}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
 
-                            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                              <div className="flex flex-col text-right">
-                                <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                                  Fleet
-                                </span>
-                                <span
-                                  className={`text-sm font-bold mt-1 ${assignedCount > 0 ? "text-foreground" : "text-red-400 flex items-center gap-1 justify-end"}`}
-                                >
-                                  {assignedCount === 0 && <AlertCircle className="h-3 w-3" />}
-                                  {assignedCount} Aircraft Assigned
-                                </span>
-                              </div>
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                                <div className="flex flex-col text-right">
+                                  <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                                    Fleet
+                                  </span>
+                                  <span
+                                    className={`text-sm font-bold mt-1 ${assignedCount > 0 ? "text-foreground" : "text-red-400 flex items-center gap-1 justify-end"}`}
+                                  >
+                                    {assignedCount === 0 && <AlertCircle className="h-3 w-3" />}
+                                    {assignedCount} Aircraft Assigned
+                                  </span>
+                                </div>
 
-                              <div className="flex items-center gap-2">
-                                {!isViewingOther && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFareEditor({
-                                          routeId: route.id,
-                                          originIata: route.originIata,
-                                          destinationIata: route.destinationIata,
-                                          distanceKm: route.distanceKm,
-                                        });
-                                        setFareInputs({
-                                          e: fpToNumber(route.fareEconomy).toString(),
-                                          b: fpToNumber(route.fareBusiness).toString(),
-                                          f: fpToNumber(route.fareFirst).toString(),
-                                        });
-                                        setFareError(null);
-                                      }}
-                                      className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
-                                    >
-                                      Edit Fares
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        const approved = await confirm({
-                                          title: "Close route?",
-                                          description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
-                                          confirmLabel: "Close Route",
-                                          tone: "destructive",
-                                        });
-                                        if (!approved) return;
-                                        try {
-                                          await closeRoute(route.id);
-                                        } catch (err) {
-                                          const message =
-                                            err instanceof Error
-                                              ? err.message
-                                              : "Route close failed";
-                                          toast.error("Route close failed", {
-                                            description: message,
+                                <div className="flex items-center gap-2">
+                                  {!isViewingOther && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setFareEditor({
+                                            routeId: route.id,
+                                            originIata: route.originIata,
+                                            destinationIata: route.destinationIata,
+                                            distanceKm: route.distanceKm,
                                           });
-                                        }
-                                      }}
-                                      className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
-                                    >
-                                      Close Route
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Market Supply / Demand */}
-                          {addressableDemand && (
-                            <div className="mt-3 rounded-xl sm:rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
-                              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                                <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5">
-                                  <TrendingUp className="h-3 w-3" /> Market Supply
-                                </span>
-                                <span className={`text-[10px] font-bold uppercase ${lfTone}`}>
-                                  {supplyLabel}
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-3 gap-2 sm:gap-3 text-[10px] font-mono">
-                                <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
-                                  <span className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                    Total Market
-                                  </span>
-                                  <span className="text-foreground font-bold">
-                                    {marketDemand.toLocaleString()} / wk
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
-                                  <span className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                    Addressable
-                                  </span>
-                                  <span className="text-foreground font-bold">
-                                    {addressableTotal.toLocaleString()} / wk
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
-                                  <span className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                    Your Seats
-                                  </span>
-                                  <span className="text-foreground font-bold">
-                                    {totalWeeklySeats.toLocaleString()} / wk
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="mt-3">
-                                <div className="flex justify-between text-[10px] font-semibold">
-                                  <span className="text-muted-foreground uppercase">
-                                    Supply Pressure
-                                  </span>
-                                  <span className={lfTone}>{loadFactor}% LF</span>
-                                </div>
-                                <div className="mt-1 h-2 w-full rounded-full bg-background/70 overflow-hidden">
-                                  <div
-                                    className={`h-full ${lfFill} transition-all duration-500`}
-                                    style={{
-                                      width: `${Math.min(100, loadFactor)}%`,
-                                    }}
-                                  />
-                                </div>
-                                <div className="mt-2 flex justify-between text-[9px] text-muted-foreground">
-                                  <span>Target {Math.round(NATURAL_LF_CEILING * 100)}%</span>
-                                  <span>
-                                    {supplyRatio > 1.05
-                                      ? `Oversupply ${supplyRatio.toFixed(2)}x`
-                                      : `Coverage ${supplyRatio.toFixed(2)}x`}
-                                  </span>
-                                </div>
-                                {showPriceEffect && (
-                                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold">
-                                    <span className="uppercase text-muted-foreground">
-                                      Price Effect
-                                    </span>
-                                    <span
-                                      className={`font-mono ${toneTextClass[getElasticityTone(economyElasticity)]}`}
-                                    >
-                                      E: {economyElasticity.toFixed(2)}x
-                                    </span>
-                                    <span
-                                      className={`font-mono ${toneTextClass[getElasticityTone(businessElasticity)]}`}
-                                    >
-                                      B: {businessElasticity.toFixed(2)}x
-                                    </span>
-                                    <span
-                                      className={`font-mono ${toneTextClass[getElasticityTone(firstElasticity)]}`}
-                                    >
-                                      F: {firstElasticity.toFixed(2)}x
-                                    </span>
-                                  </div>
-                                )}
-                                {demandSnapshot.suggestedFleetDelta !== 0 && (
-                                  <div className="mt-2 flex items-center gap-1.5 text-[9px] font-semibold">
-                                    {demandSnapshot.suggestedFleetDelta > 0 ? (
-                                      <>
-                                        <ArrowUp className="h-3 w-3 text-emerald-400" />
-                                        <span className="text-emerald-400">
-                                          +{demandSnapshot.suggestedFleetDelta} aircraft suggested
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ArrowDown className="h-3 w-3 text-amber-400" />
-                                        <span className="text-amber-400">
-                                          {demandSnapshot.suggestedFleetDelta} aircraft suggested
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                )}
-
-                                {routeEconomics && (
-                                  <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3 text-[10px] font-mono">
-                                    <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
-                                      <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                        Profit / flight
-                                      </div>
-                                      <div
-                                        className={`mt-1 font-bold ${routeEconomics.profitPerFlight >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                                          setFareInputs({
+                                            e: fpToNumber(route.fareEconomy).toString(),
+                                            b: fpToNumber(route.fareBusiness).toString(),
+                                            f: fpToNumber(route.fareFirst).toString(),
+                                          });
+                                          setFareError(null);
+                                        }}
+                                        className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
                                       >
-                                        {fpFormat(routeEconomics.profitPerFlight, 0)}
-                                      </div>
-                                      <div className="mt-1 text-[9px] text-muted-foreground">
-                                        Rev {fpFormat(routeEconomics.revenuePerFlight, 0)} • Cost{" "}
-                                        {fpFormat(routeEconomics.costPerFlight, 0)}
-                                      </div>
-                                    </div>
-                                    <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
-                                      <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                        Break-even LF
-                                      </div>
-                                      <div className="mt-1 font-bold text-foreground">
-                                        {Math.round(routeEconomics.breakEvenLoadFactor * 100)}%
-                                      </div>
-                                      <div className="mt-1 text-[9px] text-muted-foreground">
-                                        Current est.{" "}
-                                        {Math.round(routeEconomics.estimatedLoadFactor * 100)}%
-                                      </div>
-                                    </div>
-                                    <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
-                                      <div className="text-[9px] uppercase text-muted-foreground font-semibold">
-                                        Action
-                                      </div>
-                                      <div className="mt-1 font-bold text-foreground">
-                                        {routeEconomics.recommendedAircraftCount < assignedCount
-                                          ? `Remove ${assignedCount - routeEconomics.recommendedAircraftCount}`
-                                          : routeEconomics.recommendedAircraftCount > assignedCount
-                                            ? `Add ${routeEconomics.recommendedAircraftCount - assignedCount}`
-                                            : "Hold fleet"}
-                                      </div>
-                                      <div className="mt-1 text-[9px] text-muted-foreground">
-                                        Supports ~{routeEconomics.recommendedAircraftCount} aircraft
-                                      </div>
-                                    </div>
+                                        Edit Fares
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const approved = await confirm({
+                                            title: "Close route?",
+                                            description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
+                                            confirmLabel: "Close Route",
+                                            tone: "destructive",
+                                          });
+                                          if (!approved) return;
+                                          try {
+                                            await closeRoute(route.id);
+                                          } catch (err) {
+                                            const message =
+                                              err instanceof Error
+                                                ? err.message
+                                                : "Route close failed";
+                                            toast.error("Route close failed", {
+                                              description: message,
+                                            });
+                                          }
+                                        }}
+                                        className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
+                                      >
+                                        Close Route
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Market Supply / Demand */}
+                            {addressableDemand && (
+                              <div className="mt-3 rounded-xl sm:rounded-2xl border border-border/40 bg-muted/20 p-3 sm:p-4">
+                                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                  <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+                                    <TrendingUp className="h-3 w-3" /> Market Supply
+                                  </span>
+                                  <span className={`text-[10px] font-bold uppercase ${lfTone}`}>
+                                    {supplyLabel}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3 text-[10px] font-mono">
+                                  <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
+                                    <span className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Total Market
+                                    </span>
+                                    <span className="text-foreground font-bold">
+                                      {marketDemand.toLocaleString()} / wk
+                                    </span>
                                   </div>
-                                )}
+                                  <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
+                                    <span className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Addressable
+                                    </span>
+                                    <span className="text-foreground font-bold">
+                                      {addressableTotal.toLocaleString()} / wk
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col gap-1 rounded-lg border border-border/30 bg-background/40 px-2 py-1.5">
+                                    <span className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                      Your Seats
+                                    </span>
+                                    <span className="text-foreground font-bold">
+                                      {totalWeeklySeats.toLocaleString()} / wk
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-3">
+                                  <div className="flex justify-between text-[10px] font-semibold">
+                                    <span className="text-muted-foreground uppercase">
+                                      Supply Pressure
+                                    </span>
+                                    <span className={lfTone}>{loadFactor}% LF</span>
+                                  </div>
+                                  <div className="mt-1 h-2 w-full rounded-full bg-background/70 overflow-hidden">
+                                    <div
+                                      className={`h-full ${lfFill} transition-all duration-500`}
+                                      style={{
+                                        width: `${Math.min(100, loadFactor)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="mt-2 flex justify-between text-[9px] text-muted-foreground">
+                                    <span>Target {Math.round(NATURAL_LF_CEILING * 100)}%</span>
+                                    <span>
+                                      {supplyRatio > 1.05
+                                        ? `Oversupply ${supplyRatio.toFixed(2)}x`
+                                        : `Coverage ${supplyRatio.toFixed(2)}x`}
+                                    </span>
+                                  </div>
+                                  {showPriceEffect && (
+                                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold">
+                                      <span className="uppercase text-muted-foreground">
+                                        Price Effect
+                                      </span>
+                                      <span
+                                        className={`font-mono ${toneTextClass[getElasticityTone(economyElasticity)]}`}
+                                      >
+                                        E: {economyElasticity.toFixed(2)}x
+                                      </span>
+                                      <span
+                                        className={`font-mono ${toneTextClass[getElasticityTone(businessElasticity)]}`}
+                                      >
+                                        B: {businessElasticity.toFixed(2)}x
+                                      </span>
+                                      <span
+                                        className={`font-mono ${toneTextClass[getElasticityTone(firstElasticity)]}`}
+                                      >
+                                        F: {firstElasticity.toFixed(2)}x
+                                      </span>
+                                    </div>
+                                  )}
+                                  {demandSnapshot.suggestedFleetDelta !== 0 && (
+                                    <div className="mt-2 flex items-center gap-1.5 text-[9px] font-semibold">
+                                      {demandSnapshot.suggestedFleetDelta > 0 ? (
+                                        <>
+                                          <ArrowUp className="h-3 w-3 text-emerald-400" />
+                                          <span className="text-emerald-400">
+                                            +{demandSnapshot.suggestedFleetDelta} aircraft suggested
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ArrowDown className="h-3 w-3 text-amber-400" />
+                                          <span className="text-amber-400">
+                                            {demandSnapshot.suggestedFleetDelta} aircraft suggested
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {routeEconomics && (
+                                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3 text-[10px] font-mono">
+                                      <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                        <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                          Profit / flight
+                                        </div>
+                                        <div
+                                          className={`mt-1 font-bold ${routeEconomics.profitPerFlight >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                                        >
+                                          {fpFormat(routeEconomics.profitPerFlight, 0)}
+                                        </div>
+                                        <div className="mt-1 text-[9px] text-muted-foreground">
+                                          Rev {fpFormat(routeEconomics.revenuePerFlight, 0)} • Cost{" "}
+                                          {fpFormat(routeEconomics.costPerFlight, 0)}
+                                        </div>
+                                      </div>
+                                      <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                        <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                          Break-even LF
+                                        </div>
+                                        <div className="mt-1 font-bold text-foreground">
+                                          {Math.round(routeEconomics.breakEvenLoadFactor * 100)}%
+                                        </div>
+                                        <div className="mt-1 text-[9px] text-muted-foreground">
+                                          Current est.{" "}
+                                          {Math.round(routeEconomics.estimatedLoadFactor * 100)}%
+                                        </div>
+                                      </div>
+                                      <div className="rounded-lg border border-border/30 bg-background/40 px-2 py-2">
+                                        <div className="text-[9px] uppercase text-muted-foreground font-semibold">
+                                          Action
+                                        </div>
+                                        <div className="mt-1 font-bold text-foreground">
+                                          {routeEconomics.recommendedAircraftCount < assignedCount
+                                            ? `Remove ${assignedCount - routeEconomics.recommendedAircraftCount}`
+                                            : routeEconomics.recommendedAircraftCount >
+                                                assignedCount
+                                              ? `Add ${routeEconomics.recommendedAircraftCount - assignedCount}`
+                                              : "Hold fleet"}
+                                        </div>
+                                        <div className="mt-1 text-[9px] text-muted-foreground">
+                                          Supports ~{routeEconomics.recommendedAircraftCount}{" "}
+                                          aircraft
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Market Analysis Tab */}
-                          <div className="mt-3 sm:mt-5 pt-3 sm:pt-5 border-t border-border/50">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                                <Globe className="h-3 w-3" />
-                                Market Health
-                              </h4>
-                              <div className="flex gap-2">
-                                <div className="flex items-center gap-1">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                                  <span className="text-[8px] text-muted-foreground font-bold uppercase">
-                                    Econ
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                                  <span className="text-[8px] text-muted-foreground font-bold uppercase">
-                                    Bus
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                                  <span className="text-[8px] text-muted-foreground font-bold uppercase">
-                                    First
-                                  </span>
+                            {/* Market Analysis Tab */}
+                            <div className="mt-3 sm:mt-5 pt-3 sm:pt-5 border-t border-border/50">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                  <Globe className="h-3 w-3" />
+                                  Market Health
+                                </h4>
+                                <div className="flex gap-2">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                                    <span className="text-[8px] text-muted-foreground font-bold uppercase">
+                                      Econ
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    <span className="text-[8px] text-muted-foreground font-bold uppercase">
+                                      Bus
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                    <span className="text-[8px] text-muted-foreground font-bold uppercase">
+                                      First
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* Demand class breakdown visualization */}
-                            {(() => {
-                              const demandTotal =
-                                demandSnapshot.totalDemand.economy +
-                                demandSnapshot.totalDemand.business +
-                                demandSnapshot.totalDemand.first;
-                              return (
-                                <div className="flex h-1 w-full rounded-full bg-muted/30 overflow-hidden mb-3">
-                                  <div
-                                    className="h-full bg-zinc-500"
-                                    style={{
-                                      width:
-                                        demandTotal === 0
-                                          ? "0%"
-                                          : `${(demandSnapshot.totalDemand.economy / demandTotal) * 100}%`,
-                                    }}
-                                  />
-                                  <div
-                                    className="h-full bg-blue-500"
-                                    style={{
-                                      width:
-                                        demandTotal === 0
-                                          ? "0%"
-                                          : `${(demandSnapshot.totalDemand.business / demandTotal) * 100}%`,
-                                    }}
-                                  />
-                                  <div
-                                    className="h-full bg-yellow-500"
-                                    style={{
-                                      width:
-                                        demandTotal === 0
-                                          ? "0%"
-                                          : `${(demandSnapshot.totalDemand.first / demandTotal) * 100}%`,
-                                    }}
-                                  />
-                                </div>
-                              );
-                            })()}
-
-                            {(() => {
-                              const routeKey = canonicalRouteKey(
-                                route.originIata,
-                                route.destinationIata,
-                              );
-                              const offers = globalRouteRegistry.get(routeKey) || [];
-
-                              if (offers.length === 0) {
+                              {/* Demand class breakdown visualization */}
+                              {(() => {
+                                const demandTotal =
+                                  demandSnapshot.totalDemand.economy +
+                                  demandSnapshot.totalDemand.business +
+                                  demandSnapshot.totalDemand.first;
                                 return (
-                                  <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
-                                    <p className="text-[11px] text-emerald-400/80 font-medium flex items-center gap-2">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Monopoly Market: No active competitors found on this route.
-                                    </p>
+                                  <div className="flex h-1 w-full rounded-full bg-muted/30 overflow-hidden mb-3">
+                                    <div
+                                      className="h-full bg-zinc-500"
+                                      style={{
+                                        width:
+                                          demandTotal === 0
+                                            ? "0%"
+                                            : `${(demandSnapshot.totalDemand.economy / demandTotal) * 100}%`,
+                                      }}
+                                    />
+                                    <div
+                                      className="h-full bg-blue-500"
+                                      style={{
+                                        width:
+                                          demandTotal === 0
+                                            ? "0%"
+                                            : `${(demandSnapshot.totalDemand.business / demandTotal) * 100}%`,
+                                      }}
+                                    />
+                                    <div
+                                      className="h-full bg-yellow-500"
+                                      style={{
+                                        width:
+                                          demandTotal === 0
+                                            ? "0%"
+                                            : `${(demandSnapshot.totalDemand.first / demandTotal) * 100}%`,
+                                      }}
+                                    />
                                   </div>
                                 );
-                              }
+                              })()}
 
-                              return (
-                                <div className="grid grid-cols-1 gap-2">
-                                  {offers.map((offer: FlightOffer) => {
-                                    const comp = competitors.get(offer.airlinePubkey);
+                              {(() => {
+                                const routeKey = canonicalRouteKey(
+                                  route.originIata,
+                                  route.destinationIata,
+                                );
+                                const offers = globalRouteRegistry.get(routeKey) || [];
 
-                                    // Calculate estimated share for this offer vs ours
-                                    const ourFrequency = computeRouteFrequency(
-                                      route.distanceKm,
-                                      route.assignedAircraftIds.length,
-                                    );
-                                    const ourTravelTime = Math.round((route.distanceKm / 800) * 60); // simplified model speed
+                                if (offers.length === 0) {
+                                  return (
+                                    <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
+                                      <p className="text-[11px] text-emerald-400/80 font-medium flex items-center gap-2">
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Monopoly Market: No active competitors found on this route.
+                                      </p>
+                                    </div>
+                                  );
+                                }
 
-                                    const ourOffer: FlightOffer = {
-                                      airlinePubkey: pubkey || "",
-                                      fareEconomy: route.fareEconomy,
-                                      fareBusiness: route.fareBusiness,
-                                      fareFirst: route.fareFirst,
-                                      frequencyPerWeek: ourFrequency || 1, // at least 1 for display
-                                      travelTimeMinutes: ourTravelTime,
-                                      stops: 0,
-                                      serviceScore: 0.7,
-                                      brandScore: airline.brandScore || 0.5,
-                                    };
+                                return (
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {offers.map((offer: FlightOffer) => {
+                                      const comp = competitors.get(offer.airlinePubkey);
 
-                                    const allOffers = [ourOffer, ...offers];
-                                    const shares = calculateShares(allOffers);
-                                    const compShare =
-                                      (shares.economy.get(offer.airlinePubkey) || 0) * 100;
+                                      // Calculate estimated share for this offer vs ours
+                                      const ourFrequency = computeRouteFrequency(
+                                        route.distanceKm,
+                                        route.assignedAircraftIds.length,
+                                      );
+                                      const ourTravelTime = Math.round(
+                                        (route.distanceKm / 800) * 60,
+                                      ); // simplified model speed
 
-                                    return (
-                                      <div
-                                        key={`${offer.airlinePubkey}-${offer.frequencyPerWeek}-${offer.fareEconomy}`}
-                                        className="flex flex-wrap items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 sm:px-4 py-2 border border-border/50"
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                                            {comp?.icaoCode || "??"}
+                                      const ourOffer: FlightOffer = {
+                                        airlinePubkey: pubkey || "",
+                                        fareEconomy: route.fareEconomy,
+                                        fareBusiness: route.fareBusiness,
+                                        fareFirst: route.fareFirst,
+                                        frequencyPerWeek: ourFrequency || 1, // at least 1 for display
+                                        travelTimeMinutes: ourTravelTime,
+                                        stops: 0,
+                                        serviceScore: 0.7,
+                                        brandScore: airline.brandScore || 0.5,
+                                      };
+
+                                      const allOffers = [ourOffer, ...offers];
+                                      const shares = calculateShares(allOffers);
+                                      const compShare =
+                                        (shares.economy.get(offer.airlinePubkey) || 0) * 100;
+
+                                      return (
+                                        <div
+                                          key={`${offer.airlinePubkey}-${offer.frequencyPerWeek}-${offer.fareEconomy}`}
+                                          className="flex flex-wrap items-center justify-between gap-2 bg-muted/30 rounded-xl px-3 sm:px-4 py-2 border border-border/50"
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                                              {comp?.icaoCode || "??"}
+                                            </div>
+                                            <div className="flex flex-col">
+                                              <span className="text-xs font-bold text-foreground">
+                                                {comp?.name || "Unknown Airline"}
+                                              </span>
+                                              <span className="text-[9px] text-muted-foreground uppercase font-semibold">
+                                                Freq: {offer.frequencyPerWeek}
+                                                /wk
+                                              </span>
+                                            </div>
                                           </div>
-                                          <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-foreground">
-                                              {comp?.name || "Unknown Airline"}
-                                            </span>
-                                            <span className="text-[9px] text-muted-foreground uppercase font-semibold">
-                                              Freq: {offer.frequencyPerWeek}
-                                              /wk
-                                            </span>
+
+                                          <div className="flex gap-4 items-center">
+                                            <div className="flex gap-2">
+                                              <span className="text-[10px] font-mono text-zinc-500">
+                                                E: {fpFormat(offer.fareEconomy, 0)}
+                                              </span>
+                                              <span className="text-[10px] font-mono text-blue-400">
+                                                B: {fpFormat(offer.fareBusiness, 0)}
+                                              </span>
+                                              <span className="text-[10px] font-mono text-yellow-500">
+                                                F: {fpFormat(offer.fareFirst, 0)}
+                                              </span>
+                                            </div>
+                                            <div className="h-8 w-px bg-border/50" />
+                                            <div className="flex flex-col text-right">
+                                              <span className="text-[9px] text-muted-foreground uppercase font-bold">
+                                                Est. Share
+                                              </span>
+                                              <span className="text-xs font-bold text-accent">
+                                                {compShare.toFixed(1)}%
+                                              </span>
+                                            </div>
                                           </div>
                                         </div>
-
-                                        <div className="flex gap-4 items-center">
-                                          <div className="flex gap-2">
-                                            <span className="text-[10px] font-mono text-zinc-500">
-                                              E: {fpFormat(offer.fareEconomy, 0)}
-                                            </span>
-                                            <span className="text-[10px] font-mono text-blue-400">
-                                              B: {fpFormat(offer.fareBusiness, 0)}
-                                            </span>
-                                            <span className="text-[10px] font-mono text-yellow-500">
-                                              F: {fpFormat(offer.fareFirst, 0)}
-                                            </span>
-                                          </div>
-                                          <div className="h-8 w-px bg-border/50" />
-                                          <div className="flex flex-col text-right">
-                                            <span className="text-[9px] text-muted-foreground uppercase font-bold">
-                                              Est. Share
-                                            </span>
-                                            <span className="text-xs font-bold text-accent">
-                                              {compShare.toFixed(1)}%
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })()}
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )
+              )}
+            </>
           ) : (
             <div ref={listParentRef}>
               <div
