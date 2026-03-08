@@ -117,6 +117,28 @@ describe("AppInitializer", () => {
     expect(startEngine).toHaveBeenCalled();
   });
 
+  it("avoids occupied timezone hubs when competitor hubs are already known", () => {
+    const setHub = vi.fn();
+    const startEngine = vi.fn();
+    engineState.setHub = setHub;
+    engineState.startEngine = startEngine;
+    airlineState.competitors = new Map([["comp-1", { hubs: ["JFK"] }]]);
+    delete (navigator as unknown as { geolocation?: Geolocation }).geolocation;
+
+    render(
+      <AppInitializer>
+        <div>App</div>
+      </AppInitializer>,
+    );
+
+    expect(setHub).toHaveBeenCalledWith(
+      expect.objectContaining({ iata: "EWR" }),
+      { latitude: 1, longitude: 1, source: "timezone" },
+      "timezone (UTC)",
+    );
+    expect(startEngine).toHaveBeenCalled();
+  });
+
   it("re-evaluates an occupied suggested hub once competitors and location are available", () => {
     const setHub = vi.fn();
     engineState.homeAirport = { iata: "JFK" };

@@ -110,7 +110,9 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const tzAirport = findAirportByTimezone();
+      const tzAirport = findAirportByTimezone(
+        competitors.size > 0 ? collectOccupiedHubs(competitors) : undefined,
+      );
       if (tzAirport) {
         const loc: UserLocation = {
           latitude: tzAirport.latitude,
@@ -151,7 +153,7 @@ export function AppInitializer({ children }: { children: React.ReactNode }) {
     } else {
       fallbackLocate();
     }
-  }, [homeAirport, identityStatus, airline, setHub, startEngine]);
+  }, [homeAirport, identityStatus, airline, competitors, setHub, startEngine]);
 
   // Re-evaluate the suggested hub once competitor data loads from Nostr.
   // This only fires for new users who haven't created an airline yet and
