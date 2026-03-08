@@ -71,14 +71,14 @@ export function AirlineCreator() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/80 shadow-2xl backdrop-blur-md">
-      <div className="border-b border-border bg-muted px-8 py-6">
+    <div className="mx-auto my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/80 shadow-2xl backdrop-blur-md">
+      <div className="border-b border-border bg-muted px-4 py-4 sm:px-8 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
               Connected - create your airline
             </div>
-            <h2 className="flex items-center text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="flex items-center text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               <PlaneTakeoff className="mr-3 h-6 w-6 text-primary" />
               Launch Your Airline
             </h2>
@@ -114,7 +114,7 @@ export function AirlineCreator() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 p-8">
+      <form onSubmit={handleSubmit} className="space-y-5 p-4 sm:space-y-6 sm:p-8">
         {error && (
           <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start">
             <ShieldAlert className="h-5 w-5 text-destructive mr-3 mt-0.5 shrink-0" />
