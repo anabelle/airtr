@@ -261,6 +261,10 @@
     "tierLabel": "Nivel {{tier}}",
     "brand": "Marca",
     "cumulativeRevenue": "Ingresos acumulados: {{amount}}",
+    "nextTierLabel": "Siguiente Nivel",
+    "nextTierRevenue": "Ingresos Acumulados",
+    "nextTierRoutes": "Rutas Activas",
+    "maxTierReached": "Mega Transportista Global — Nivel Máximo Alcanzado",
     "status": {
       "private": "privada",
       "public": "pública",
