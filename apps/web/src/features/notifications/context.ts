@@ -14,6 +14,7 @@ export interface NotificationContextValue {
   browserPermission: NotificationPermission | "unsupported";
   nativePermission: string;
   supportsBrowserPush: boolean;
+  supportsNativePush: boolean;
   isNativeAndroid: boolean;
   softAskDismissed: boolean;
   setSoftAskDismissed: (dismissed: boolean) => void;

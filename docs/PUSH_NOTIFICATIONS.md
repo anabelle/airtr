@@ -92,6 +92,25 @@ Place your Firebase config file at:
 
 The Android Gradle project already conditionally applies Google services when that file exists.
 
+### 5. Android App Links verification
+
+The Android manifest now includes `autoVerify="true"` App Links for:
+
+- `https://acars.pub`
+- `https://www.acars.pub`
+
+For Android App Links verification to succeed in production, each host must serve:
+
+- `/.well-known/assetlinks.json`
+
+That file must include:
+
+- package name: `com.airtr.app`
+- your release signing certificate SHA-256 fingerprint
+
+Because the signing fingerprint is environment-specific, this repo does not hard-code the final
+`assetlinks.json` contents for you.
+
 ## Local development
 
 ### Install and validate

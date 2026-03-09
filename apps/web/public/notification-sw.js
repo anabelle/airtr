@@ -47,12 +47,28 @@ self.addEventListener("notificationclick", (event) => {
   const targetUrl = new URL(relativeUrl, self.location.origin).toString();
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+      let bestClient = null;
       for (const client of clients) {
-        if ("focus" in client && client.url.startsWith(self.location.origin)) {
-          return client.navigate(targetUrl).then(() => client.focus());
+        if (!client.url.startsWith(self.location.origin)) continue;
+        if (client.url === targetUrl || client.url.includes("/corporate")) {
+          bestClient = client;
+          break;
+        }
+        if (!bestClient || client.visibilityState === "visible") {
+          bestClient = client;
         }
       }
+
+      if (bestClient && "navigate" in bestClient && "focus" in bestClient) {
+        try {
+          await bestClient.navigate(targetUrl);
+          return await bestClient.focus();
+        } catch {
+          return self.clients.openWindow?.(targetUrl);
+        }
+      }
+
       if (self.clients.openWindow) {
         return self.clients.openWindow(targetUrl);
       }

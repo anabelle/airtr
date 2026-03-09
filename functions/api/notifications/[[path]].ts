@@ -75,9 +75,9 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 30;
-const rateLimitMap = new Map<string, number[]>();
 const CRITICAL_CATEGORIES = new Set<NotificationCategory>(["bankruptcy", "financial_warning"]);
 let fcmAccessTokenCache: { token: string; expiresAt: number } | null = null;
+const FCM_ACCESS_TOKEN_CACHE_KEY = "fcm-access-token";
 
 function json(data: unknown, init?: ResponseInit): Response {
   return Response.json(data, {
@@ -99,16 +99,40 @@ function isAllowedOrigin(origin: string | null): boolean {
   }
 }
 
-function isRateLimited(key: string): boolean {
+async function isRateLimited(db: D1Database, key: string): Promise<boolean> {
   const now = Date.now();
   const cutoff = now - RATE_WINDOW_MS;
-  const timestamps = (rateLimitMap.get(key) ?? []).filter((stamp) => stamp > cutoff);
+  const row = await db
+    .prepare(`SELECT timestamps FROM notification_rate_limits WHERE key = ?1 LIMIT 1`)
+    .bind(key)
+    .first<{ timestamps: string }>();
+  let storedTimestamps: number[] = [];
+  if (row?.timestamps) {
+    try {
+      storedTimestamps = JSON.parse(row.timestamps) as number[];
+    } catch (error) {
+      console.warn("[notifications] Corrupted notification rate-limit entry.", error);
+    }
+  }
+  const timestamps = storedTimestamps.filter((stamp) => stamp > cutoff);
   if (timestamps.length >= RATE_MAX_REQUESTS) {
-    rateLimitMap.set(key, timestamps);
+    await db
+      .prepare(
+        `INSERT OR REPLACE INTO notification_rate_limits (key, timestamps, updated_at)
+         VALUES (?1, ?2, ?3)`,
+      )
+      .bind(key, JSON.stringify(timestamps), now)
+      .run();
     return true;
   }
   timestamps.push(now);
-  rateLimitMap.set(key, timestamps);
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO notification_rate_limits (key, timestamps, updated_at)
+       VALUES (?1, ?2, ?3)`,
+    )
+    .bind(key, JSON.stringify(timestamps), now)
+    .run();
   return false;
 }
 
@@ -152,6 +176,17 @@ async function ensureSchema(db: D1Database): Promise<void> {
       updated_at INTEGER NOT NULL,
       last_error TEXT,
       PRIMARY KEY (registration_id, notification_id)
+    );
+    CREATE TABLE IF NOT EXISTS notification_rate_limits (
+      key TEXT PRIMARY KEY,
+      timestamps TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS notification_cache (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
   `);
 }
@@ -553,6 +588,32 @@ async function getFcmAccessToken(env: Env): Promise<string> {
     return fcmAccessTokenCache.token;
   }
 
+  try {
+    const db = getDb(env);
+    const cached = await db
+      .prepare(
+        `SELECT value_json, expires_at
+           FROM notification_cache
+          WHERE key = ?1
+          LIMIT 1`,
+      )
+      .bind(FCM_ACCESS_TOKEN_CACHE_KEY)
+      .first<{ value_json: string; expires_at: number }>();
+
+    if (cached && Date.now() < cached.expires_at - 60_000) {
+      const parsed = JSON.parse(cached.value_json) as { token?: string };
+      if (parsed.token) {
+        fcmAccessTokenCache = {
+          token: parsed.token,
+          expiresAt: cached.expires_at,
+        };
+        return parsed.token;
+      }
+    }
+  } catch (error) {
+    console.warn("[notifications] Unable to read persistent FCM cache.", error);
+  }
+
   const clientEmail = requireString(env.FIREBASE_CLIENT_EMAIL, "FIREBASE_CLIENT_EMAIL");
   const privateKey = requireString(env.FIREBASE_PRIVATE_KEY, "FIREBASE_PRIVATE_KEY");
   const now = Math.floor(Date.now() / 1000);
@@ -603,10 +664,25 @@ async function getFcmAccessToken(env: Env): Promise<string> {
 
   const data = (await response.json()) as { access_token?: string; expires_in?: number };
   const token = requireString(data.access_token, "FCM access token");
+  const expiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
   fcmAccessTokenCache = {
     token,
-    expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+    expiresAt,
   };
+
+  try {
+    const db = getDb(env);
+    await db
+      .prepare(
+        `INSERT OR REPLACE INTO notification_cache (key, value_json, expires_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4)`,
+      )
+      .bind(FCM_ACCESS_TOKEN_CACHE_KEY, JSON.stringify({ token }), expiresAt, Date.now())
+      .run();
+  } catch (error) {
+    console.warn("[notifications] Unable to persist FCM cache.", error);
+  }
+
   return token;
 }
 
@@ -871,6 +947,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const db = getDb(context.env);
+  await ensureSchema(db);
+
   const origin = context.request.headers.get("origin");
   if (!isAllowedOrigin(origin)) {
     return json({ error: "Forbidden" }, { status: 403 });
@@ -881,7 +960,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     context.request.headers.get("x-real-ip") ??
     origin ??
     "unknown";
-  if (isRateLimited(limiterKey)) {
+  if (await isRateLimited(db, limiterKey)) {
     return json({ error: "Rate limit exceeded." }, { status: 429 });
   }
 

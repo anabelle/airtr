@@ -122,7 +122,7 @@ function FinancialPulse({
         : "bg-muted-foreground/30";
 
   return (
-    <section className="space-y-3">
+    <section id="financials" className="space-y-3">
       <div className="rounded-xl border border-border/50 bg-background/50 p-5">
         {/* Main balance + rate */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -1133,7 +1133,7 @@ function ActivityLog({
   }
 
   return (
-    <section className="rounded-xl border border-border/50 bg-background/50">
+    <section id="activity" className="rounded-xl border border-border/50 bg-background/50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

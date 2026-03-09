@@ -63,6 +63,7 @@ export function Topbar() {
   const canManageLocalKey = isEphemeral && !isViewingOther;
 
   const openNotificationSettings = () => {
+    setMobileMenuOpen(false);
     navigate({ to: "/corporate" });
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {

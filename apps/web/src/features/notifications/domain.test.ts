@@ -25,6 +25,22 @@ describe("timeline notification classification", () => {
     });
   });
 
+  it("preserves corporate activity sections for finance alerts", () => {
+    const candidate = buildTimelineNotificationCandidate({
+      id: "evt-finance-1",
+      tick: 120,
+      timestamp: 1234567890,
+      type: "financial_warning",
+      description: "Cash runway is tightening.",
+    });
+
+    expect(candidate).toMatchObject({
+      category: "financial_warning",
+      url: "/corporate#activity",
+      deepLink: { kind: "corporate", section: "activity" },
+    });
+  });
+
   it("returns null for non-push timeline types", () => {
     const candidate = buildTimelineNotificationCandidate({
       id: "evt-route-1",

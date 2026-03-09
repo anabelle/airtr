@@ -13,6 +13,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // These same channels are also created from PushNotifications.createChannel in
+        // provider.tsx. The duplication is intentional and safe because
+        // createNotificationChannel is idempotent, which guarantees channels exist
+        // regardless of whether native or JS initialization happens first.
         createNotificationChannels();
     }
 

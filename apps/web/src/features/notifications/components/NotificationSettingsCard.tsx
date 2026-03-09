@@ -64,6 +64,14 @@ export function NotificationSettingsCard() {
     : supportsBrowserPush
       ? browserStatusLabel
       : t("notifications.statusUnsupported", { ns: "game" });
+  const canEnablePush = isNativeAndroid || supportsBrowserPush;
+  const canSendTest = Boolean(registrationSecret);
+  const enablePushUnavailableReason = isNativeAndroid
+    ? ""
+    : t("notifications.enableUnavailable", { ns: "game" });
+  const sendTestUnavailableReason = t("notifications.sendTestUnavailable", { ns: "game" });
+  const enableButtonTitle = canEnablePush ? undefined : enablePushUnavailableReason;
+  const sendTestButtonTitle = canSendTest ? undefined : sendTestUnavailableReason;
 
   return (
     <section id="notifications" className="rounded-xl border border-border/50 bg-background/50 p-5">
@@ -121,10 +129,14 @@ export function NotificationSettingsCard() {
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <button
                   type="button"
+                  disabled={!canEnablePush}
+                  aria-disabled={!canEnablePush}
+                  title={enableButtonTitle}
                   onClick={() => {
+                    if (!canEnablePush) return;
                     void (isNativeAndroid ? enableNativePush() : enableBrowserPush());
                   }}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/15 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/25 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Bell className="h-4 w-4" aria-hidden="true" />
                   {t("notifications.enablePush", { ns: "game" })}
@@ -143,10 +155,14 @@ export function NotificationSettingsCard() {
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
+              disabled={!canEnablePush}
+              aria-disabled={!canEnablePush}
+              title={enableButtonTitle}
               onClick={() => {
+                if (!canEnablePush) return;
                 void (isNativeAndroid ? enableNativePush() : enableBrowserPush());
               }}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Bell className="h-4 w-4" aria-hidden="true" />
               {isNativeAndroid
@@ -163,8 +179,14 @@ export function NotificationSettingsCard() {
             </button>
             <button
               type="button"
-              onClick={() => void sendTestNotification()}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 sm:col-span-2"
+              disabled={!canSendTest}
+              aria-disabled={!canSendTest}
+              title={sendTestButtonTitle}
+              onClick={() => {
+                if (!canSendTest) return;
+                void sendTestNotification();
+              }}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
               {t("notifications.sendTest", { ns: "game" })}

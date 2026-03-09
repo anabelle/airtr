@@ -9,17 +9,32 @@ export type NotificationDeepLinkTarget =
   | { kind: "airport"; iata: string; tab?: "info" | "flights" }
   | { kind: "aircraft"; id: string; tab?: "info" | "route" };
 
+const AIRCRAFT_PATH_SEGMENT = "(?:%[0-9A-Fa-f]{2}|[A-Za-z0-9_-])+";
+const AIRCRAFT_PATH_REGEX = new RegExp(`^/aircraft/${AIRCRAFT_PATH_SEGMENT}$`, "i");
+const KNOWN_WEB_HOSTS = new Set(["acars.pub", "www.acars.pub", "localhost"]);
+
 const isKnownPath = (pathname: string) =>
   pathname === "/corporate" ||
   pathname === "/network" ||
   pathname === "/fleet" ||
   /^\/airport\/[A-Z]{3}$/i.test(pathname) ||
-  /^\/aircraft\/[A-Za-z0-9_-]+$/i.test(pathname);
+  AIRCRAFT_PATH_REGEX.test(pathname);
+
+const isAllowedNotificationOrigin = (parsed: URL, origin: string) => {
+  const expectedOrigin = new URL(origin);
+  return (
+    parsed.origin === expectedOrigin.origin ||
+    KNOWN_WEB_HOSTS.has(parsed.hostname) ||
+    (parsed.protocol === "acars:" && parsed.hostname === "app")
+  );
+};
+
+const isSafeAircraftId = (value: string) => /^[\w/-][\w\s./-]*$/u.test(value);
 
 export function buildNotificationUrl(target: NotificationDeepLinkTarget): string {
   switch (target.kind) {
     case "corporate": {
-      const hash = target.section === "notifications" ? "#notifications" : "";
+      const hash = target.section ? `#${target.section}` : "";
       return `/corporate${hash}`;
     }
     case "network": {
@@ -55,14 +70,22 @@ export function parseNotificationUrl(
 ): NotificationDeepLinkTarget | null {
   try {
     const parsed = new URL(input, origin);
-    if (parsed.origin !== new URL(origin).origin || !isKnownPath(parsed.pathname)) {
+    if (!isAllowedNotificationOrigin(parsed, origin) || !isKnownPath(parsed.pathname)) {
       return null;
     }
 
     if (parsed.pathname === "/corporate") {
+      const section =
+        parsed.hash === "#notifications"
+          ? "notifications"
+          : parsed.hash === "#activity"
+            ? "activity"
+            : parsed.hash === "#financials"
+              ? "financials"
+              : undefined;
       return {
         kind: "corporate",
-        section: parsed.hash === "#notifications" ? "notifications" : undefined,
+        section,
       };
     }
 
@@ -106,9 +129,13 @@ export function parseNotificationUrl(
     }
 
     if (parsed.pathname.startsWith("/aircraft/")) {
+      const aircraftId = decodeURIComponent(parsed.pathname.split("/")[2]);
+      if (!isSafeAircraftId(aircraftId)) {
+        return null;
+      }
       return {
         kind: "aircraft",
-        id: decodeURIComponent(parsed.pathname.split("/")[2]),
+        id: aircraftId,
         tab:
           parsed.searchParams.get("aircraftTab") === "route"
             ? "route"

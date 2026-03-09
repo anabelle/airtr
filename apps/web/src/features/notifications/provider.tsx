@@ -1,4 +1,5 @@
 import { useAirlineStore } from "@acars/store";
+import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import {
   PushNotifications,
@@ -158,6 +159,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const pubkey = useAirlineStore((state) => state.pubkey);
   const deviceId = React.useMemo(() => getDeviceId(), []);
   const isNativeAndroid = Capacitor.getPlatform() === "android";
+  const supportsNativePush = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
   const supportsBrowserPush =
     typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
 
@@ -208,8 +210,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   );
 
   React.useEffect(() => {
-    if (!supportsBrowserPush) {
+    if (!supportsBrowserPush && !supportsNativePush) {
       setPlatformStatus((current) => (current === "idle" ? "unsupported" : current));
+      return;
+    }
+
+    if (supportsNativePush) {
       return;
     }
 
@@ -243,7 +249,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     return () => {
       cancelled = true;
     };
-  }, [supportsBrowserPush]);
+  }, [supportsBrowserPush, supportsNativePush]);
 
   React.useEffect(() => {
     setBrowserPermission(getBrowserPermission());
@@ -264,27 +270,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       handles.push(
         await PushNotifications.addListener("registration", async (token: Token) => {
           setAndroidToken(token.value);
-          if (!pubkey) return;
-          try {
-            const response = await registerNotificationTarget({
-              platform: "android",
-              pubkey,
-              deviceId,
-              token: token.value,
-              preferences,
-              permissionState: "granted",
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-              registrationSecret,
-            } satisfies AndroidNotificationRegistration);
-            persistSecret(response.registrationSecret);
-            setPlatformStatus("enabled");
-            setLastError(null);
-          } catch (error) {
-            setLastError(
-              error instanceof Error ? error.message : "Unable to register Android push token.",
-            );
-            setPlatformStatus("error");
-          }
         }),
       );
 
@@ -323,7 +308,36 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         void handle.remove();
       });
     };
-  }, [deviceId, isNativeAndroid, persistSecret, preferences, pubkey, registrationSecret]);
+  }, [isNativeAndroid]);
+
+  React.useEffect(() => {
+    if (!supportsNativePush) return;
+
+    let active = true;
+    let removeListener: { remove: () => Promise<void> } | null = null;
+
+    void App.addListener("appUrlOpen", ({ url }) => {
+      if (!active || typeof url !== "string") return;
+      try {
+        openNotificationUrl(url);
+      } catch (error) {
+        console.warn("[notifications] Failed to open deep link from appUrlOpen.", error);
+      }
+    }).then((listener) => {
+      if (!active) {
+        void listener.remove();
+        return;
+      }
+      removeListener = listener;
+    });
+
+    return () => {
+      active = false;
+      if (removeListener) {
+        void removeListener.remove();
+      }
+    };
+  }, [supportsNativePush]);
 
   const syncBrowserRegistration = React.useCallback(
     async (subscriptionJson: PushSubscriptionJSON, permissionState: NotificationPermission) => {
@@ -506,13 +520,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const dispatchNotificationCandidate = React.useCallback(
     async (payload: NotificationPayload) => {
       if (!registrationSecret) return;
-      if (!shouldDeliverNotification(preferences, payload)) return;
+      const shouldDeliverLocally = shouldDeliverNotification(preferences, payload);
       try {
         await sendNotificationCandidate({
           registrationSecret,
           includeSource: document.visibilityState !== "visible",
           notification: payload,
         });
+        if (!shouldDeliverLocally) {
+          return;
+        }
       } catch (error) {
         console.warn("[notifications] Failed to forward notification candidate", error);
       }
@@ -546,6 +563,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       browserPermission,
       nativePermission,
       supportsBrowserPush,
+      supportsNativePush,
       isNativeAndroid,
       softAskDismissed,
       setSoftAskDismissed,
@@ -574,6 +592,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setSoftAskDismissed,
       softAskDismissed,
       supportsBrowserPush,
+      supportsNativePush,
     ],
   );
 
