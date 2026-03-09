@@ -379,7 +379,7 @@ export function FleetManager() {
                               )}
                               {timer && timerStyle ? (
                                 <span
-                                  className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${timerStyle.container} ${timer.isImminent ? `animate-pulse ${timerStyle.glow}` : ""} shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]`}
+                                  className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-widest sm:px-3.5 sm:py-2 sm:text-xs ${timerStyle.container} ${timer.isImminent ? `animate-pulse ${timerStyle.glow}` : ""} shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]`}
                                 >
                                   <span
                                     className="absolute inset-y-0 left-0 opacity-100"
@@ -391,15 +391,15 @@ export function FleetManager() {
                                   />
                                   <span className="absolute inset-0 rounded-full bg-slate-950/22" />
                                   <span className="absolute inset-0 rounded-full ring-1 ring-white/16" />
-                                  <span className="relative z-10 flex items-center gap-2">
-                                    <timerStyle.icon className="h-3 w-3 text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]" />
+                                  <span className="relative z-10 flex items-center gap-2 sm:gap-2.5">
+                                    <timerStyle.icon className="h-3.5 w-3.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.95)] sm:h-4 sm:w-4" />
                                     <span
-                                      className={`${timerStyle.label} drop-shadow-[0_2px_6px_rgba(0,0,0,0.72)]`}
+                                      className={`${timerStyle.label} drop-shadow-[0_1px_1px_rgba(0,0,0,0.98),0_2px_6px_rgba(0,0,0,0.72)]`}
                                     >
                                       {timer.label}
                                     </span>
                                     <span
-                                      className={`font-mono text-[10px] font-black tracking-normal drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] ${timerStyle.time}`}
+                                      className={`font-mono text-[11px] font-black tracking-normal drop-shadow-[0_1px_1px_rgba(0,0,0,0.98),0_2px_6px_rgba(0,0,0,0.8)] sm:text-xs ${timerStyle.time}`}
                                     >
                                       {timer.time}
                                     </span>
