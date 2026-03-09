@@ -33,15 +33,14 @@ export function Topbar() {
   /* Net cash flow ticker — flight revenue minus fixed costs (hub opex + fleet leases) */
   const netCashFlow = useMemo(() => {
     if (!activeAirline || pulse.flightCount === 0) return null;
-    const hubOpex = activeAirline.hubs.reduce(
-      (sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex,
-      0,
+    const hubOpex = fpSum(
+      activeAirline.hubs.map((hub) => fp(getHubPricingForIata(hub)?.monthlyOpex ?? 0)),
     );
     const leaseAmounts = fleet
       .filter((ac) => ac.purchaseType === "lease")
       .map((ac) => getAircraftById(ac.modelId)?.monthlyLease ?? FP_ZERO);
     const totalMonthlyLease = leaseAmounts.length > 0 ? fpSum(leaseAmounts) : FP_ZERO;
-    const totalFixedCosts = fpAdd(fp(hubOpex), totalMonthlyLease);
+    const totalFixedCosts = fpAdd(hubOpex, totalMonthlyLease);
     if (totalFixedCosts === FP_ZERO) return null;
     const fixedCostsPerHour = fpDiv(totalFixedCosts, fp(30 * 24));
     const perHour = fpSub(pulse.netIncomeRate, fixedCostsPerHour);
@@ -550,6 +549,14 @@ export function Topbar() {
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
+                  {t("topbar.stockPrice")}
+                </span>
+                <span className="mt-1 font-mono text-sm font-bold text-primary">
+                  {fpFormat(activeAirline.stockPrice)}
+                </span>
+              </div>
+              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
+                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
                   {t("topbar.brandTier")}
                 </span>
                 <span className="mt-1 font-mono text-sm font-bold text-foreground md:text-right">
@@ -682,6 +689,14 @@ export function Topbar() {
                     {fpFormat(activeAirline.corporateBalance)}
                   </span>
                   {cashFlowTicker}
+                </span>
+              </div>
+              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
+                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
+                  {t("topbar.stockPrice")}
+                </span>
+                <span className="mt-1 font-mono text-sm font-bold text-primary">
+                  {fpFormat(activeAirline.stockPrice)}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
