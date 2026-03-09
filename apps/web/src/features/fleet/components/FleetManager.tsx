@@ -45,31 +45,35 @@ import { AircraftLiveryImage } from "./AircraftLiveryImage";
 
 const timerStyleMap = {
   enroute: {
-    container: "border-sky-500/30 bg-sky-500/10 text-sky-200",
-    label: "text-sky-200/70",
-    time: "text-sky-100",
-    glow: "shadow-[0_0_20px_rgba(56,189,248,0.35)]",
+    container:
+      "border-slate-950/70 bg-sky-950/88 text-sky-50 shadow-[0_10px_30px_rgba(2,6,23,0.45)] backdrop-blur-md",
+    label: "text-sky-100",
+    time: "text-white",
+    glow: "shadow-[0_0_22px_rgba(56,189,248,0.42)]",
     icon: PlaneTakeoff,
   },
   turnaround: {
-    container: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-    label: "text-amber-200/70",
-    time: "text-amber-100",
-    glow: "shadow-[0_0_18px_rgba(251,191,36,0.35)]",
+    container:
+      "border-slate-950/70 bg-amber-950/88 text-amber-50 shadow-[0_10px_30px_rgba(2,6,23,0.45)] backdrop-blur-md",
+    label: "text-amber-100",
+    time: "text-white",
+    glow: "shadow-[0_0_22px_rgba(251,191,36,0.42)]",
     icon: RotateCcw,
   },
   maintenance: {
-    container: "border-rose-500/30 bg-rose-500/10 text-rose-200",
-    label: "text-rose-200/70",
-    time: "text-rose-100",
-    glow: "shadow-[0_0_18px_rgba(244,63,94,0.35)]",
+    container:
+      "border-slate-950/70 bg-rose-950/88 text-rose-50 shadow-[0_10px_30px_rgba(2,6,23,0.45)] backdrop-blur-md",
+    label: "text-rose-100",
+    time: "text-white",
+    glow: "shadow-[0_0_22px_rgba(244,63,94,0.42)]",
     icon: Wrench,
   },
   delivery: {
-    container: "border-blue-500/30 bg-blue-500/10 text-blue-200",
-    label: "text-blue-200/70",
-    time: "text-blue-100",
-    glow: "shadow-[0_0_18px_rgba(59,130,246,0.35)]",
+    container:
+      "border-slate-950/70 bg-blue-950/88 text-blue-50 shadow-[0_10px_30px_rgba(2,6,23,0.45)] backdrop-blur-md",
+    label: "text-blue-100",
+    time: "text-white",
+    glow: "shadow-[0_0_22px_rgba(59,130,246,0.42)]",
     icon: PlaneLanding,
   },
 } as const;
@@ -375,24 +379,27 @@ export function FleetManager() {
                               )}
                               {timer && timerStyle ? (
                                 <span
-                                  className={`relative inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest overflow-hidden ${timerStyle.container} ${timer.isImminent ? `animate-pulse ${timerStyle.glow}` : ""} shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]`}
+                                  className={`relative inline-flex items-center gap-2 overflow-hidden rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${timerStyle.container} ${timer.isImminent ? `animate-pulse ${timerStyle.glow}` : ""} shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]`}
                                 >
                                   <span
-                                    className="absolute inset-y-0 left-0 opacity-90"
+                                    className="absolute inset-y-0 left-0 opacity-100"
                                     style={{
                                       width: `${Math.round(timer.progress * 100)}%`,
                                       background:
-                                        "linear-gradient(90deg, rgba(255,255,255,0.3), rgba(255,255,255,0.08))",
+                                        "linear-gradient(90deg, rgba(255,255,255,0.24), rgba(255,255,255,0.06))",
                                     }}
                                   />
-                                  <span className="absolute inset-0 rounded-full ring-1 ring-white/10" />
+                                  <span className="absolute inset-0 rounded-full bg-slate-950/22" />
+                                  <span className="absolute inset-0 rounded-full ring-1 ring-white/16" />
                                   <span className="relative z-10 flex items-center gap-2">
-                                    <timerStyle.icon className="h-3 w-3" />
-                                    <span className="text-white/90 drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
+                                    <timerStyle.icon className="h-3 w-3 text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]" />
+                                    <span
+                                      className={`${timerStyle.label} drop-shadow-[0_2px_6px_rgba(0,0,0,0.72)]`}
+                                    >
                                       {timer.label}
                                     </span>
                                     <span
-                                      className={`font-mono text-[10px] font-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)] ${timerStyle.time}`}
+                                      className={`font-mono text-[10px] font-black tracking-normal drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] ${timerStyle.time}`}
                                     >
                                       {timer.time}
                                     </span>
