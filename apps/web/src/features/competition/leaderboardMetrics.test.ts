@@ -72,9 +72,25 @@ describe("leaderboardMetrics", () => {
     expect(value).toBeGreaterThan(0);
   });
 
+  it("excludes leased aircraft from fleet value", () => {
+    const ownedAircraft = makeAircraft({ id: "ac-owned", purchaseType: "buy" });
+    const leasedAircraft = makeAircraft({ id: "ac-leased", purchaseType: "lease" });
+    const aircraftById = new Map([
+      [ownedAircraft.id, ownedAircraft],
+      [leasedAircraft.id, leasedAircraft],
+    ]);
+
+    const ownedValue = computeFleetValue([ownedAircraft.id], aircraftById, 0);
+    const combinedValue = computeFleetValue([ownedAircraft.id, leasedAircraft.id], aircraftById, 0);
+    const leasedValue = computeFleetValue([leasedAircraft.id], aircraftById, 0);
+
+    expect(combinedValue).toBe(ownedValue);
+    expect(leasedValue).toBe(0);
+  });
+
   it("computes network distance from routes", () => {
-    const routeA = makeRoute({ id: "route-a", distanceKm: 1200 });
-    const routeB = makeRoute({ id: "route-b", distanceKm: 2500 });
+    const routeA = makeRoute({ id: "route-a", distanceKm: 1200, assignedAircraftIds: ["ac-1"] });
+    const routeB = makeRoute({ id: "route-b", distanceKm: 2500, assignedAircraftIds: ["ac-2"] });
     const routeById = new Map([
       [routeA.id, routeA],
       [routeB.id, routeB],
@@ -84,6 +100,26 @@ describe("leaderboardMetrics", () => {
     expect(distance).toBe(3700);
   });
 
+  it("excludes routes without assigned aircraft from network distance", () => {
+    const activeRoute = makeRoute({
+      id: "route-active",
+      distanceKm: 1200,
+      assignedAircraftIds: ["ac-1"],
+    });
+    const emptyRoute = makeRoute({
+      id: "route-empty",
+      distanceKm: 2500,
+      assignedAircraftIds: [],
+    });
+    const routeById = new Map([
+      [activeRoute.id, activeRoute],
+      [emptyRoute.id, emptyRoute],
+    ]);
+
+    const distance = computeNetworkDistance([activeRoute.id, emptyRoute.id], routeById);
+    expect(distance).toBe(1200);
+  });
+
   it("builds leaderboard rows with derived metrics", () => {
     const airline = makeAirline({
       id: "airline-1",
@@ -91,7 +127,7 @@ describe("leaderboardMetrics", () => {
       routeIds: ["route-1"],
     });
     const aircraft = makeAircraft({ id: "ac-1" });
-    const route = makeRoute({ id: "route-1", distanceKm: 987 });
+    const route = makeRoute({ id: "route-1", distanceKm: 987, assignedAircraftIds: ["ac-1"] });
 
     const rows = buildLeaderboardRows(
       [airline],
