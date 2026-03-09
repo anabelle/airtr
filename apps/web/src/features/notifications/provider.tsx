@@ -2,15 +2,12 @@ import { useAirlineStore } from "@acars/store";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import {
-  PushNotifications,
   type PushNotificationSchema,
+  PushNotifications,
   type Token,
 } from "@capacitor/push-notifications";
 import React from "react";
 import { toast } from "sonner";
-import { type NotificationPayload, NOTIFICATION_CATEGORY_META } from "./domain";
-import { NotificationContext, type NotificationContextValue } from "./context";
-import { openNotificationUrl } from "./deepLinks";
 import {
   type AndroidNotificationRegistration,
   type BrowserNotificationRegistration,
@@ -18,11 +15,14 @@ import {
   sendNotificationCandidate,
   unregisterNotificationTarget,
 } from "./api";
+import { NotificationContext, type NotificationContextValue } from "./context";
+import { openNotificationUrl } from "./deepLinks";
+import { NOTIFICATION_CATEGORY_META, type NotificationPayload } from "./domain";
 import {
   loadNotificationPreferences,
+  type NotificationPreferences,
   saveNotificationPreferences,
   shouldDeliverNotification,
-  type NotificationPreferences,
 } from "./preferences";
 
 const DEVICE_ID_STORAGE_KEY = "acars:notifications:device-id";
@@ -411,7 +411,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    const env = import.meta as ImportMeta & { env?: Record<string, string | undefined> };
+    const env = import.meta as ImportMeta & {
+      env?: Record<string, string | undefined>;
+    };
     const vapidKey = env.env?.VITE_WEB_PUSH_PUBLIC_KEY;
     if (!vapidKey) {
       setPlatformStatus("error");
@@ -519,10 +521,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const dispatchNotificationCandidate = React.useCallback(
     async (payload: NotificationPayload) => {
-      if (!registrationSecret) return;
+      if (!pubkey || !registrationSecret) return;
       const shouldDeliverLocally = shouldDeliverNotification(preferences, payload);
       try {
         await sendNotificationCandidate({
+          pubkey,
           registrationSecret,
           includeSource: document.visibilityState !== "visible",
           notification: payload,
@@ -534,15 +537,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         console.warn("[notifications] Failed to forward notification candidate", error);
       }
     },
-    [preferences, registrationSecret],
+    [preferences, pubkey, registrationSecret],
   );
 
   const sendTestNotification = React.useCallback(async () => {
+    if (!pubkey) {
+      setLastError("Create or connect an airline identity before sending test notifications.");
+      return;
+    }
     if (!registrationSecret) {
       setLastError("Enable push notifications on this device before sending a test notification.");
       return;
     }
     await sendNotificationCandidate({
+      pubkey,
       registrationSecret,
       includeSource: true,
       notification: buildTestNotification(),
@@ -550,7 +558,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     toast.success("Test notification queued", {
       description: "If delivery is configured, this device should receive a push shortly.",
     });
-  }, [registrationSecret]);
+  }, [pubkey, registrationSecret]);
 
   const value = React.useMemo<NotificationContextValue>(
     () => ({

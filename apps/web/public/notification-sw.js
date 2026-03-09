@@ -1,3 +1,33 @@
+self.SAFE_NOTIFICATION_PATH_PREFIXES = [
+  "/corporate",
+  "/network",
+  "/fleet",
+  "/airport/",
+  "/aircraft/",
+];
+
+function getSafeNotificationUrl(input) {
+  const fallback = new URL("/corporate#notifications", self.location.origin);
+  if (typeof input !== "string" || input.trim() === "") {
+    return fallback.toString();
+  }
+
+  try {
+    const parsed = new URL(input, self.location.origin);
+    if (parsed.origin !== self.location.origin) {
+      return fallback.toString();
+    }
+    if (
+      !self.SAFE_NOTIFICATION_PATH_PREFIXES.some((prefix) => parsed.pathname.startsWith(prefix))
+    ) {
+      return fallback.toString();
+    }
+    return parsed.toString();
+  } catch {
+    return fallback.toString();
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -19,7 +49,7 @@ self.addEventListener("push", (event) => {
   const title = typeof payload.title === "string" ? payload.title : "ACARS notification";
   const body = typeof payload.body === "string" ? payload.body : "Open ACARS for details.";
   const tag = typeof payload.tag === "string" ? payload.tag : "acars-notification";
-  const url = typeof payload.url === "string" ? payload.url : "/corporate#notifications";
+  const url = getSafeNotificationUrl(payload.url);
   const data = {
     url,
     notificationId: typeof payload.id === "string" ? payload.id : undefined,
@@ -40,11 +70,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const relativeUrl =
-    typeof event.notification.data?.url === "string"
-      ? event.notification.data.url
-      : "/corporate#notifications";
-  const targetUrl = new URL(relativeUrl, self.location.origin).toString();
+  const targetUrl = getSafeNotificationUrl(event.notification.data?.url);
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {

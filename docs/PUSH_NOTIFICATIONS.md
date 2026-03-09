@@ -59,6 +59,10 @@ Required values:
 
 The web app reads `VITE_WEB_PUSH_PUBLIC_KEY` when the user explicitly enables browser push.
 
+Optional client config:
+
+- `VITE_NOTIFICATIONS_API_ORIGIN` — explicit absolute origin for the notifications API. Set this to `https://acars.pub` for production builds, especially for Capacitor/native shells where `window.location.origin` is not the public web origin.
+
 ### 2. Cloudflare delivery storage
 
 Create a D1 database and bind it to Pages Functions as:
@@ -168,6 +172,8 @@ Pages Functions route:
 - `POST /api/notifications/send`
 
 The client stores an opaque registration secret locally and uses that secret when forwarding timeline-derived notification candidates, so one registered device can trigger delivery to the same pubkey’s other registered devices without introducing gameplay authority on the backend.
+
+These endpoints now also expect Nostr HTTP auth (NIP-98-style `Authorization: Nostr ...`) tied to the caller's pubkey, and the server validates notification URLs so pushes stay within known ACARS routes.
 
 ## Default signal rules
 

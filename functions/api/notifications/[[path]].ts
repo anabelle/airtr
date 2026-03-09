@@ -1,3 +1,4 @@
+import { verifyEvent } from "nostr-tools";
 import webpush from "web-push";
 
 interface Env {
@@ -67,6 +68,16 @@ interface NotificationRegistrationRecord {
   timezone: string;
 }
 
+interface NostrHttpAuthEvent {
+  id?: string;
+  pubkey?: string;
+  created_at?: number;
+  kind?: number;
+  tags?: string[][];
+  content?: string;
+  sig?: string;
+}
+
 const ALLOWED_ORIGINS = new Set([
   "https://acars.pub",
   "https://www.acars.pub",
@@ -75,9 +86,18 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 30;
+const AUTH_MAX_AGE_SECONDS = 60;
 const CRITICAL_CATEGORIES = new Set<NotificationCategory>(["bankruptcy", "financial_warning"]);
 let fcmAccessTokenCache: { token: string; expiresAt: number } | null = null;
 const FCM_ACCESS_TOKEN_CACHE_KEY = "fcm-access-token";
+const NATIVE_ALLOWED_ORIGINS = new Set(["capacitor://localhost", "http://localhost"]);
+const SAFE_NOTIFICATION_PATH_PREFIXES = [
+  "/corporate",
+  "/network",
+  "/fleet",
+  "/airport/",
+  "/aircraft/",
+];
 
 function json(data: unknown, init?: ResponseInit): Response {
   return Response.json(data, {
@@ -91,11 +111,117 @@ function json(data: unknown, init?: ResponseInit): Response {
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (NATIVE_ALLOWED_ORIGINS.has(origin)) return true;
   try {
     const url = new URL(origin);
     return url.hostname.endsWith(".acars.pages.dev");
   } catch {
     return false;
+  }
+}
+
+function getHeader(request: Request, name: string): string | null {
+  return request.headers.get(name) ?? request.headers.get(name.toLowerCase());
+}
+
+function base64ToUtf8(value: string): string {
+  return new TextDecoder().decode(Uint8Array.from(atob(value), (char) => char.charCodeAt(0)));
+}
+
+function getTagValue(tags: string[][] | undefined, name: string): string | null {
+  if (!Array.isArray(tags)) return null;
+  for (const tag of tags) {
+    if (Array.isArray(tag) && tag[0] === name && typeof tag[1] === "string") {
+      return tag[1];
+    }
+  }
+  return null;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function validateNotificationUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = new URL(trimmed, "https://acars.pub");
+  if (parsed.origin !== "https://acars.pub") {
+    throw new Error("Notification URL must stay within ACARS routes.");
+  }
+
+  if (!SAFE_NOTIFICATION_PATH_PREFIXES.some((prefix) => parsed.pathname.startsWith(prefix))) {
+    throw new Error("Notification URL must target a known ACARS route.");
+  }
+
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+}
+
+async function requireAuthorizedPubkey(
+  request: Request,
+  expectedPubkey: string,
+  requestBody: string,
+): Promise<void> {
+  const authorization = getHeader(request, "authorization");
+  if (!authorization?.startsWith("Nostr ")) {
+    throw new Error("Missing Nostr authorization header.");
+  }
+
+  const encodedEvent = authorization.slice("Nostr ".length).trim();
+  if (!encodedEvent) {
+    throw new Error("Missing Nostr authorization payload.");
+  }
+
+  let authEvent: NostrHttpAuthEvent;
+  try {
+    authEvent = JSON.parse(base64ToUtf8(encodedEvent)) as NostrHttpAuthEvent;
+  } catch {
+    throw new Error("Invalid Nostr authorization payload.");
+  }
+
+  if (authEvent.kind !== 27235) {
+    throw new Error("Invalid Nostr authorization kind.");
+  }
+  if (typeof authEvent.pubkey !== "string" || authEvent.pubkey !== expectedPubkey) {
+    throw new Error("Nostr authorization pubkey mismatch.");
+  }
+  if (typeof authEvent.created_at !== "number") {
+    throw new Error("Missing Nostr authorization timestamp.");
+  }
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (Math.abs(nowSeconds - authEvent.created_at) > AUTH_MAX_AGE_SECONDS) {
+    throw new Error("Expired Nostr authorization.");
+  }
+
+  const requestUrl = new URL(request.url);
+  const absoluteUrl = requestUrl.toString();
+  const signedUrl = getTagValue(authEvent.tags, "u");
+  if (signedUrl !== absoluteUrl) {
+    throw new Error("Nostr authorization URL mismatch.");
+  }
+
+  const signedMethod = getTagValue(authEvent.tags, "method");
+  if (signedMethod?.toUpperCase() !== request.method.toUpperCase()) {
+    throw new Error("Nostr authorization method mismatch.");
+  }
+
+  if (requestBody.length > 0) {
+    const payloadTag = getTagValue(authEvent.tags, "payload");
+    const expectedPayloadHash = await sha256Hex(requestBody);
+    if (payloadTag !== expectedPayloadHash) {
+      throw new Error("Nostr authorization payload mismatch.");
+    }
+  }
+
+  if (
+    !authEvent.id ||
+    !authEvent.sig ||
+    !verifyEvent(authEvent as Parameters<typeof verifyEvent>[0])
+  ) {
+    throw new Error("Invalid Nostr authorization signature.");
   }
 }
 
@@ -196,6 +322,14 @@ async function parseJson<T>(request: Request): Promise<T> {
     return (await request.json()) as T;
   } catch {
     throw new Error("Invalid JSON body.");
+  }
+}
+
+async function readRequestText(request: Request): Promise<string> {
+  try {
+    return await request.text();
+  } catch {
+    throw new Error("Unable to read request body.");
   }
 }
 
@@ -323,7 +457,9 @@ function requireString(value: unknown, field: string): string {
 
 async function upsertRegistration(
   db: D1Database,
-  record: Omit<NotificationRegistrationRecord, "id" | "secret"> & { secret?: string | null },
+  record: Omit<NotificationRegistrationRecord, "id" | "secret"> & {
+    secret?: string | null;
+  },
 ): Promise<NotificationRegistrationRecord> {
   const now = Date.now();
   const existing = await db
@@ -662,7 +798,10 @@ async function getFcmAccessToken(env: Env): Promise<string> {
     throw new Error(`FCM token exchange failed (${response.status}).`);
   }
 
-  const data = (await response.json()) as { access_token?: string; expires_in?: number };
+  const data = (await response.json()) as {
+    access_token?: string;
+    expires_in?: number;
+  };
   const token = requireString(data.access_token, "FCM access token");
   const expiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
   fcmAccessTokenCache = {
@@ -795,6 +934,7 @@ function isStalePushError(message: string): boolean {
 async function handleRegister(context: EventContext<Env, string, unknown>): Promise<Response> {
   const db = getDb(context.env);
   await ensureSchema(db);
+  const requestBody = await readRequestText(context.request);
   const body = await parseJson<{
     pubkey?: string;
     deviceId?: string;
@@ -805,9 +945,16 @@ async function handleRegister(context: EventContext<Env, string, unknown>): Prom
     permissionState?: string;
     timezone?: string;
     registrationSecret?: string | null;
-  }>(context.request);
+  }>(
+    new Request(context.request.url, {
+      method: context.request.method,
+      headers: context.request.headers,
+      body: requestBody,
+    }),
+  );
 
   const pubkey = requireString(body.pubkey, "pubkey");
+  await requireAuthorizedPubkey(context.request, pubkey, requestBody);
   const deviceId = requireString(body.deviceId, "deviceId");
   const platform =
     body.platform === "android" ? "android" : body.platform === "browser" ? "browser" : null;
@@ -858,15 +1005,25 @@ async function handleRegister(context: EventContext<Env, string, unknown>): Prom
 async function handleUnregister(context: EventContext<Env, string, unknown>): Promise<Response> {
   const db = getDb(context.env);
   await ensureSchema(db);
+  const requestBody = await readRequestText(context.request);
   const body = await parseJson<{
     pubkey?: string;
     deviceId?: string;
     platform?: string;
     registrationSecret?: string | null;
-  }>(context.request);
+  }>(
+    new Request(context.request.url, {
+      method: context.request.method,
+      headers: context.request.headers,
+      body: requestBody,
+    }),
+  );
+
+  const pubkey = requireString(body.pubkey, "pubkey");
+  await requireAuthorizedPubkey(context.request, pubkey, requestBody);
 
   await deleteRegistrationBySecretOrIdentity(db, {
-    pubkey: requireString(body.pubkey, "pubkey"),
+    pubkey,
     deviceId: requireString(body.deviceId, "deviceId"),
     platform: requireString(body.platform, "platform"),
     registrationSecret: body.registrationSecret,
@@ -878,16 +1035,33 @@ async function handleUnregister(context: EventContext<Env, string, unknown>): Pr
 async function handleSend(context: EventContext<Env, string, unknown>): Promise<Response> {
   const db = getDb(context.env);
   await ensureSchema(db);
+  const requestBody = await readRequestText(context.request);
   const body = await parseJson<{
+    pubkey?: string;
     registrationSecret?: string;
     includeSource?: boolean;
     notification?: NotificationPayload;
-  }>(context.request);
+  }>(
+    new Request(context.request.url, {
+      method: context.request.method,
+      headers: context.request.headers,
+      body: requestBody,
+    }),
+  );
+
+  const pubkey = requireString(body.pubkey, "pubkey");
+  await requireAuthorizedPubkey(context.request, pubkey, requestBody);
 
   const secret = requireString(body.registrationSecret, "registrationSecret");
   const source = await loadSourceRegistration(db, secret);
   if (!source) {
     return json({ error: "Unknown registration secret." }, { status: 403 });
+  }
+  if (source.pubkey !== pubkey) {
+    return json(
+      { error: "Registration secret does not match the authorized pubkey." },
+      { status: 403 },
+    );
   }
 
   const notification = body.notification;
@@ -897,6 +1071,7 @@ async function handleSend(context: EventContext<Env, string, unknown>): Promise<
   notification.id = requireString(notification.id, "notification.id");
   notification.title = requireString(notification.title, "notification.title");
   notification.body = requireString(notification.body, "notification.body");
+  notification.url = validateNotificationUrl(notification.url);
 
   const targets = await listTargetRegistrations(
     db,

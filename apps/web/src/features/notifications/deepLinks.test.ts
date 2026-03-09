@@ -3,9 +3,15 @@ import { buildNotificationUrl, parseNotificationUrl } from "./deepLinks";
 
 describe("notification deep links", () => {
   it("round-trips a corporate notifications target", () => {
-    const url = buildNotificationUrl({ kind: "corporate", section: "notifications" });
+    const url = buildNotificationUrl({
+      kind: "corporate",
+      section: "notifications",
+    });
     expect(url).toBe("/corporate#notifications");
-    expect(parseNotificationUrl(url)).toEqual({ kind: "corporate", section: "notifications" });
+    expect(parseNotificationUrl(url)).toEqual({
+      kind: "corporate",
+      section: "notifications",
+    });
   });
 
   it("round-trips all corporate sections", () => {
@@ -24,12 +30,24 @@ describe("notification deep links", () => {
   });
 
   it("round-trips aircraft targets with tabs", () => {
-    const url = buildNotificationUrl({ kind: "aircraft", id: "ac-123", tab: "route" });
-    expect(parseNotificationUrl(url)).toEqual({ kind: "aircraft", id: "ac-123", tab: "route" });
+    const url = buildNotificationUrl({
+      kind: "aircraft",
+      id: "ac-123",
+      tab: "route",
+    });
+    expect(parseNotificationUrl(url)).toEqual({
+      kind: "aircraft",
+      id: "ac-123",
+      tab: "route",
+    });
   });
 
   it("accepts percent-encoded aircraft ids", () => {
-    const url = buildNotificationUrl({ kind: "aircraft", id: "aircraft/with spaces", tab: "info" });
+    const url = buildNotificationUrl({
+      kind: "aircraft",
+      id: "aircraft/with spaces",
+      tab: "info",
+    });
     expect(url).toBe("/aircraft/aircraft%2Fwith%20spaces?aircraftTab=info");
     expect(parseNotificationUrl(url)).toEqual({
       kind: "aircraft",
@@ -41,10 +59,14 @@ describe("notification deep links", () => {
   it("rejects off-origin or unknown routes", () => {
     expect(parseNotificationUrl("https://example.com/corporate")).toBeNull();
     expect(parseNotificationUrl("/totally-unknown")).toBeNull();
+    expect(parseNotificationUrl("https://example.com/phish?x=1", "https://acars.pub")).toBeNull();
   });
 
   it("accepts corporate routes without a section and ignores invalid params", () => {
-    expect(parseNotificationUrl("/corporate")).toEqual({ kind: "corporate", section: undefined });
+    expect(parseNotificationUrl("/corporate")).toEqual({
+      kind: "corporate",
+      section: undefined,
+    });
     expect(parseNotificationUrl("/network?tab=bad")).toEqual({
       kind: "network",
       tab: undefined,
