@@ -67,6 +67,15 @@ export {
   computeRouteFrequency,
   getMaintenanceDowntimeTicks,
 } from "./fleet.js";
+export {
+  FUEL_PRICE_EPOCH_TICKS,
+  FUEL_PRICE_MAX_PER_KG,
+  FUEL_PRICE_MEAN_PER_KG,
+  FUEL_PRICE_MIN_PER_KG,
+  getFuelPriceAtTick,
+  getFuelPriceHistory,
+  stepFuelPrice,
+} from "./fuel.js";
 // Geography
 export { haversineDistance } from "./geo.js";
 // Hubs

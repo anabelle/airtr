@@ -1,4 +1,11 @@
-import type { AircraftInstance, FixedPoint, FlightOffer, Route, TimelineEvent } from "@acars/core";
+import type {
+  AircraftInstance,
+  CycleFlightEvent,
+  FixedPoint,
+  FlightOffer,
+  Route,
+  TimelineEvent,
+} from "@acars/core";
 import {
   allocatePassengers,
   calculateDemand,
@@ -14,11 +21,11 @@ import {
   enumerateFlightEvents,
   fp,
   fpAdd,
-  fpScale,
   fpSub,
   fpToNumber,
   GENESIS_TIME,
   getCyclePhase,
+  getFuelPriceAtTick,
   getHubCongestionModifier,
   getHubDemandModifier,
   getProsperityIndex,
@@ -509,12 +516,14 @@ export function processFlightEngine(
         const airportFeesMultiplier = avgFee / 250;
 
         const distanceKm = route ? route.distanceKm : (ac.flight?.distanceKm ?? 0);
+        const fuelPricePerKg = getFuelPriceAtTick(tick);
         const cost = calculateFlightCost({
           distanceKm,
           aircraft: model,
           actualPassengers: rev.actualPassengers,
           blockHours: (ac.flight.arrivalTick - ac.flight.departureTick) / TICKS_PER_HOUR,
           airportFeesMultiplier,
+          fuelPricePerKg,
         });
 
         const profit = fpSub(rev.revenueTotal, cost.costTotal);
@@ -712,6 +721,44 @@ function applyFlightHours(updated: AircraftInstance, hoursToAdd: number): void {
 
 const DEFAULT_RECONCILE_LOAD_FACTOR = 0.65;
 
+interface ReconciledEventParams {
+  route: Route;
+  cycleStartTick: number;
+  fromTick: number;
+  durationTicks: number;
+  turnaroundTicks: number;
+  phaseOffset: number;
+  cappedLandings: number;
+}
+
+function getCappedReconciledFlightEvents(
+  params: ReconciledEventParams,
+  targetTick: number,
+): CycleFlightEvent[] {
+  if (params.cappedLandings <= 0) return [];
+
+  const effectiveCycleStart = params.cycleStartTick - params.phaseOffset;
+  const rawEvents = enumerateFlightEvents(
+    effectiveCycleStart,
+    params.fromTick,
+    targetTick,
+    params.durationTicks,
+    params.turnaroundTicks,
+    params.route,
+  );
+
+  const events: CycleFlightEvent[] = [];
+  let remainingLandings = params.cappedLandings;
+
+  for (const evt of rawEvents) {
+    if (remainingLandings <= 0) break;
+    events.push(evt);
+    if (evt.type === "landing") remainingLandings -= 1;
+  }
+
+  return events;
+}
+
 /**
  * Compute the total profit delta for a batch of landings and accumulate it.
  * Extracted to deduplicate the identical pattern in reconcileFleetToTick.
@@ -721,17 +768,20 @@ function accumulateLandingProfit(
   route: Route,
   model: ReturnType<typeof getAircraftById>,
   hoursPerLeg: number,
-  landings: number,
+  landingTicks: readonly number[],
 ): FixedPoint {
-  if (landings <= 0) return fp(0);
-  const perLeg = estimateLandingFinancials(
-    ac,
-    route,
-    model,
-    hoursPerLeg,
-    ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
-  );
-  return fpScale(perLeg.profit, landings);
+  if (landingTicks.length === 0) return fp(0);
+  return landingTicks.reduce<FixedPoint>((total, landingTick) => {
+    const perLeg = estimateLandingFinancials(
+      ac,
+      route,
+      model,
+      hoursPerLeg,
+      ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+      landingTick,
+    );
+    return fpAdd(total, perLeg.profit);
+  }, fp(0));
 }
 
 const MIN_GROUNDED_CONDITION = 0.2;
@@ -786,6 +836,7 @@ export function estimateLandingFinancials(
   model: ReturnType<typeof getAircraftById>,
   hoursPerLeg: number,
   loadFactor: number,
+  tick: number = 0,
 ): LandingFinancialResult {
   if (!model || hoursPerLeg <= 0) {
     const zeroRevenue = calculateFlightRevenue({
@@ -879,6 +930,7 @@ export function estimateLandingFinancials(
     actualPassengers: revenue.actualPassengers,
     blockHours: hoursPerLeg,
     airportFeesMultiplier,
+    fuelPricePerKg: getFuelPriceAtTick(tick),
   });
 
   const profit = fpSub(revenue.revenueTotal, cost.costTotal);
@@ -952,15 +1004,8 @@ export function reconcileFleetToTick(
 
   // Collect per-aircraft cycle parameters so we can generate synthetic
   // timeline events after the positional reconciliation is complete.
-  interface EventGenParams {
+  interface EventGenParams extends ReconciledEventParams {
     ac: AircraftInstance;
-    route: Route;
-    cycleStartTick: number;
-    fromTick: number;
-    durationTicks: number;
-    turnaroundTicks: number;
-    phaseOffset: number;
-    cappedLandings: number;
   }
   const eventGenQueue: EventGenParams[] = [];
 
@@ -1051,11 +1096,7 @@ export function reconcileFleetToTick(
         const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
         landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
-        balanceDelta = fpAdd(
-          balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
-        );
-        eventGenQueue.push({
+        const eventParams: EventGenParams = {
           ac: updated,
           route,
           cycleStartTick,
@@ -1064,7 +1105,20 @@ export function reconcileFleetToTick(
           turnaroundTicks,
           phaseOffset: stalePhaseOffset,
           cappedLandings: landings,
-        });
+        };
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(
+            updated,
+            route,
+            model,
+            hoursPerLeg,
+            getCappedReconciledFlightEvents(eventParams, targetTick)
+              .filter((evt) => evt.type === "landing")
+              .map((evt) => evt.tick),
+          ),
+        );
+        eventGenQueue.push(eventParams);
         return updated;
       }
       // Aircraft was mid-flight. Its cycle started at departureTick.
@@ -1109,11 +1163,7 @@ export function reconcileFleetToTick(
         const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
         landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
-        balanceDelta = fpAdd(
-          balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
-        );
-        eventGenQueue.push({
+        const eventParams: EventGenParams = {
           ac: updated,
           route,
           cycleStartTick,
@@ -1122,7 +1172,20 @@ export function reconcileFleetToTick(
           turnaroundTicks,
           phaseOffset: stalePhaseOffset,
           cappedLandings: landings,
-        });
+        };
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(
+            updated,
+            route,
+            model,
+            hoursPerLeg,
+            getCappedReconciledFlightEvents(eventParams, targetTick)
+              .filter((evt) => evt.type === "landing")
+              .map((evt) => evt.tick),
+          ),
+        );
+        eventGenQueue.push(eventParams);
         return updated;
       }
       // Aircraft was in turnaround. Turnaround started at arrivalTick.
@@ -1171,11 +1234,7 @@ export function reconcileFleetToTick(
       const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
       landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
       applyFlightHours(updated, landings * hoursPerLeg);
-      balanceDelta = fpAdd(
-        balanceDelta,
-        accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
-      );
-      eventGenQueue.push({
+      const eventParams: EventGenParams = {
         ac: updated,
         route,
         cycleStartTick,
@@ -1184,7 +1243,20 @@ export function reconcileFleetToTick(
         turnaroundTicks,
         phaseOffset,
         cappedLandings: landings,
-      });
+      };
+      balanceDelta = fpAdd(
+        balanceDelta,
+        accumulateLandingProfit(
+          updated,
+          route,
+          model,
+          hoursPerLeg,
+          getCappedReconciledFlightEvents(eventParams, targetTick)
+            .filter((evt) => evt.type === "landing")
+            .map((evt) => evt.tick),
+        ),
+      );
+      eventGenQueue.push(eventParams);
       return updated;
     } else if (ac.status === "delivery") {
       // Delivery aircraft whose deliveryAtTick is in the past should be
@@ -1229,11 +1301,7 @@ export function reconcileFleetToTick(
         const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
         landings = capLandingsForGrounding(updated, landings, hoursPerLeg, false);
         applyFlightHours(updated, landings * hoursPerLeg);
-        balanceDelta = fpAdd(
-          balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
-        );
-        eventGenQueue.push({
+        const eventParams: EventGenParams = {
           ac: updated,
           route,
           cycleStartTick,
@@ -1242,7 +1310,20 @@ export function reconcileFleetToTick(
           turnaroundTicks,
           phaseOffset: delPhaseOffset,
           cappedLandings: landings,
-        });
+        };
+        balanceDelta = fpAdd(
+          balanceDelta,
+          accumulateLandingProfit(
+            updated,
+            route,
+            model,
+            hoursPerLeg,
+            getCappedReconciledFlightEvents(eventParams, targetTick)
+              .filter((evt) => evt.type === "landing")
+              .map((evt) => evt.tick),
+          ),
+        );
+        eventGenQueue.push(eventParams);
         return updated;
       }
       // Still in delivery period — skip
@@ -1282,11 +1363,7 @@ export function reconcileFleetToTick(
     const hoursPerLeg = Math.min(24, durationTicks / TICKS_PER_HOUR);
     landings = capLandingsForGrounding(updated, landings, hoursPerLeg, ac.status === "enroute");
     applyFlightHours(updated, landings * hoursPerLeg);
-    balanceDelta = fpAdd(
-      balanceDelta,
-      accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
-    );
-    eventGenQueue.push({
+    const eventParams: EventGenParams = {
       ac: updated,
       route,
       cycleStartTick,
@@ -1295,7 +1372,20 @@ export function reconcileFleetToTick(
       turnaroundTicks,
       phaseOffset: 0,
       cappedLandings: landings,
-    });
+    };
+    balanceDelta = fpAdd(
+      balanceDelta,
+      accumulateLandingProfit(
+        updated,
+        route,
+        model,
+        hoursPerLeg,
+        getCappedReconciledFlightEvents(eventParams, targetTick)
+          .filter((evt) => evt.type === "landing")
+          .map((evt) => evt.tick),
+      ),
+    );
+    eventGenQueue.push(eventParams);
 
     return updated;
   });
@@ -1304,30 +1394,11 @@ export function reconcileFleetToTick(
   const events: TimelineEvent[] = [];
   for (const params of eventGenQueue) {
     if (params.cappedLandings <= 0) continue;
-    let remainingLandings = params.cappedLandings;
-
-    // For phase-offset routes (aircraft starting at destination), we need to
-    // adjust the effective cycle start so that enumerateFlightEvents (which
-    // always assumes the cycle starts at outbound takeoff) produces correctly
-    // shifted ticks.
-    const effectiveCycleStart = params.cycleStartTick - params.phaseOffset;
-
-    const rawEvents = enumerateFlightEvents(
-      effectiveCycleStart,
-      params.fromTick,
-      targetTick,
-      params.durationTicks,
-      params.turnaroundTicks,
-      params.route,
-    );
-
-    for (const evt of rawEvents) {
-      if (remainingLandings <= 0) break;
+    for (const evt of getCappedReconciledFlightEvents(params, targetTick)) {
       const simulatedTimestamp = GENESIS_TIME + evt.tick * TICK_DURATION;
       const idSuffix = evt.direction === "outbound" ? "" : "-rtn";
 
       if (evt.type === "takeoff") {
-        if (remainingLandings <= 0) break;
         events.push({
           id: `evt-takeoff${idSuffix}-${params.ac.id}-${evt.tick}`,
           tick: evt.tick,
@@ -1344,7 +1415,6 @@ export function reconcileFleetToTick(
               : `${params.ac.name} returning: ${evt.originIata} → ${evt.destinationIata}`,
         });
       } else {
-        remainingLandings -= 1;
         // Landing — include estimated financial details
         const model = getAircraftById(params.ac.modelId);
         const hoursPerLeg = Math.min(24, params.durationTicks / TICKS_PER_HOUR);
@@ -1354,6 +1424,7 @@ export function reconcileFleetToTick(
           model,
           hoursPerLeg,
           params.ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+          evt.tick,
         );
 
         events.push({

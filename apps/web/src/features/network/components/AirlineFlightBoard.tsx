@@ -1,6 +1,8 @@
 import { useActiveAirline, useEngineStore } from "@acars/store";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plane } from "lucide-react";
-import { useMemo } from "react";
+import type { CSSProperties } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   buildAirlineFlightBoardRows,
@@ -14,11 +16,15 @@ const STATUS_CLASS: Record<AirlineFlightRow["statusTone"], string> = {
   sky: "text-sky-400",
   slate: "text-slate-400",
 };
+const ROW_HEIGHT = 36;
 
-function AirlineFidsRow({ flight }: { flight: AirlineFlightRow }) {
+function AirlineFidsRow({ flight, style }: { flight: AirlineFlightRow; style?: CSSProperties }) {
   const loadFactor = flight.loadFactor !== undefined ? Math.round(flight.loadFactor * 100) : null;
   return (
-    <div className="grid grid-cols-[68px_1fr_44px_44px_52px_72px_36px] items-center gap-1.5 border-b border-slate-700/60 px-3 py-1.5 text-[11px] font-mono hover:bg-white/[0.03] transition-colors">
+    <div
+      style={style}
+      className="grid grid-cols-[68px_1fr_44px_44px_52px_72px_36px] items-center gap-1.5 border-b border-slate-700/60 px-3 py-1.5 text-[11px] font-mono hover:bg-white/[0.03] transition-colors"
+    >
       <span
         className={`font-bold uppercase tracking-wide text-[10px] leading-tight ${STATUS_CLASS[flight.statusTone]}`}
       >
@@ -62,11 +68,20 @@ export function AirlineFlightBoard() {
   const { t } = useTranslation("game");
   const { airline, fleet } = useActiveAirline();
   const tick = useEngineStore((s) => s.tick);
+  const scrollParentRef = useRef<HTMLDivElement | null>(null);
 
   const flights = useMemo(
     () => buildAirlineFlightBoardRows(fleet, airline, tick),
     [fleet, airline, tick],
   );
+  const flightBoardVirtualizer = useVirtualizer({
+    count: flights.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    initialRect: { width: 1024, height: ROW_HEIGHT * Math.min(flights.length, 8) },
+    overscan: 8,
+  });
+  const virtualRows = flightBoardVirtualizer.getVirtualItems();
 
   if (flights.length === 0) return null;
 
@@ -102,9 +117,31 @@ export function AirlineFlightBoard() {
       </div>
 
       {/* Rows */}
-      {flights.map((flight) => (
-        <AirlineFidsRow key={flight.key} flight={flight} />
-      ))}
+      <div
+        ref={scrollParentRef}
+        className="max-h-[288px] overflow-y-auto"
+        style={{ scrollbarGutter: "stable" }}
+      >
+        <div className="relative" style={{ height: `${flightBoardVirtualizer.getTotalSize()}px` }}>
+          {virtualRows.map((virtualRow) => {
+            const flight = flights[virtualRow.index];
+            if (!flight) return null;
+            return (
+              <AirlineFidsRow
+                key={flight.key}
+                flight={flight}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -234,6 +234,8 @@
     "billingCycleProgress": "Billing cycle progress",
     "netCashFlow": "Net Cash Flow",
     "netCashFlowDescription": "Flight revenue minus fixed costs",
+    "liveJetFuel": "Live Jet Fuel",
+    "fuelTrendWindow": "4h trend, deterministic market tape.",
     "hidePnl": "Hide P&L",
     "viewPnl": "View P&L Breakdown",
     "avgProfitPerFlight": "Avg Profit/Flight",

@@ -11,6 +11,7 @@ import {
   fpScale,
   fpSub,
   fpToNumber,
+  getFuelPriceAtTick,
   type Route,
 } from "@acars/core";
 import { getHubPricingForIata } from "@acars/data";
@@ -77,6 +78,7 @@ type ProjectionInput = {
   cabinConfig?: CabinConfig;
   airportFeesMultiplier?: number;
   includeFixedCosts?: boolean;
+  tick?: number;
 };
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -93,6 +95,7 @@ export function estimateRouteEconomics({
   cabinConfig,
   airportFeesMultiplier = 1,
   includeFixedCosts = false,
+  tick = 0,
 }: ProjectionInput): ProjectedRouteEconomics {
   const count = Math.max(1, aircraftCount);
   const config = cabinConfig ?? aircraft.capacity;
@@ -165,6 +168,7 @@ export function estimateRouteEconomics({
     actualPassengers: revenue.actualPassengers,
     blockHours,
     airportFeesMultiplier,
+    fuelPricePerKg: getFuelPriceAtTick(tick),
   });
 
   const weeklyLeaseShare = includeFixedCosts
