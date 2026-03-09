@@ -1,10 +1,20 @@
-import type { AircraftInstance, Route } from "@acars/core";
-import { calculateBookValue, computeRouteFrequency, fpFormat } from "@acars/core";
+import type { AircraftInstance, Route, TimelineEvent } from "@acars/core";
+import {
+  FP_ZERO,
+  TICKS_PER_HOUR,
+  calculateBookValue,
+  computeRouteFrequency,
+  fp,
+  fpDiv,
+  fpFormat,
+  fpMul,
+  fpSub,
+} from "@acars/core";
 import { airports as AIRPORTS, getAircraftById } from "@acars/data";
 import { FAMILY_ICONS } from "@acars/map";
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Plane, Route as RouteIcon, Wrench, X } from "lucide-react";
+import { Plane, Route as RouteIcon, Users, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { AircraftLiveryImage } from "@/features/fleet/components/AircraftLiveryImage";
@@ -81,6 +91,252 @@ function ConditionBar({ condition }: { condition: number }) {
   );
 }
 
+function findLatestAircraftLanding(
+  timeline: readonly TimelineEvent[],
+  aircraftId: string,
+): TimelineEvent | null {
+  for (let index = timeline.length - 1; index >= 0; index -= 1) {
+    const event = timeline[index];
+    if (event.type === "landing" && event.aircraftId === aircraftId) {
+      return event;
+    }
+  }
+
+  return null;
+}
+
+function SeatLayoutSection({ aircraft }: { aircraft: AircraftInstance }) {
+  const { t } = useTranslation("game");
+  const cabins = [
+    {
+      key: "economy",
+      code: "Y",
+      label: t("timeline.economy", { ns: "game" }),
+      seats: aircraft.configuration.economy,
+      barClassName: "bg-sky-400",
+      tintClassName: "text-sky-200",
+    },
+    {
+      key: "business",
+      code: "J",
+      label: t("timeline.business", { ns: "game" }),
+      seats: aircraft.configuration.business,
+      barClassName: "bg-violet-400",
+      tintClassName: "text-violet-200",
+    },
+    {
+      key: "first",
+      code: "F",
+      label: t("timeline.first", { ns: "game" }),
+      seats: aircraft.configuration.first,
+      barClassName: "bg-amber-400",
+      tintClassName: "text-amber-200",
+    },
+  ].filter((cabin) => cabin.seats > 0);
+
+  const totalSeats = cabins.reduce((sum, cabin) => sum + cabin.seats, 0);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+        <Users className="h-4 w-4" />
+        {t("aircraftPanel.seatLayout", { ns: "game" })}
+      </div>
+      <div className="rounded-xl border border-border/60 bg-background/70 p-4 space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+              {t("aircraftPanel.totalSeats", { ns: "game" })}
+            </p>
+            <p className="mt-1 text-lg font-mono font-semibold text-foreground">
+              {numberFormat.format(totalSeats)}
+            </p>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-right">
+            {aircraft.configuration.economy > 0 ? `Y${aircraft.configuration.economy}` : ""}
+            {aircraft.configuration.business > 0 ? ` J${aircraft.configuration.business}` : ""}
+            {aircraft.configuration.first > 0 ? ` F${aircraft.configuration.first}` : ""}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {cabins.map((cabin) => {
+            const share = totalSeats > 0 ? Math.round((cabin.seats / totalSeats) * 100) : 0;
+
+            return (
+              <div
+                key={cabin.key}
+                className="rounded-lg border border-border/40 bg-background/40 p-3"
+              >
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground/10 font-mono font-bold ${cabin.tintClassName}`}
+                    >
+                      {cabin.code}
+                    </span>
+                    <span className="font-semibold text-foreground">{cabin.label}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-semibold text-foreground">
+                      {numberFormat.format(cabin.seats)}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">{share}%</span>
+                  </div>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-border/60 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${cabin.barClassName}`}
+                    style={{ width: `${share}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecentPerformanceSection({
+  aircraft,
+  model,
+  lastLanding,
+}: {
+  aircraft: AircraftInstance;
+  model: ReturnType<typeof getAircraftById> | null;
+  lastLanding: TimelineEvent | null;
+}) {
+  const { t } = useTranslation("game");
+
+  if (!lastLanding || !model) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
+        {t("aircraftPanel.noRecentPerformance", { ns: "game" })}
+      </div>
+    );
+  }
+
+  const flightProfit = lastLanding.profit || FP_ZERO;
+  const flightDurationTicks = lastLanding.details?.flightDurationTicks ?? 0;
+  const isLeased = aircraft.purchaseType === "lease";
+  const leaseForFlight = isLeased
+    ? fpDiv(fpMul(model.monthlyLease, fp(flightDurationTicks)), fp(30 * 24 * TICKS_PER_HOUR))
+    : FP_ZERO;
+  const trueProfit = isLeased ? fpSub(flightProfit, leaseForFlight) : flightProfit;
+  const isProfitable = trueProfit > 0;
+  const pax = lastLanding.details?.passengers;
+  const lf = lastLanding.details?.loadFactor;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
+          {t("fleet.lastFlightOutcome", { ns: "game" })}
+        </span>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${isProfitable ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" : "border-red-500/20 bg-red-500/10 text-red-400"}`}
+        >
+          {isProfitable
+            ? t("fleet.profitable", { ns: "game" })
+            : t("fleet.lossMaking", { ns: "game" })}
+        </span>
+      </div>
+
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="flex flex-col">
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+            {t("fleet.route", { ns: "game" })}
+          </span>
+          <span className="text-xs font-bold text-foreground">
+            <button
+              type="button"
+              onClick={() => lastLanding.originIata && navigateToAirport(lastLanding.originIata)}
+              className="cursor-pointer transition-colors hover:text-primary"
+            >
+              {lastLanding.originIata ?? "—"}
+            </button>
+            {" → "}
+            <button
+              type="button"
+              onClick={() =>
+                lastLanding.destinationIata && navigateToAirport(lastLanding.destinationIata)
+              }
+              className="cursor-pointer transition-colors hover:text-primary"
+            >
+              {lastLanding.destinationIata ?? "—"}
+            </button>
+          </span>
+        </div>
+
+        <div className="min-w-0 flex flex-col text-right">
+          <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+            {isLeased
+              ? t("fleet.trueProfit", { ns: "game" })
+              : t("fleet.netProfit", { ns: "game" })}
+          </span>
+          <span
+            className={`text-sm font-mono font-bold ${isProfitable ? "text-emerald-400" : "text-red-400"}`}
+          >
+            {fpFormat(trueProfit, 0)}
+          </span>
+          {isLeased ? (
+            <span className="text-[9px] font-mono text-muted-foreground/70">
+              {t("fleet.leaseIncluded", {
+                ns: "game",
+                amount: fpFormat(leaseForFlight, 0),
+              })}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {pax && lf !== undefined ? (
+        <div className="border-t border-border/30 pt-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+              {t("flightBoard.loadFactor", { ns: "game" })}
+            </span>
+            <span
+              className={`text-[10px] font-mono font-black ${
+                lf >= 0.85 ? "text-emerald-400" : lf >= 0.6 ? "text-yellow-400" : "text-red-400"
+              }`}
+            >
+              {Math.round(lf * 100)}%
+            </span>
+          </div>
+          <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-muted/30">
+            <div
+              className={`h-full rounded-full transition-all ${
+                lf >= 0.85 ? "bg-emerald-500" : lf >= 0.6 ? "bg-yellow-500" : "bg-red-500"
+              }`}
+              style={{ width: `${Math.round(lf * 100)}%` }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-mono">
+            <span className="text-muted-foreground">
+              <span className="font-bold text-foreground">{pax.total}</span>{" "}
+              {t("fleet.passengersAbbr", { ns: "game" })}
+            </span>
+            <span className="text-muted-foreground/40">|</span>
+            <span className="text-muted-foreground">
+              Y:<span className="font-bold text-foreground">{pax.economy}</span>
+            </span>
+            <span className="text-muted-foreground">
+              J:<span className="font-bold text-foreground">{pax.business}</span>
+            </span>
+            <span className="text-muted-foreground">
+              F:<span className="font-bold text-foreground">{pax.first}</span>
+            </span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function FlightStrip({
   aircraft,
   timer,
@@ -148,7 +404,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
   const { t } = useTranslation(["common", "game"]);
   const navigate = useNavigate();
   const search = useSearch({ from: "__root__" });
-  const { airline, fleet, routesByOwner, competitors } = useAirlineStore();
+  const { airline, fleet, routesByOwner, competitors, timeline } = useAirlineStore();
   const tick = useEngineStore((s) => s.tick);
   const tickProgress = useEngineStore((s) => s.tickProgress);
 
@@ -236,6 +492,10 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   const status = statusConfig[aircraft.status];
   const familyId = model?.familyId ?? "a320";
+  const lastLanding = useMemo(
+    () => findLatestAircraftLanding(timeline, aircraft.id),
+    [timeline, aircraft.id],
+  );
 
   return (
     <aside
@@ -423,6 +683,8 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
               </div>
             ) : null}
 
+            <SeatLayoutSection aircraft={aircraft} />
+
             {/* Condition & maintenance */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
@@ -581,21 +843,31 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
           </>
         ) : (
           /* Route tab */
-          <RouteTab route={assignedRoute} siblings={siblingsOnRoute} aircraft={aircraft} />
+          <RouteTab
+            route={assignedRoute}
+            siblings={siblingsOnRoute}
+            aircraft={aircraft}
+            lastLanding={lastLanding}
+            model={model}
+          />
         )}
       </div>
     </aside>
   );
 }
 
-function RouteTab({
+export function RouteTab({
   route,
   siblings,
   aircraft,
+  lastLanding,
+  model,
 }: {
   route: Route | null;
   siblings: AircraftInstance[];
   aircraft: AircraftInstance;
+  lastLanding: TimelineEvent | null;
+  model: ReturnType<typeof getAircraftById> | null;
 }) {
   const { t, i18n } = useTranslation(["common", "game"]);
   const regionNames = useMemo(
@@ -731,6 +1003,13 @@ function RouteTab({
             <p className="mt-0.5 text-sm font-mono font-semibold">{frequency}x/wk</p>
           </div>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+          {t("aircraftPanel.recentPerformance", { ns: "game" })}
+        </p>
+        <RecentPerformanceSection aircraft={aircraft} model={model} lastLanding={lastLanding} />
       </div>
 
       {/* Fares */}
