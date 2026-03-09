@@ -5,7 +5,6 @@ import type {
   FixedPoint,
   Route,
   TimelineEvent,
-  TimelineEventType,
 } from "@acars/core";
 import {
   calculateBookValue,
@@ -23,6 +22,32 @@ import {
   TICKS_PER_HOUR,
 } from "@acars/core";
 import { getAircraftById } from "@acars/data";
+import {
+  createAirlineFromCreateAction,
+  createBootstrapAirlineFromTickUpdate,
+} from "./actionReducer/airlineFactories.js";
+import {
+  asNumber,
+  asRecord,
+  asString,
+  asStringArray,
+  buildAircraftName,
+  clampFixedPoint,
+  clampInt,
+  clampNumber,
+  clampString,
+  isTimelineEventType,
+  MAX_BALANCE,
+  MAX_DISTANCE_KM,
+  MAX_FARE,
+  MAX_HUBS,
+  MAX_NAME_LENGTH,
+  MAX_PRICE,
+  MAX_TIMELINE_EVENTS,
+  MIN_BALANCE,
+  sanitizeIata,
+  VALID_STATUSES,
+} from "./actionReducer/shared.js";
 import { reconcileFleetToTick } from "./FlightEngine";
 
 export interface ActionRecord {
@@ -41,99 +66,6 @@ export interface ActionReplayResult {
   /** True when the action log ends with AIRLINE_DISSOLVE — the airline was intentionally removed. */
   dissolved: boolean;
 }
-
-const MAX_TIMELINE_EVENTS = 1000;
-
-const DEFAULT_LIVERY = {
-  primary: "#1f2937",
-  secondary: "#3b82f6",
-  accent: "#f59e0b",
-};
-
-const MAX_NAME_LENGTH = 64;
-const MAX_CODE_LENGTH = 8;
-const MAX_HUBS = 12;
-const MAX_DISTANCE_KM = 20000;
-const MAX_FARE = fp(10000);
-const MAX_PRICE = fp(1000000000);
-const MIN_BALANCE = fp(-1000000000);
-const MAX_BALANCE = fp(1000000000);
-const VALID_STATUSES: AirlineEntity["status"][] = ["private", "public", "chapter11", "liquidated"];
-const TIMELINE_EVENT_TYPES: ReadonlySet<TimelineEventType> = new Set([
-  "takeoff",
-  "landing",
-  "purchase",
-  "sale",
-  "lease_payment",
-  "maintenance",
-  "delivery",
-  "hub_change",
-  "route_change",
-  "ferry",
-  "competitor_hub",
-  "price_war",
-  "tier_upgrade",
-  "bankruptcy",
-  "financial_warning",
-]);
-
-const asString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
-const isTimelineEventType = (value: string): value is TimelineEventType =>
-  TIMELINE_EVENT_TYPES.has(value as TimelineEventType);
-
-const asNumber = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? value : null;
-
-const clampInt = (value: unknown, min: number, max: number): number | null => {
-  const numeric = asNumber(value);
-  if (numeric === null) return null;
-  const rounded = Math.floor(numeric);
-  if (rounded < min) return min;
-  if (rounded > max) return max;
-  return rounded;
-};
-
-const clampNumber = (value: unknown, min: number, max: number): number | null => {
-  const numeric = asNumber(value);
-  if (numeric === null) return null;
-  if (numeric < min) return min;
-  if (numeric > max) return max;
-  return numeric;
-};
-
-const clampString = (value: unknown, maxLength: number): string | null => {
-  const str = asString(value);
-  if (!str) return null;
-  return str.slice(0, maxLength);
-};
-
-const sanitizeIata = (value: unknown): string | null => {
-  const str = asString(value);
-  if (!str) return null;
-  const trimmed = str.trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(trimmed)) return null;
-  return trimmed;
-};
-
-const clampFixedPoint = (value: unknown, min: FixedPoint, max: FixedPoint): FixedPoint | null => {
-  const numeric = asNumber(value);
-  if (numeric === null) return null;
-  const rounded = Math.round(numeric);
-  const clamped = Math.min(Math.max(rounded, min), max);
-  return clamped as FixedPoint;
-};
-
-const asStringArray = (value: unknown): string[] =>
-  Array.isArray(value)
-    ? value.map((item) => asString(item)).filter((item): item is string => Boolean(item))
-    : [];
-
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-
-const buildAircraftName = (modelName: string | undefined, index: number) =>
-  `${modelName ?? "Aircraft"} ${index}`;
 
 export async function buildActionChainHashFromRecords(
   previousHash: string,
@@ -361,69 +293,29 @@ export async function replayActionLog(params: {
     );
     if (!hasAirlineCreate) {
       // Find the latest TICK_UPDATE (last in sorted order since it's the most recent).
-      for (let i = sortedActions.length - 1; i >= 0; i--) {
-        const record = sortedActions[i];
-        if (record.action.action === "TICK_UPDATE") {
-          const payload = record.action.payload;
-          const tick = clampInt(payload.tick, 0, Number.MAX_SAFE_INTEGER) ?? 0;
-          const corporateBalance =
-            clampFixedPoint(payload.corporateBalance, MIN_BALANCE, MAX_BALANCE) ?? fp(100000000);
-          const name = clampString(payload.airlineName, MAX_NAME_LENGTH) ?? "Unknown Airline";
-          const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
-          const callsign = clampString(payload.callsign, MAX_CODE_LENGTH) ?? "";
-          const hubs = asStringArray(payload.hubs)
-            .map((hub) => sanitizeIata(hub))
-            .filter((hub): hub is string => Boolean(hub))
-            .slice(0, MAX_HUBS);
-          const liveryPayload = asRecord(payload.livery);
-          const livery = liveryPayload
-            ? {
-                primary: asString(liveryPayload.primary) ?? DEFAULT_LIVERY.primary,
-                secondary: asString(liveryPayload.secondary) ?? DEFAULT_LIVERY.secondary,
-                accent: asString(liveryPayload.accent) ?? DEFAULT_LIVERY.accent,
-              }
-            : { ...DEFAULT_LIVERY };
-          const status =
-            typeof payload.status === "string" &&
-            VALID_STATUSES.includes(payload.status as AirlineEntity["status"])
-              ? (payload.status as AirlineEntity["status"])
-              : "private";
-          const tier = clampInt(payload.tier, 1, 10) ?? 1;
-          const brandScore = clampNumber(payload.brandScore, 0, 1) ?? 0.5;
-          const cumulativeRevenue =
-            clampFixedPoint(payload.cumulativeRevenue, fp(0), MAX_BALANCE) ?? fp(0);
-          const payloadFleetIds = asStringArray(payload.fleetIds);
-          const payloadRouteIds = asStringArray(payload.routeIds);
-          if (payloadFleetIds.length > 0) authoritativeFleetIds = payloadFleetIds;
-          if (payloadRouteIds.length > 0) authoritativeRouteIds = payloadRouteIds;
+        for (let i = sortedActions.length - 1; i >= 0; i--) {
+          const record = sortedActions[i];
+          if (record.action.action === "TICK_UPDATE") {
+            const payload = record.action.payload;
+            const bootstrap = createBootstrapAirlineFromTickUpdate(
+              pubkey,
+              record.eventId,
+              payload,
+            );
+            if (bootstrap.authoritativeFleetIds.length > 0) {
+              authoritativeFleetIds = bootstrap.authoritativeFleetIds;
+            }
+            if (bootstrap.authoritativeRouteIds.length > 0) {
+              authoritativeRouteIds = bootstrap.authoritativeRouteIds;
+            }
 
-          dissolved = false;
-          bootstrapTick = tick;
-          airline = {
-            id: `bootstrap:${record.eventId}`,
-            foundedBy: pubkey,
-            status,
-            ceoPubkey: pubkey,
-            sharesOutstanding: 10000000,
-            shareholders: { [pubkey]: 10000000 },
-            name,
-            icaoCode,
-            callsign,
-            hubs,
-            livery,
-            brandScore,
-            tier,
-            cumulativeRevenue,
-            corporateBalance,
-            stockPrice: fp(10),
-            fleetIds: payloadFleetIds,
-            routeIds: payloadRouteIds,
-            lastTick: tick,
-          };
-          break;
+            dissolved = false;
+            bootstrapTick = bootstrap.tick;
+            airline = bootstrap.airline;
+            break;
+          }
         }
       }
-    }
   }
 
   for (const record of sortedActions) {
@@ -462,45 +354,8 @@ export async function replayActionLog(params: {
       timelineEventIds.clear();
       allowActionTimeline = true;
 
-      const name = clampString(payload.name, MAX_NAME_LENGTH) ?? "New Airline";
-      const icaoCode = clampString(payload.icaoCode, MAX_CODE_LENGTH) ?? "";
-      const callsign = clampString(payload.callsign, MAX_CODE_LENGTH) ?? "";
-      const hubs = asStringArray(payload.hubs)
-        .map((hub) => sanitizeIata(hub))
-        .filter((hub): hub is string => Boolean(hub))
-        .slice(0, MAX_HUBS);
-      const liveryPayload = asRecord(payload.livery);
-      const livery = {
-        primary: asString(liveryPayload?.primary) ?? DEFAULT_LIVERY.primary,
-        secondary: asString(liveryPayload?.secondary) ?? DEFAULT_LIVERY.secondary,
-        accent: asString(liveryPayload?.accent) ?? DEFAULT_LIVERY.accent,
-      };
-      const corporateBalance =
-        clampFixedPoint(payload.corporateBalance ?? fp(100000000), MIN_BALANCE, MAX_BALANCE) ??
-        fp(100000000);
-
       dissolved = false;
-      airline = {
-        id: `action:${record.eventId}`,
-        foundedBy: pubkey,
-        status: "private",
-        ceoPubkey: pubkey,
-        sharesOutstanding: 10000000,
-        shareholders: { [pubkey]: 10000000 },
-        name,
-        icaoCode,
-        callsign,
-        hubs,
-        livery,
-        brandScore: 0.5,
-        tier: 1,
-        cumulativeRevenue: fp(0),
-        corporateBalance,
-        stockPrice: fp(10),
-        fleetIds: [],
-        routeIds: [],
-        lastTick: actionTick,
-      };
+      airline = createAirlineFromCreateAction(pubkey, record.eventId, actionTick, payload);
       continue;
     }
 
