@@ -6,6 +6,7 @@ import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AircraftInfoPanel } from "@/features/network/components/AircraftInfoPanel";
 import { AirportInfoPanel } from "@/features/network/components/AirportInfoPanel";
+import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { buildGroundPresenceByAirport } from "@/features/network/utils/groundTraffic";
 
 const airportByIata = new Map<string, Airport>(AIRPORTS.map((a) => [a.iata, a]));
@@ -15,7 +16,11 @@ const airportByIata = new Map<string, Airport>(AIRPORTS.map((a) => [a.iata, a]))
  * on a given aircraft. For grounded aircraft, returns the base airport.
  * For enroute aircraft, returns a virtual Airport at the interpolated position.
  */
-function getAircraftFocusPoint(ac: AircraftInstance, tick: number, tickProgress: number): Airport | null {
+function getAircraftFocusPoint(
+  ac: AircraftInstance,
+  tick: number,
+  tickProgress: number,
+): Airport | null {
   if (ac.status === "enroute" && ac.flight) {
     const origin = airportByIata.get(ac.flight.originIata);
     const dest = airportByIata.get(ac.flight.destinationIata);
@@ -33,7 +38,7 @@ function getAircraftFocusPoint(ac: AircraftInstance, tick: number, tickProgress:
     }
     return dest ?? null;
   }
-  return ac.baseAirportIata ? airportByIata.get(ac.baseAirportIata) ?? null : null;
+  return ac.baseAirportIata ? (airportByIata.get(ac.baseAirportIata) ?? null) : null;
 }
 
 export function WorldMap() {
@@ -82,7 +87,7 @@ export function WorldMap() {
   const competitorHubColors = useMemo(() => {
     const map = new Map<string, string>();
     competitors.forEach((value) => {
-      if (!value.livery?.primary || !value.hubs?.length) return;
+      if (!hasLeaderboardActivity(value) || !value.livery?.primary || !value.hubs?.length) return;
       for (const hubIata of value.hubs) {
         if (!map.has(hubIata)) {
           map.set(hubIata, value.livery.primary);

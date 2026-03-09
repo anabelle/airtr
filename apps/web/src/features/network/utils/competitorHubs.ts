@@ -1,4 +1,5 @@
 import type { AirlineEntity } from "@acars/core";
+import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 
 export type CompetitorHubEntry = {
   name: string;
@@ -13,7 +14,7 @@ export function buildCompetitorHubEntries(
   const entries: CompetitorHubEntry[] = [];
 
   competitors.forEach((value) => {
-    if (value.hubs?.includes(airportIata)) {
+    if (hasLeaderboardActivity(value) && value.hubs?.includes(airportIata)) {
       entries.push({
         name: value.name,
         icaoCode: value.icaoCode,

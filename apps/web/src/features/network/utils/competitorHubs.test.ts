@@ -35,6 +35,7 @@ describe("buildCompetitorHubEntries", () => {
           name: "NorthWind",
           icaoCode: "NWD",
           hubs: ["JFK"],
+          cumulativeRevenue: fp(1),
         }),
       ],
       [
@@ -44,6 +45,7 @@ describe("buildCompetitorHubEntries", () => {
           name: "Sunrise",
           icaoCode: "SUN",
           hubs: ["LAX"],
+          cumulativeRevenue: fp(1),
         }),
       ],
     ]);
@@ -61,6 +63,7 @@ describe("buildCompetitorHubEntries", () => {
           name: "Avianca",
           icaoCode: "AVA",
           hubs: ["JFK"],
+          cumulativeRevenue: fp(1),
         }),
       ],
       [
@@ -70,6 +73,7 @@ describe("buildCompetitorHubEntries", () => {
           name: "Avianca",
           icaoCode: "AVC",
           hubs: ["JFK"],
+          cumulativeRevenue: fp(1),
         }),
       ],
     ]);
@@ -79,5 +83,37 @@ describe("buildCompetitorHubEntries", () => {
       { name: "Avianca", icaoCode: "AVA", ceoPubkey: "comp-1" },
       { name: "Avianca", icaoCode: "AVC", ceoPubkey: "comp-2" },
     ]);
+  });
+
+  it("excludes inactive competitors using leaderboard activity rules", () => {
+    const competitors = new Map([
+      [
+        "comp-1",
+        makeAirline({
+          ceoPubkey: "comp-1",
+          name: "Inactive Air",
+          icaoCode: "INA",
+          hubs: ["JFK"],
+          cumulativeRevenue: fp(0),
+          fleetIds: [],
+          routeIds: [],
+          timeline: [],
+        }),
+      ],
+      [
+        "comp-2",
+        makeAirline({
+          ceoPubkey: "comp-2",
+          name: "Active Air",
+          icaoCode: "ACT",
+          hubs: ["JFK"],
+          cumulativeRevenue: fp(1),
+        }),
+      ],
+    ]);
+
+    const result = buildCompetitorHubEntries(competitors, "JFK");
+
+    expect(result).toEqual([{ name: "Active Air", icaoCode: "ACT", ceoPubkey: "comp-2" }]);
   });
 });
