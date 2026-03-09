@@ -34,6 +34,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
+import { MOBILE_OVERLAY_MAX_HEIGHT_CLASS } from "@/shared/components/layout/mobileLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { navigateToAircraft, navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
@@ -1107,7 +1108,9 @@ export function FleetManager() {
             onClick={() => !isListing && setListingTarget(null)}
             aria-label="Close listing modal"
           />
-          <div className="relative z-10 flex w-full max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[88vh] sm:max-w-lg sm:rounded-2xl">
+          <div
+            className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[88vh] sm:max-w-lg sm:rounded-2xl`}
+          >
             <div className="flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">

@@ -8,6 +8,10 @@ import { Plane, Route as RouteIcon, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { AircraftLiveryImage } from "@/features/fleet/components/AircraftLiveryImage";
 import { getAircraftTimer } from "@/features/fleet/utils/aircraftTimers";
+import {
+  MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
+  MOBILE_TOPBAR_TOP_CLASS,
+} from "@/shared/components/layout/mobileLayout";
 import { navigateToAircraft, navigateToAirport } from "@/shared/lib/permalinkNavigation";
 
 type AircraftInfoPanelProps = {
@@ -229,7 +233,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   return (
     <aside
-      className="pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 top-[4.5rem] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl"
+      className={`pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl`}
       aria-live="polite"
     >
       {/* Header */}
