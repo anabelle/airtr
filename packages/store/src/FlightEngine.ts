@@ -19,6 +19,7 @@ import {
   fpToNumber,
   GENESIS_TIME,
   getCyclePhase,
+  getFuelPriceAtTick,
   getHubCongestionModifier,
   getHubDemandModifier,
   getProsperityIndex,
@@ -509,12 +510,14 @@ export function processFlightEngine(
         const airportFeesMultiplier = avgFee / 250;
 
         const distanceKm = route ? route.distanceKm : (ac.flight?.distanceKm ?? 0);
+        const fuelPricePerKg = getFuelPriceAtTick(tick);
         const cost = calculateFlightCost({
           distanceKm,
           aircraft: model,
           actualPassengers: rev.actualPassengers,
           blockHours: (ac.flight.arrivalTick - ac.flight.departureTick) / TICKS_PER_HOUR,
           airportFeesMultiplier,
+          fuelPricePerKg,
         });
 
         const profit = fpSub(rev.revenueTotal, cost.costTotal);
@@ -722,6 +725,7 @@ function accumulateLandingProfit(
   model: ReturnType<typeof getAircraftById>,
   hoursPerLeg: number,
   landings: number,
+  tick: number = 0,
 ): FixedPoint {
   if (landings <= 0) return fp(0);
   const perLeg = estimateLandingFinancials(
@@ -730,6 +734,7 @@ function accumulateLandingProfit(
     model,
     hoursPerLeg,
     ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+    tick,
   );
   return fpScale(perLeg.profit, landings);
 }
@@ -786,6 +791,7 @@ export function estimateLandingFinancials(
   model: ReturnType<typeof getAircraftById>,
   hoursPerLeg: number,
   loadFactor: number,
+  tick: number = 0,
 ): LandingFinancialResult {
   if (!model || hoursPerLeg <= 0) {
     const zeroRevenue = calculateFlightRevenue({
@@ -879,6 +885,7 @@ export function estimateLandingFinancials(
     actualPassengers: revenue.actualPassengers,
     blockHours: hoursPerLeg,
     airportFeesMultiplier,
+    fuelPricePerKg: getFuelPriceAtTick(tick),
   });
 
   const profit = fpSub(revenue.revenueTotal, cost.costTotal);
@@ -1053,7 +1060,7 @@ export function reconcileFleetToTick(
         applyFlightHours(updated, landings * hoursPerLeg);
         balanceDelta = fpAdd(
           balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings, targetTick),
         );
         eventGenQueue.push({
           ac: updated,
@@ -1111,7 +1118,7 @@ export function reconcileFleetToTick(
         applyFlightHours(updated, landings * hoursPerLeg);
         balanceDelta = fpAdd(
           balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings, targetTick),
         );
         eventGenQueue.push({
           ac: updated,
@@ -1173,7 +1180,7 @@ export function reconcileFleetToTick(
       applyFlightHours(updated, landings * hoursPerLeg);
       balanceDelta = fpAdd(
         balanceDelta,
-        accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+        accumulateLandingProfit(updated, route, model, hoursPerLeg, landings, targetTick),
       );
       eventGenQueue.push({
         ac: updated,
@@ -1231,7 +1238,7 @@ export function reconcileFleetToTick(
         applyFlightHours(updated, landings * hoursPerLeg);
         balanceDelta = fpAdd(
           balanceDelta,
-          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+          accumulateLandingProfit(updated, route, model, hoursPerLeg, landings, targetTick),
         );
         eventGenQueue.push({
           ac: updated,
@@ -1284,7 +1291,7 @@ export function reconcileFleetToTick(
     applyFlightHours(updated, landings * hoursPerLeg);
     balanceDelta = fpAdd(
       balanceDelta,
-      accumulateLandingProfit(updated, route, model, hoursPerLeg, landings),
+      accumulateLandingProfit(updated, route, model, hoursPerLeg, landings, targetTick),
     );
     eventGenQueue.push({
       ac: updated,
@@ -1354,6 +1361,7 @@ export function reconcileFleetToTick(
           model,
           hoursPerLeg,
           params.ac.lastKnownLoadFactor ?? DEFAULT_RECONCILE_LOAD_FACTOR,
+          evt.tick,
         );
 
         events.push({

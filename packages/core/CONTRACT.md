@@ -286,6 +286,7 @@ interface FlightCostParams {
   actualPassengers: number;
   blockHours: number;
   airportFeesMultiplier?: number;
+  fuelPricePerKg?: FixedPoint;
 }
 interface FlightCostResult {
   costFuel: FixedPoint;
@@ -298,6 +299,12 @@ interface FlightCostResult {
   costTotal: FixedPoint;
 }
 function calculateFlightCost(params: FlightCostParams): FlightCostResult;
+function getFuelPriceAtTick(tick: number): FixedPoint;
+function getFuelPriceHistory(
+  currentTick: number,
+  sampleCount?: number,
+  sampleSpacingTicks?: number,
+): Array<{ tick: number; price: FixedPoint }>;
 
 function calculateHubLandingFee(
   baseLandingFee: FixedPoint,

@@ -5,6 +5,7 @@
 // ============================================================
 
 import { FP_ZERO, fp, fpAdd, fpDiv, fpScale } from "./fixed-point.js";
+import { FUEL_PRICE_MEAN_PER_KG } from "./fuel.js";
 import type { AircraftModel, FixedPoint, FlightOffer } from "./types.js";
 
 /**
@@ -31,7 +32,6 @@ export function detectPriceWar(offers: FlightOffer[]): {
 }
 
 // Global constants
-const FUEL_PRICE_PER_KG = fp(1.2); // $1.20 per kg
 const CREW_COST_PER_HOUR = fp(150); // $150 per hour per crew member
 const NAV_FEE_PER_KM = fp(0.5); // $0.50 per km overflight
 
@@ -59,6 +59,7 @@ export interface FlightCostParams {
   actualPassengers: number;
   blockHours: number;
   airportFeesMultiplier?: number;
+  fuelPricePerKg?: FixedPoint;
 }
 
 export function calculateHubLandingFee(
@@ -159,7 +160,8 @@ export function calculateFlightCost(params: FlightCostParams): {
 } {
   // Fuel: distance_km * fuel_per_km * fuel_price
   const fuelKg = params.distanceKm * params.aircraft.fuelBurnKgPerKm;
-  const costFuel = fpScale(FUEL_PRICE_PER_KG, fuelKg);
+  const fuelPricePerKg = params.fuelPricePerKg ?? FUEL_PRICE_MEAN_PER_KG;
+  const costFuel = fpScale(fuelPricePerKg, fuelKg);
 
   // Crew: blockHours * crewCostPerHour * crewCount
   const crewCount = params.aircraft.crewRequired.cockpit + params.aircraft.crewRequired.cabin;

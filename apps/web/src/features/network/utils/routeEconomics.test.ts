@@ -41,6 +41,7 @@ describe("estimateRouteEconomics", () => {
       aircraftCount: 1,
       cabinConfig: mockAircraft.capacity,
       includeFixedCosts: true,
+      tick: 1000,
     });
 
     expect(projection.frequencyPerWeek).toBeGreaterThan(0);
@@ -48,5 +49,57 @@ describe("estimateRouteEconomics", () => {
     expect(projection.breakEvenLoadFactor).toBeGreaterThan(0);
     expect(projection.supplyRatio).toBeGreaterThan(0);
     expect(fpToNumber(projection.costPerFlight)).toBeGreaterThan(0);
+  });
+
+  it("reflects live fuel pricing at different ticks", () => {
+    const early = estimateRouteEconomics({
+      route: {
+        originIata: "PTY",
+        destinationIata: "BOG",
+        distanceKm: 761,
+        fareEconomy: fp(164),
+        fareBusiness: fp(454),
+        fareFirst: fp(1009),
+      },
+      addressableDemand: {
+        origin: "PTY",
+        destination: "BOG",
+        economy: 4282,
+        business: 1142,
+        first: 285,
+      },
+      pressureMultiplier: 0.88,
+      effectiveLoadFactor: 0.82,
+      aircraft: mockAircraft,
+      aircraftCount: 1,
+      cabinConfig: mockAircraft.capacity,
+      tick: 10,
+    });
+
+    const later = estimateRouteEconomics({
+      route: {
+        originIata: "PTY",
+        destinationIata: "BOG",
+        distanceKm: 761,
+        fareEconomy: fp(164),
+        fareBusiness: fp(454),
+        fareFirst: fp(1009),
+      },
+      addressableDemand: {
+        origin: "PTY",
+        destination: "BOG",
+        economy: 4282,
+        business: 1142,
+        first: 285,
+      },
+      pressureMultiplier: 0.88,
+      effectiveLoadFactor: 0.82,
+      aircraft: mockAircraft,
+      aircraftCount: 1,
+      cabinConfig: mockAircraft.capacity,
+      tick: 5000,
+    });
+
+    expect(early.costBreakdown.fuel).not.toBe(later.costBreakdown.fuel);
   });
 });

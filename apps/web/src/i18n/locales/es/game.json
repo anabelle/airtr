@@ -234,6 +234,8 @@
     "billingCycleProgress": "Progreso del ciclo de facturación",
     "netCashFlow": "Flujo neto de caja",
     "netCashFlowDescription": "Ingresos de vuelo menos costos fijos",
+    "liveJetFuel": "Combustible Jet en Vivo",
+    "fuelTrendWindow": "Tendencia de 4 h, cinta de mercado determinista.",
     "hidePnl": "Ocultar P&L",
     "viewPnl": "Ver desglose de P&L",
     "avgProfitPerFlight": "Ganancia prom./vuelo",

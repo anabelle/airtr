@@ -2,7 +2,6 @@ import type { Airport, FixedPoint, TimelineEvent } from "@acars/core";
 import {
   CHAPTER11_BALANCE_THRESHOLD_USD,
   FP_ZERO,
-  TIER_THRESHOLDS,
   fp,
   fpAdd,
   fpDiv,
@@ -11,7 +10,10 @@ import {
   fpSub,
   fpSum,
   fpToNumber,
+  getFuelPriceAtTick,
+  getFuelPriceHistory,
   TICK_DURATION,
+  TIER_THRESHOLDS,
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
@@ -64,12 +66,14 @@ function FinancialPulse({
   hubOpex,
   fleetLease,
   leasedCount,
+  tick,
 }: {
   corporateBalance: FixedPoint;
   pulse: FinancialPulseData;
   hubOpex: number;
   fleetLease: FixedPoint;
   leasedCount: number;
+  tick: number;
 }) {
   const { t } = useTranslation(["common", "game"]);
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -84,6 +88,19 @@ function FinancialPulse({
   const billingCyclePercent = Math.min(99, Math.floor(billingCycle.progress * 100));
 
   const lowConfidence = pulse.flightCount > 0 && pulse.financialFlightCount < 5;
+  const fuelPrice = getFuelPriceAtTick(tick);
+  const fuelHistory = useMemo(() => getFuelPriceHistory(tick, 24, 600), [tick]);
+  const fuelMin = Math.min(...fuelHistory.map((sample) => fpToNumber(sample.price)));
+  const fuelMax = Math.max(...fuelHistory.map((sample) => fpToNumber(sample.price)));
+  const sparklinePoints = fuelHistory
+    .map((sample, index) => {
+      const x = fuelHistory.length === 1 ? 100 : (index / (fuelHistory.length - 1)) * 100;
+      const price = fpToNumber(sample.price);
+      const normalized = fuelMax === fuelMin ? 0.5 : (price - fuelMin) / (fuelMax - fuelMin);
+      const y = 100 - normalized * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   // Billing cycle urgency colors
   const cycleColor =
@@ -162,6 +179,37 @@ function FinancialPulse({
 
         {/* Monthly fixed costs breakdown */}
         <div className="mt-3 space-y-1">
+          <div className="rounded-lg border border-border/40 bg-background/60 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("corporate.liveJetFuel", { ns: "game" })}
+                </p>
+                <p
+                  className="text-sm font-black text-foreground"
+                  style={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {fpFormat(fuelPrice, 2)}/kg
+                </p>
+              </div>
+              <div className="h-10 w-28 shrink-0 opacity-85">
+                <svg viewBox="0 0 100 100" className="h-full w-full" aria-hidden="true">
+                  <polyline
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    points={sparklinePoints}
+                    className="text-primary/80"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              </div>
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground/70">
+              {t("corporate.fuelTrendWindow", { ns: "game" })}
+            </p>
+          </div>
+
           <div
             className="flex items-center justify-between text-xs text-muted-foreground"
             style={{ fontVariantNumeric: "tabular-nums" }}
@@ -524,7 +572,12 @@ function CompanyProfile({
               rel={npub ? "noreferrer" : undefined}
               className="h-7 w-7 overflow-hidden rounded-full border border-border/60 bg-muted/40"
               aria-label={
-                npub ? t("corporate.openProfileAria", { ns: "game", name: displayName }) : undefined
+                npub
+                  ? t("corporate.openProfileAria", {
+                      ns: "game",
+                      name: displayName,
+                    })
+                  : undefined
               }
               style={airlinePrimary ? { boxShadow: `0 0 0 2px ${airlinePrimary}` } : undefined}
             >
@@ -698,7 +751,9 @@ function BankruptcyPanel({
       </div>
       <p className="text-xs text-rose-300/70 leading-relaxed">
         {airline.status === "chapter11"
-          ? t("bankruptcy.panelChapter11Desc", { threshold: CHAPTER11_THRESHOLD_DISPLAY })
+          ? t("bankruptcy.panelChapter11Desc", {
+              threshold: CHAPTER11_THRESHOLD_DISPLAY,
+            })
           : t("bankruptcy.panelLiquidatedDesc")}
       </p>
       {airline.status === "chapter11" && (
@@ -896,7 +951,10 @@ function HubConfirmDialog({
       onClick={(e) => {
         if (e.target === dialogRef.current) onCancel();
       }}
-      aria-label={t("corporate.hubContractReviewAria", { ns: "game", iata: action.iata })}
+      aria-label={t("corporate.hubContractReviewAria", {
+        ns: "game",
+        iata: action.iata,
+      })}
       className="fixed inset-0 z-50 m-auto w-full max-w-xl rounded-2xl border border-white/10 bg-gradient-to-br from-[#0b1117] via-[#0d1218] to-[#101722] p-0 shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95"
       style={{ overscrollBehavior: "contain" }}
     >
@@ -1017,14 +1075,27 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
   const getRelativeTime = (eventTick: number, currentTick: number) => {
     const diffSecs = Math.max(0, (currentTick - eventTick) * (TICK_DURATION / 1000));
     if (diffSecs < 10) return t("time.justNow", { ns: "common" });
-    if (diffSecs < 60) return t("time.secondsAgo", { ns: "common", count: Math.floor(diffSecs) });
+    if (diffSecs < 60)
+      return t("time.secondsAgo", {
+        ns: "common",
+        count: Math.floor(diffSecs),
+      });
     if (diffSecs < 3600) {
-      return t("time.minutesAgo", { ns: "common", count: Math.floor(diffSecs / 60) });
+      return t("time.minutesAgo", {
+        ns: "common",
+        count: Math.floor(diffSecs / 60),
+      });
     }
     if (diffSecs < 86400) {
-      return t("time.hoursAgo", { ns: "common", count: Math.floor(diffSecs / 3600) });
+      return t("time.hoursAgo", {
+        ns: "common",
+        count: Math.floor(diffSecs / 3600),
+      });
     }
-    return t("time.daysAgo", { ns: "common", count: Math.floor(diffSecs / 86400) });
+    return t("time.daysAgo", {
+      ns: "common",
+      count: Math.floor(diffSecs / 86400),
+    });
   };
 
   if (timeline.length === 0) {
@@ -1146,6 +1217,7 @@ export default function CorporateDashboard() {
     isLoading,
   } = useAirlineStore();
   const { fleet, timeline, routes, isViewingOther } = useActiveAirline();
+  const tick = useEngineStore((s) => s.tick);
   const homeAirport = useEngineStore((s) => s.homeAirport);
   const setActiveHubIata = useEngineStore((s) => s.setActiveHubIata);
 
@@ -1227,6 +1299,7 @@ export default function CorporateDashboard() {
           aircraftCount: Math.max(1, route.assignedAircraftIds.length),
           cabinConfig: primaryAssignment.aircraft.configuration,
           includeFixedCosts: true,
+          tick,
         });
         return {
           routeId: route.id,
@@ -1246,7 +1319,7 @@ export default function CorporateDashboard() {
       projectedWeeklyProfit: fpSum(entries.map((entry) => entry.projectedProfit)),
       routesNeedingCuts: entries.filter((entry) => entry.needsCuts).length,
     };
-  }, [fleet, routes]);
+  }, [fleet, routes, tick]);
 
   if (!airline && !isViewingOther) {
     return (
@@ -1254,7 +1327,9 @@ export default function CorporateDashboard() {
         <NostrAccessCard
           icon={Building2}
           title={t("access.corporateLockedTitle", { ns: "identity" })}
-          description={t("access.corporateLockedDescription", { ns: "identity" })}
+          description={t("access.corporateLockedDescription", {
+            ns: "identity",
+          })}
           onConnect={initializeIdentity}
           onCreateFree={createNewIdentity}
           onLoginWithNsec={loginWithNsec}
@@ -1352,6 +1427,7 @@ export default function CorporateDashboard() {
             hubOpex={currentMonthlyOpex}
             fleetLease={totalMonthlyLease}
             leasedCount={leasedCount}
+            tick={tick}
           />
 
           {/* ── Zone 3: Network Intelligence ── */}

@@ -43,6 +43,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { AirlineFlightBoard } from "@/features/network/components/AirlineFlightBoard";
 import { getRouteDemandSnapshot } from "@/features/network/hooks/useRouteDemand";
 import {
   estimateRouteEconomics,
@@ -53,7 +54,6 @@ import { PanelHeader } from "@/shared/components/layout/PanelLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
 import { useConfirm } from "@/shared/lib/useConfirm";
-import { AirlineFlightBoard } from "@/features/network/components/AirlineFlightBoard";
 
 const toneDotClass = {
   emerald: "bg-emerald-500",
@@ -241,6 +241,7 @@ export function RouteManager() {
             aircraft: sampleModel,
             aircraftCount: 1,
             cabinConfig: sampleModel.capacity,
+            tick,
           })
         : null;
       return {
@@ -311,6 +312,7 @@ export function RouteManager() {
               aircraft: sampleModel,
               aircraftCount: 1,
               cabinConfig: sampleModel.capacity,
+              tick,
             })
           : null;
         return {
@@ -590,7 +592,10 @@ export function RouteManager() {
         })}
         badge={
           <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary sm:px-3 sm:text-xs">
-            {t("routeManager.activeBadge", { ns: "game", count: activeRoutes.length })}
+            {t("routeManager.activeBadge", {
+              ns: "game",
+              count: activeRoutes.length,
+            })}
           </span>
         }
       />
@@ -602,7 +607,9 @@ export function RouteManager() {
               <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
                 <MapPin className="h-4 w-4 text-primary" aria-hidden="true" />
                 <select
-                  aria-label={t("routeManager.selectPlanningHub", { ns: "game" })}
+                  aria-label={t("routeManager.selectPlanningHub", {
+                    ns: "game",
+                  })}
                   value={planningOriginIata ?? ""}
                   onChange={(event) => setPlanningOriginIata(event.target.value || null)}
                   className="h-9 flex-1 rounded-lg border border-border/50 bg-background px-3 text-xs font-bold text-foreground sm:flex-none"
@@ -622,7 +629,10 @@ export function RouteManager() {
                 onClick={() => setTab("active")}
                 className={`rounded-lg px-3 py-2 text-xs font-bold transition-all sm:text-sm ${tab === "active" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
-                {t("routeManager.activeTab", { ns: "game", count: activeRoutes.length })}
+                {t("routeManager.activeTab", {
+                  ns: "game",
+                  count: activeRoutes.length,
+                })}
               </button>
               <button
                 type="button"
@@ -721,10 +731,17 @@ export function RouteManager() {
                                 const message =
                                   err instanceof Error
                                     ? err.message
-                                    : t("routeManager.routeRebaseFailed", { ns: "game" });
-                                toast.error(t("routeManager.routeRebaseFailed", { ns: "game" }), {
-                                  description: message,
-                                });
+                                    : t("routeManager.routeRebaseFailed", {
+                                        ns: "game",
+                                      });
+                                toast.error(
+                                  t("routeManager.routeRebaseFailed", {
+                                    ns: "game",
+                                  }),
+                                  {
+                                    description: message,
+                                  },
+                                );
                               }
                             }}
                             className="h-9 rounded-lg bg-amber-500 px-3 text-xs font-bold text-amber-950 hover:bg-amber-400 transition"
@@ -734,20 +751,26 @@ export function RouteManager() {
                         </>
                       ) : (
                         <div className="text-xs font-bold text-amber-100/70">
-                          {t("routeManager.openAnotherHubToRebase", { ns: "game" })}
+                          {t("routeManager.openAnotherHubToRebase", {
+                            ns: "game",
+                          })}
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={async () => {
                           const approved = await confirm({
-                            title: t("routeManager.closeRouteTitle", { ns: "game" }),
+                            title: t("routeManager.closeRouteTitle", {
+                              ns: "game",
+                            }),
                             description: t("routeManager.closeRouteDescription", {
                               ns: "game",
                               origin: route.originIata,
                               destination: route.destinationIata,
                             }),
-                            confirmLabel: t("routeManager.closeRoute", { ns: "game" }),
+                            confirmLabel: t("routeManager.closeRoute", {
+                              ns: "game",
+                            }),
                             tone: "destructive",
                           });
                           if (!approved) return;
@@ -757,10 +780,17 @@ export function RouteManager() {
                             const message =
                               err instanceof Error
                                 ? err.message
-                                : t("routeManager.routeCloseFailed", { ns: "game" });
-                            toast.error(t("routeManager.routeCloseFailed", { ns: "game" }), {
-                              description: message,
-                            });
+                                : t("routeManager.routeCloseFailed", {
+                                    ns: "game",
+                                  });
+                            toast.error(
+                              t("routeManager.routeCloseFailed", {
+                                ns: "game",
+                              }),
+                              {
+                                description: message,
+                              },
+                            );
                           }
                         }}
                         className="h-9 rounded-lg border border-amber-500/30 bg-transparent px-3 text-xs font-bold text-amber-100 hover:bg-amber-500/20 transition"
@@ -780,7 +810,9 @@ export function RouteManager() {
                 <input
                   type="text"
                   name="routeSearch"
-                  placeholder={t("routeManager.searchPlaceholder", { ns: "game" })}
+                  placeholder={t("routeManager.searchPlaceholder", {
+                    ns: "game",
+                  })}
                   className="w-full bg-background border border-border/50 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -897,6 +929,7 @@ export function RouteManager() {
                             aircraftCount: Math.max(1, route.assignedAircraftIds.length),
                             cabinConfig: primaryAssignment.aircraft.configuration,
                             includeFixedCosts: true,
+                            tick,
                           })
                         : null;
 
@@ -1010,7 +1043,9 @@ export function RouteManager() {
                                         }}
                                         className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
                                       >
-                                        {t("routeManager.editFares", { ns: "game" })}
+                                        {t("routeManager.editFares", {
+                                          ns: "game",
+                                        })}
                                       </button>
 
                                       <button
@@ -1050,7 +1085,9 @@ export function RouteManager() {
                                         }}
                                         className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
                                       >
-                                        {t("routeManager.closeRoute", { ns: "game" })}
+                                        {t("routeManager.closeRoute", {
+                                          ns: "game",
+                                        })}
                                       </button>
                                     </>
                                   )}
