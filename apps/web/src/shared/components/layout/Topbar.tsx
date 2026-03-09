@@ -1,8 +1,9 @@
-import { fpFormat } from "@acars/core";
+import { FP_ZERO, fp, fpAdd, fpDiv, fpFormat, fpSub, fpSum } from "@acars/core";
+import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EphemeralKeyBackupActions } from "@/features/identity/components/EphemeralKeyBackupActions";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
@@ -17,7 +18,7 @@ export function Topbar() {
   const isEphemeral = useAirlineStore((state) => state.isEphemeral);
   const isLoading = useAirlineStore((state) => state.isLoading);
   const viewAs = useAirlineStore((state) => state.viewAs);
-  const { airline: activeAirline, timeline, isViewingOther } = useActiveAirline();
+  const { airline: activeAirline, fleet = [], timeline, isViewingOther } = useActiveAirline();
   const navigate = useNavigate();
   const { isConnected, relayCount } = useRelayHealth();
   const safeTimeline = Array.isArray(timeline) ? timeline : [];
@@ -28,6 +29,34 @@ export function Topbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showKeyTools, setShowKeyTools] = useState(false);
   const { t } = useTranslation("common");
+
+  /* Net cash flow ticker — flight revenue minus fixed costs (hub opex + fleet leases) */
+  const netCashFlow = useMemo(() => {
+    if (!activeAirline || pulse.flightCount === 0) return null;
+    const hubOpex = activeAirline.hubs.reduce(
+      (sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex,
+      0,
+    );
+    const leaseAmounts = fleet
+      .filter((ac) => ac.purchaseType === "lease")
+      .map((ac) => getAircraftById(ac.modelId)?.monthlyLease ?? FP_ZERO);
+    const totalMonthlyLease = leaseAmounts.length > 0 ? fpSum(leaseAmounts) : FP_ZERO;
+    const totalFixedCosts = fpAdd(fp(hubOpex), totalMonthlyLease);
+    if (totalFixedCosts === FP_ZERO) return null;
+    const fixedCostsPerHour = fpDiv(totalFixedCosts, fp(30 * 24));
+    const perHour = fpSub(pulse.netIncomeRate, fixedCostsPerHour);
+    return { perHour, positive: perHour >= FP_ZERO };
+  }, [activeAirline, fleet, pulse]);
+
+  const cashFlowTicker = netCashFlow ? (
+    <span
+      className={`font-mono text-[10px] font-semibold ${netCashFlow.positive ? "text-emerald-400" : "text-rose-400"}`}
+      style={{ fontVariantNumeric: "tabular-nums" }}
+    >
+      {netCashFlow.positive ? "▲" : "▼"} {netCashFlow.positive ? "+" : ""}
+      {fpFormat(netCashFlow.perHour, 0)}/hr
+    </span>
+  ) : null;
 
   const mobilePanelTitle = airline ? t("topbar.flightDeck") : t("topbar.identity");
   const mobilePanelLabel = mobilePanelTitle.toLowerCase();
@@ -397,6 +426,7 @@ export function Topbar() {
           </h1>
           <p className="mt-1 truncate text-[11px] text-muted-foreground">
             {activeAirline.callsign} · {fpFormat(activeAirline.corporateBalance)}
+            {cashFlowTicker && <span className="ml-1.5">{cashFlowTicker}</span>}
           </p>
         </>,
       )}
@@ -482,16 +512,11 @@ export function Topbar() {
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
                   {t("topbar.corporateBalance")}
                 </span>
-                <span className="mt-1 font-mono text-sm font-bold text-green-400">
-                  {fpFormat(activeAirline.corporateBalance)}
-                </span>
-              </div>
-              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
-                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  {t("topbar.stockPrice")}
-                </span>
-                <span className="mt-1 font-mono text-sm font-bold text-primary">
-                  {fpFormat(activeAirline.stockPrice)}
+                <span className="mt-1 flex items-baseline gap-1.5">
+                  <span className="font-mono text-sm font-bold text-green-400">
+                    {fpFormat(activeAirline.corporateBalance)}
+                  </span>
+                  {cashFlowTicker}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
@@ -606,16 +631,11 @@ export function Topbar() {
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
                   {t("topbar.corporateBalance")}
                 </span>
-                <span className="mt-1 font-mono text-sm font-bold text-green-400">
-                  {fpFormat(activeAirline.corporateBalance)}
-                </span>
-              </div>
-              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
-                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  {t("topbar.stockPrice")}
-                </span>
-                <span className="mt-1 font-mono text-sm font-bold text-primary">
-                  {fpFormat(activeAirline.stockPrice)}
+                <span className="mt-1 flex items-baseline gap-1.5">
+                  <span className="font-mono text-sm font-bold text-green-400">
+                    {fpFormat(activeAirline.corporateBalance)}
+                  </span>
+                  {cashFlowTicker}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
