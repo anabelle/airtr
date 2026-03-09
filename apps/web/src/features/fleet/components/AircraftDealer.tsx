@@ -432,7 +432,7 @@ function AircraftCard({
     >
       {/* Top Image Splash */}
       <div
-        className={`relative flex h-32 w-full items-center justify-center border-b border-border/30 bg-gradient-to-br ${bgGradient} sm:h-40 lg:h-44`}
+        className={`relative flex h-40 w-full items-center justify-center border-b border-border/30 bg-gradient-to-br ${bgGradient} sm:h-48 lg:h-52`}
       >
         <div className="absolute left-3 top-3 flex gap-2 sm:left-4 sm:top-4">
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold text-foreground border border-border/50">
@@ -444,7 +444,7 @@ function AircraftCard({
         </div>
         <CatalogImage
           model={aircraft}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover object-center"
           fallback={
             <Plane className="h-10 w-10 rotate-[-15deg] text-foreground/20 transition-all duration-500 group-hover:scale-110 group-hover:text-foreground/40 sm:h-16 sm:w-16" />
           }
