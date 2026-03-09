@@ -211,11 +211,7 @@ function RecentPerformanceSection({
   const { t } = useTranslation("game");
 
   if (!lastLanding || !model) {
-    return (
-      <div className="rounded-xl border border-dashed border-border/60 bg-background/50 p-4 text-sm text-muted-foreground">
-        {t("aircraftPanel.noRecentPerformance", { ns: "game" })}
-      </div>
-    );
+    return null;
   }
 
   const flightProfit = lastLanding.profit || FP_ZERO;
@@ -1005,12 +1001,14 @@ export function RouteTab({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-          {t("aircraftPanel.recentPerformance", { ns: "game" })}
-        </p>
-        <RecentPerformanceSection aircraft={aircraft} model={model} lastLanding={lastLanding} />
-      </div>
+      {lastLanding && model ? (
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+            {t("aircraftPanel.recentPerformance", { ns: "game" })}
+          </p>
+          <RecentPerformanceSection aircraft={aircraft} model={model} lastLanding={lastLanding} />
+        </div>
+      ) : null}
 
       {/* Fares */}
       <div className="space-y-2">

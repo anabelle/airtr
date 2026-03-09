@@ -174,4 +174,13 @@ describe("AircraftInfoPanel", () => {
     expect(screen.getByText((_, node) => node?.textContent === "J:4")).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.textContent === "F:2")).toBeInTheDocument();
   });
+
+  it("hides recent performance when no completed-flight data exists", () => {
+    render(
+      <RouteTab route={route} siblings={[]} aircraft={aircraft} lastLanding={null} model={model} />,
+    );
+
+    expect(screen.queryByText("Recent Performance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Last Flight Outcome")).not.toBeInTheDocument();
+  });
 });
