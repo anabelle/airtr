@@ -305,6 +305,11 @@ function getFuelPriceHistory(
   sampleCount?: number,
   sampleSpacingTicks?: number,
 ): Array<{ tick: number; price: FixedPoint }>;
+function stepFuelPrice(currentPrice: FixedPoint, tick: number): FixedPoint;
+const FUEL_PRICE_EPOCH_TICKS: number;
+const FUEL_PRICE_MAX_PER_KG: FixedPoint;
+const FUEL_PRICE_MEAN_PER_KG: FixedPoint;
+const FUEL_PRICE_MIN_PER_KG: FixedPoint;
 
 function calculateHubLandingFee(
   baseLandingFee: FixedPoint,
