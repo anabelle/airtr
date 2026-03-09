@@ -48,6 +48,7 @@ import {
   estimateRouteEconomics,
   getPrimaryAssignedAircraft,
 } from "@/features/network/utils/routeEconomics";
+import { MOBILE_OVERLAY_MAX_HEIGHT_CLASS } from "@/shared/components/layout/mobileLayout";
 import { PanelHeader } from "@/shared/components/layout/PanelLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
@@ -1622,7 +1623,9 @@ export function RouteManager() {
               onClick={() => !isSavingFares && setFareEditor(null)}
               aria-label="Close fare editor"
             />
-            <div className="relative z-10 flex w-full max-h-[calc(100dvh-4.5rem-env(safe-area-inset-bottom))] flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl">
+            <div
+              className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl`}
+            >
               <div className="flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">

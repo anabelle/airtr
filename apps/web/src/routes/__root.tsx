@@ -2,6 +2,7 @@ import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { IdentityGate } from "@/features/identity/components/IdentityGate";
 import { Ticker } from "@/features/network/components/Ticker";
 import { WorldMap } from "@/features/network/components/WorldMap";
+import { MOBILE_TOPBAR_PANEL_PADDING_CLASS } from "@/shared/components/layout/mobileLayout";
 import { MobileNav, Sidebar } from "@/shared/components/layout/Sidebar";
 import { Topbar } from "@/shared/components/layout/Topbar";
 import { AppInitializer } from "../app/AppInitializer";
@@ -42,7 +43,9 @@ export const Route = createRootRoute({
               <div className="flex flex-1 min-h-0 overflow-hidden relative pb-0 sm:pb-10">
                 <Sidebar />
 
-                <main className="relative flex-1 min-w-0 min-h-0 overflow-hidden p-3 sm:p-6 pointer-events-none flex">
+                <main
+                  className={`relative flex min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-3 ${MOBILE_TOPBAR_PANEL_PADDING_CLASS} pointer-events-none sm:p-6`}
+                >
                   <Outlet />
                 </main>
               </div>

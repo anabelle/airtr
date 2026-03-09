@@ -6,6 +6,7 @@ import { MapPin, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { MOBILE_OVERLAY_MAX_HEIGHT_CLASS } from "@/shared/components/layout/mobileLayout";
 
 export function HubPicker({
   currentHub,
@@ -111,7 +112,7 @@ export function HubPicker({
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-50 flex w-full flex-col rounded-t-xl border bg-card text-card-foreground shadow-lg sm:mx-4 sm:max-w-[480px] sm:rounded-xl max-h-[90dvh] sm:max-h-[85dvh]"
+              className={`relative z-50 flex w-full flex-col ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} rounded-t-xl border bg-card text-card-foreground shadow-lg sm:mx-4 sm:max-w-[480px] sm:max-h-[85dvh] sm:rounded-xl`}
             >
               <div className="flex flex-col space-y-1 px-5 pt-5 pb-3 shrink-0">
                 <div className="flex items-center justify-between">

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { MOBILE_OVERLAY_HEIGHT_CLASS } from "@/shared/components/layout/mobileLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { useConfirm } from "@/shared/lib/useConfirm";
 import { CatalogImage } from "./CatalogImage";
@@ -716,7 +717,9 @@ function PurchaseModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
-      <div className="relative flex h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl">
+      <div
+        className={`relative flex ${MOBILE_OVERLAY_HEIGHT_CLASS} w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl`}
+      >
         {/* Header Graphic */}
         <div
           className={`relative flex min-h-40 w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:min-h-44 sm:p-6`}
