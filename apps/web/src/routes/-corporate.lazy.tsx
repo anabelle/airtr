@@ -125,22 +125,35 @@ function FinancialPulse({
                 ) : (
                   <TrendingDown className="h-4 w-4" aria-hidden="true" />
                 )}
-                {fpFormat(pulse.netIncomeRate, 0)}/hr
+                {t("corporate.perHour", {
+                  ns: "game",
+                  amount: fpFormat(pulse.netIncomeRate, 0),
+                })}
               </div>
               <p
                 className={`text-[10px] font-mono font-bold ${pulse.isPositive ? "text-emerald-400/60" : "text-rose-400/60"}`}
                 style={{ fontVariantNumeric: "tabular-nums" }}
               >
-                {fpFormat(fpScale(netIncomePerHour, 24 * 30), 0)}/mo (30 days)
+                {t("corporate.perMonthThirtyDays", {
+                  ns: "game",
+                  amount: fpFormat(fpScale(netIncomePerHour, 24 * 30), 0),
+                })}
               </p>
               <p
                 className={`text-[10px] ${lowConfidence ? "text-amber-400" : "text-muted-foreground"}`}
               >
-                {lowConfidence ? "⚠ " : ""}Last {pulse.flightCount} flight
-                {pulse.flightCount !== 1 ? "s" : ""}{" "}
-                {pulse.financialFlightCount !== pulse.flightCount &&
-                  `(${pulse.financialFlightCount} with full financials)`}
-                {lowConfidence ? " — low financial sample" : ""}
+                {lowConfidence ? "⚠ " : ""}
+                {pulse.financialFlightCount !== pulse.flightCount
+                  ? t("corporate.lastFlightsWithFinancials", {
+                      ns: "game",
+                      count: pulse.flightCount,
+                      financialCount: pulse.financialFlightCount,
+                    })
+                  : t("corporate.lastFlights", {
+                      ns: "game",
+                      count: pulse.flightCount,
+                    })}
+                {lowConfidence ? ` — ${t("corporate.lowFinancialSample", { ns: "game" })}` : ""}
               </p>
             </div>
           )}
@@ -155,7 +168,9 @@ function FinancialPulse({
             <span>{t("corporate.hubOpex", { ns: "game" })}</span>
             <span>
               {fpFormat(fp(hubOpex), 0)}/mo{" "}
-              <span className="text-muted-foreground/50">(30 days)</span>
+              <span className="text-muted-foreground/50">
+                {t("corporate.monthlyWindow", { ns: "game" })}
+              </span>
             </span>
           </div>
           {leasedCount > 0 && (
@@ -164,7 +179,12 @@ function FinancialPulse({
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               <span>{t("corporate.fleetLeases", { ns: "game", count: leasedCount })}</span>
-              <span>{fpFormat(fleetLease, 0)}/mo (30 days)</span>
+              <span>
+                {t("corporate.perMonthThirtyDays", {
+                  ns: "game",
+                  amount: fpFormat(fleetLease, 0),
+                })}
+              </span>
             </div>
           )}
           <div
@@ -174,7 +194,12 @@ function FinancialPulse({
             <span className="text-muted-foreground">
               {t("corporate.totalFixedCosts", { ns: "game" })}
             </span>
-            <span className="text-rose-400">{fpFormat(totalFixedCosts, 0)}/mo (30 days)</span>
+            <span className="text-rose-400">
+              {t("corporate.perMonthThirtyDays", {
+                ns: "game",
+                amount: fpFormat(totalFixedCosts, 0),
+              })}
+            </span>
           </div>
         </div>
 
@@ -199,7 +224,10 @@ function FinancialPulse({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={billingCyclePercent}
-              aria-valuetext={`${billingCycle.daysRemaining} days remaining`}
+              aria-valuetext={t("corporate.daysRemaining", {
+                ns: "game",
+                count: billingCycle.daysRemaining,
+              })}
               style={{ width: `${Math.max(2, billingCyclePercent)}%` }}
             />
           </div>
@@ -208,7 +236,10 @@ function FinancialPulse({
               className="text-[10px] text-muted-foreground/60"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              Next deduction: {fpFormat(totalFixedCosts, 0)}
+              {t("corporate.nextDeduction", {
+                ns: "game",
+                amount: fpFormat(totalFixedCosts, 0),
+              })}
             </p>
           )}
         </div>
@@ -433,7 +464,7 @@ function CompanyProfile({
   const airlinePrimary = useAirlineStore((s) => s.airline?.livery.primary);
   const fallbackName = ceoPubkey
     ? `${ceoPubkey.slice(0, 8)}...${ceoPubkey.slice(-4)}`
-    : "Unknown CEO";
+    : t("corporate.unknownCeo", { ns: "game" });
   const displayName = profile.displayName || profile.name || fallbackName;
   const avatarLetter = displayName?.[0]?.toUpperCase() ?? "?";
   const statusColors: Record<string, string> = {
@@ -448,6 +479,12 @@ function CompanyProfile({
     2: t("corporate.tier2"),
     3: t("corporate.tier3"),
     4: t("corporate.tier4"),
+  };
+  const statusLabels: Record<string, string> = {
+    private: t("corporate.status.private", { ns: "game" }),
+    public: t("corporate.status.public", { ns: "game" }),
+    chapter11: t("corporate.status.chapter11", { ns: "game" }),
+    liquidated: t("corporate.status.liquidated", { ns: "game" }),
   };
 
   return (
@@ -472,7 +509,9 @@ function CompanyProfile({
               target={npub ? "_blank" : undefined}
               rel={npub ? "noreferrer" : undefined}
               className="h-7 w-7 overflow-hidden rounded-full border border-border/60 bg-muted/40"
-              aria-label={npub ? `Open ${displayName} on Primal` : undefined}
+              aria-label={
+                npub ? t("corporate.openProfileAria", { ns: "game", name: displayName }) : undefined
+              }
               style={airlinePrimary ? { boxShadow: `0 0 0 2px ${airlinePrimary}` } : undefined}
             >
               {profile.image ? (
@@ -504,12 +543,12 @@ function CompanyProfile({
         {/* Right: tier + status */}
         <div className="shrink-0 flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Tier {tier}
+            {t("corporate.tierLabel", { ns: "game", tier })}
           </span>
           <span
             className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${statusColors[status] ?? statusColors.private}`}
           >
-            {status}
+            {statusLabels[status] ?? status}
           </span>
         </div>
       </div>
@@ -517,7 +556,7 @@ function CompanyProfile({
       {/* Brand score bar */}
       <div className="mt-3 flex items-center gap-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
-          Brand
+          {t("corporate.brand", { ns: "game" })}
         </span>
         <div className="flex-1 h-1.5 bg-muted/30 rounded-full overflow-hidden">
           <div
@@ -536,7 +575,10 @@ function CompanyProfile({
       {/* Tier label */}
       <p className="mt-2 text-[10px] text-muted-foreground">{tierLabels[tier] ?? `Tier ${tier}`}</p>
       <p className="mt-1 text-[10px] text-muted-foreground">
-        Cumulative revenue: {fpFormat(cumulativeRevenue, 0)}
+        {t("corporate.cumulativeRevenue", {
+          ns: "game",
+          amount: fpFormat(cumulativeRevenue, 0),
+        })}
       </p>
     </section>
   );
@@ -572,8 +614,8 @@ function BankruptcyPanel({
       </div>
       <p className="text-xs text-rose-300/70 leading-relaxed">
         {airline.status === "chapter11"
-          ? `Your airline's accumulated debt exceeded the critical threshold of ${CHAPTER11_THRESHOLD_DISPLAY}. All flight operations have been automatically suspended and aircraft grounded to prevent further losses.`
-          : "This airline has been permanently dissolved. All operations have ceased."}
+          ? t("bankruptcy.panelChapter11Desc", { threshold: CHAPTER11_THRESHOLD_DISPLAY })
+          : t("bankruptcy.panelLiquidatedDesc")}
       </p>
       {airline.status === "chapter11" && (
         <div className="rounded-lg border border-rose-500/10 bg-background/30 p-3 space-y-1.5">
@@ -581,9 +623,9 @@ function BankruptcyPanel({
             {t("bankruptcy.whatThisMeans")}
           </p>
           <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
-            <li>All flights are grounded — no revenue is being generated</li>
-            <li>Lease obligations and hub costs continue to accrue</li>
-            <li>Your airline is visible to competitors as bankrupt</li>
+            <li>{t("bankruptcy.consequences.grounded")}</li>
+            <li>{t("bankruptcy.consequences.costsAccrue")}</li>
+            <li>{t("bankruptcy.consequences.visible")}</li>
           </ul>
         </div>
       )}
@@ -599,8 +641,7 @@ function BankruptcyPanel({
       {confirmDissolve && airline.status === "chapter11" && (
         <div className="rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
           <p className="text-xs text-rose-300 font-semibold">
-            This will permanently dissolve {airline.name}. All aircraft, routes, and hubs will be
-            lost. You will create a new airline from scratch.
+            {t("bankruptcy.restartConfirm", { name: airline.name })}
           </p>
           <div className="flex gap-2">
             <button
@@ -651,6 +692,7 @@ function HubCard({
   canClose: boolean;
   isReadOnly: boolean;
 }) {
+  const { t } = useTranslation(["common", "game"]);
   const pricing = getHubPricingForIata(iata);
 
   return (
@@ -665,7 +707,7 @@ function HubCard({
         {isActive && (
           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">
             <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />
-            HQ
+            {t("corporate.hq", { ns: "game" })}
           </span>
         )}
         <span
@@ -683,7 +725,7 @@ function HubCard({
             disabled={isReadOnly}
             className="text-[9px] font-bold uppercase text-muted-foreground border border-border/50 px-2.5 py-1 rounded transition-colors hover:text-foreground hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Set HQ
+            {t("corporate.setHq", { ns: "game" })}
           </button>
           <button
             type="button"
@@ -692,13 +734,13 @@ function HubCard({
             className="text-[9px] font-bold uppercase text-rose-300/70 border border-rose-400/20 px-2.5 py-1 rounded transition-colors hover:text-rose-200 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:opacity-40 disabled:cursor-not-allowed"
             title={
               isReadOnly
-                ? "Viewing another airline"
+                ? t("corporate.viewingAnotherAirline", { ns: "game" })
                 : !canClose
-                  ? "Cannot close last hub"
+                  ? t("corporate.cannotCloseLastHub", { ns: "game" })
                   : undefined
             }
           >
-            Close
+            {t("actions.close", { ns: "common" })}
           </button>
         </div>
       )}
@@ -733,6 +775,7 @@ function HubConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation(["common", "game"]);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
 
@@ -757,9 +800,9 @@ function HubConfirmDialog({
   );
 
   const descriptions: Record<string, string> = {
-    add: "Opening a new hub activates market access and starts monthly operations costs.",
-    switch: "Relocating your primary hub updates active operations with a relocation fee.",
-    remove: "Closing a hub stops monthly operations costs for that location.",
+    add: t("corporate.hubContractDescription.add", { ns: "game" }),
+    switch: t("corporate.hubContractDescription.switch", { ns: "game" }),
+    remove: t("corporate.hubContractDescription.remove", { ns: "game" }),
   };
 
   return createPortal(
@@ -769,7 +812,7 @@ function HubConfirmDialog({
       onClick={(e) => {
         if (e.target === dialogRef.current) onCancel();
       }}
-      aria-label={`Hub contract review for ${action.iata}`}
+      aria-label={t("corporate.hubContractReviewAria", { ns: "game", iata: action.iata })}
       className="fixed inset-0 z-50 m-auto w-full max-w-xl rounded-2xl border border-white/10 bg-gradient-to-br from-[#0b1117] via-[#0d1218] to-[#101722] p-0 shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95"
       style={{ overscrollBehavior: "contain" }}
     >
@@ -777,7 +820,7 @@ function HubConfirmDialog({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-white/40">
-              Hub Contract Review
+              {t("corporate.hubContractReview", { ns: "game" })}
             </p>
             <h3 className="mt-2 text-2xl font-black text-white" style={{ textWrap: "balance" }}>
               {action.iata} &middot; {pricing.tier.toUpperCase()}
@@ -788,7 +831,7 @@ function HubConfirmDialog({
             type="button"
             onClick={onCancel}
             className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Close hub contract review"
+            aria-label={t("corporate.closeHubContractReview", { ns: "game" })}
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -796,7 +839,9 @@ function HubConfirmDialog({
 
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-[10px] uppercase font-semibold text-white/40">Immediate Charge</p>
+            <p className="text-[10px] uppercase font-semibold text-white/40">
+              {t("corporate.immediateCharge", { ns: "game" })}
+            </p>
             <p
               className="mt-1 text-lg font-mono font-black text-white"
               style={{ fontVariantNumeric: "tabular-nums" }}
@@ -805,7 +850,9 @@ function HubConfirmDialog({
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-[10px] uppercase font-semibold text-white/40">New Monthly OPEX</p>
+            <p className="text-[10px] uppercase font-semibold text-white/40">
+              {t("corporate.newMonthlyOpex", { ns: "game" })}
+            </p>
             <p
               className="mt-1 text-lg font-mono font-black text-white"
               style={{ fontVariantNumeric: "tabular-nums" }}
@@ -814,7 +861,9 @@ function HubConfirmDialog({
             </p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-[10px] uppercase font-semibold text-white/40">Cash After</p>
+            <p className="text-[10px] uppercase font-semibold text-white/40">
+              {t("corporate.cashAfter", { ns: "game" })}
+            </p>
             <p
               className={`mt-1 text-lg font-mono font-black ${canAfford ? "text-emerald-300" : "text-rose-300"}`}
               style={{ fontVariantNumeric: "tabular-nums" }}
@@ -835,13 +884,13 @@ function HubConfirmDialog({
 
         {!canAfford && (
           <output className="mt-4 block rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-            Insufficient liquidity for this hub action.
+            {t("corporate.insufficientLiquidity", { ns: "game" })}
           </output>
         )}
 
         <div className="mt-6 flex items-center justify-between">
           <p className="text-[10px] uppercase text-white/40">
-            Charges apply immediately &middot; OPEX bills every 30 days
+            {t("corporate.chargesApplyImmediately", { ns: "game" })}
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -849,7 +898,7 @@ function HubConfirmDialog({
               onClick={onCancel}
               className="rounded-md border border-white/10 px-4 py-2 text-xs font-bold uppercase text-white/60 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Cancel
+              {t("actions.cancel", { ns: "common" })}
             </button>
             <button
               ref={confirmRef}
@@ -858,7 +907,9 @@ function HubConfirmDialog({
               disabled={!canAfford || isProcessing}
               className="rounded-md bg-emerald-500/90 px-5 py-2 text-xs font-bold uppercase text-black transition-colors hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isProcessing ? "Processing\u2026" : "Confirm & Charge"}
+              {isProcessing
+                ? t("corporate.processing", { ns: "game" })
+                : t("corporate.confirmAndCharge", { ns: "game" })}
             </button>
           </div>
         </div>
@@ -873,6 +924,7 @@ function HubConfirmDialog({
 /* ------------------------------------------------------------------ */
 
 function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
+  const { t } = useTranslation("game");
   const [expanded, setExpanded] = useState(false);
   const tick = useEngineStore((s) => s.tick);
 
@@ -880,21 +932,25 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
 
   const getRelativeTime = (eventTick: number, currentTick: number) => {
     const diffSecs = Math.max(0, (currentTick - eventTick) * (TICK_DURATION / 1000));
-    if (diffSecs < 10) return "Now";
-    if (diffSecs < 60) return `${Math.floor(diffSecs)}s`;
-    if (diffSecs < 3600) return `${Math.floor(diffSecs / 60)}m`;
-    if (diffSecs < 86400) return `${Math.floor(diffSecs / 3600)}h`;
-    return `${Math.floor(diffSecs / 86400)}d`;
+    if (diffSecs < 10) return t("time.justNow", { ns: "common" });
+    if (diffSecs < 60) return t("time.secondsAgo", { ns: "common", count: Math.floor(diffSecs) });
+    if (diffSecs < 3600) {
+      return t("time.minutesAgo", { ns: "common", count: Math.floor(diffSecs / 60) });
+    }
+    if (diffSecs < 86400) {
+      return t("time.hoursAgo", { ns: "common", count: Math.floor(diffSecs / 3600) });
+    }
+    return t("time.daysAgo", { ns: "common", count: Math.floor(diffSecs / 86400) });
   };
 
   if (timeline.length === 0) {
     return (
       <section className="rounded-xl border border-border/50 bg-background/50 p-4">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">
-          Activity Log
+          {t("corporate.activityLog", { ns: "game" })}
         </p>
         <p className="text-xs text-muted-foreground">
-          No events yet. Your history will appear here.
+          {t("corporate.noEventsYet", { ns: "game" })}
         </p>
       </section>
     );
@@ -905,7 +961,7 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          Activity Log
+          {t("corporate.activityLog", { ns: "game" })}
         </p>
         <button
           type="button"
@@ -915,12 +971,12 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
           {expanded ? (
             <>
               <ChevronUp className="h-3 w-3" aria-hidden="true" />
-              Collapse
+              {t("corporate.collapse", { ns: "game" })}
             </>
           ) : (
             <>
               <ChevronDown className="h-3 w-3" aria-hidden="true" />
-              View All
+              {t("corporate.viewAll", { ns: "game" })}
             </>
           )}
         </button>
@@ -974,11 +1030,12 @@ function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
 /* ------------------------------------------------------------------ */
 
 function LiveryStrip({ primary, secondary }: { primary: string; secondary: string }) {
+  const { t } = useTranslation("game");
   return (
     <section className="rounded-xl border border-border/50 bg-background/50 p-3">
       <div className="flex items-center gap-3">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
-          Livery
+          {t("corporate.livery", { ns: "game" })}
         </span>
         <div className="flex-1 h-3 rounded-full border border-border/30 flex overflow-hidden">
           <div className="h-full" style={{ width: "70%", backgroundColor: primary }} />
@@ -1329,10 +1386,10 @@ export default function CorporateDashboard() {
           {isViewingOther ? (
             <section className="rounded-xl border border-border/50 bg-background/50 p-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Activity Log
+                {t("corporate.activityLog", { ns: "game" })}
               </p>
               <p className="text-xs text-muted-foreground">
-                Timeline data is not available for other airlines yet.
+                {t("corporate.timelineUnavailable", { ns: "game" })}
               </p>
             </section>
           ) : (

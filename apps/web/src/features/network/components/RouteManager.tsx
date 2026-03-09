@@ -794,7 +794,7 @@ export function RouteManager() {
                   onClick={() => setSearchQuery("")}
                   className="text-xs font-bold text-muted-foreground hover:text-foreground"
                 >
-                   {t("actions.clear", { ns: "common" })}
+                  {t("actions.clear", { ns: "common" })}
                 </button>
               )}
             </div>
@@ -1010,16 +1010,24 @@ export function RouteManager() {
                                         }}
                                         className="px-4 py-2 bg-white/5 text-white/60 border border-white/5 rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
                                       >
-                                        Edit Fares
+                                        {t("routeManager.editFares", { ns: "game" })}
                                       </button>
 
                                       <button
                                         type="button"
                                         onClick={async () => {
                                           const approved = await confirm({
-                                            title: "Close route?",
-                                            description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
-                                            confirmLabel: "Close Route",
+                                            title: t("routeManager.closeRouteTitle", {
+                                              ns: "game",
+                                            }),
+                                            description: t("routeManager.closeRouteDescription", {
+                                              ns: "game",
+                                              origin: route.originIata,
+                                              destination: route.destinationIata,
+                                            }),
+                                            confirmLabel: t("routeManager.closeRoute", {
+                                              ns: "game",
+                                            }),
                                             tone: "destructive",
                                           });
                                           if (!approved) return;
@@ -1029,15 +1037,20 @@ export function RouteManager() {
                                             const message =
                                               err instanceof Error
                                                 ? err.message
-                                                : "Route close failed";
-                                            toast.error("Route close failed", {
-                                              description: message,
-                                            });
+                                                : t("routeManager.routeCloseFailed", {
+                                                    ns: "game",
+                                                  });
+                                            toast.error(
+                                              t("routeManager.routeCloseFailed", { ns: "game" }),
+                                              {
+                                                description: message,
+                                              },
+                                            );
                                           }
                                         }}
                                         className="px-3 py-2 rounded-xl border border-red-500/30 text-red-200/80 text-sm font-bold hover:bg-red-500/15 transition-all"
                                       >
-                                        Close Route
+                                        {t("routeManager.closeRoute", { ns: "game" })}
                                       </button>
                                     </>
                                   )}

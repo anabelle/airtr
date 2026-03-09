@@ -76,7 +76,11 @@
     "downloadKey": "Descargar archivo de clave",
     "switchToWallet": "Cambiar a extensión de billetera",
     "switching": "Cambiando…",
-    "keyExplainer": "Tu clave secreta comienza con nsec1… — trátala como una contraseña. ACARS la almacena localmente en este dispositivo y la exporta desde aquí cuando necesites tu copia de recuperación."
+    "keyExplainer": "Tu clave secreta comienza con nsec1… — trátala como una contraseña. ACARS la almacena localmente en este dispositivo y la exporta desde aquí cuando necesites tu copia de recuperación.",
+    "localKeyAccessFailed": "No se pudo acceder a tu clave de cuenta almacenada localmente.",
+    "fileTitle": "Clave secreta de ACARS — ¡guárdala de forma segura!",
+    "fileWarning": "NO compartas esto con nadie.",
+    "fileRestoreInstructions": "Para restaurar tu cuenta, pega esta clave en la pantalla de inicio de sesión de ACARS."
   },
   "access": {
     "badge": "¿Nuevo en Nostr? Empieza aquí",

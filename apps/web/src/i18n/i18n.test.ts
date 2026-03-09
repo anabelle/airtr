@@ -31,6 +31,9 @@ describe("i18n", () => {
     expect(i18n.t("routeManager.suspended.title", { ns: "game" })).toBe("Suspended Routes");
     expect(i18n.t("fleet.searchPlaceholder", { ns: "game" })).toBe("Search active fleet…");
     expect(i18n.t("fleet.purchaseUsedTitle", { ns: "game" })).toBe("Purchase used aircraft?");
+    expect(i18n.t("airportPanel.openHubConfirm", { ns: "game" })).toBe("Open Hub");
+    expect(i18n.t("aircraftPanel.title", { ns: "game" })).toBe("Aircraft");
+    expect(i18n.t("corporate.hubContractReview", { ns: "game" })).toBe("Hub Contract Review");
   });
 
   it("switches to Spanish", async () => {
@@ -65,6 +68,14 @@ describe("i18n", () => {
     expect(i18n.t("hubPicker.dialogTitle", { ns: "game" })).toBe("Elegir un aeropuerto hub");
     expect(i18n.t("fleet.searchPlaceholder", { ns: "game" })).toBe("Buscar flota activa…");
     expect(i18n.t("fleet.purchaseUsedTitle", { ns: "game" })).toBe("¿Comprar aeronave usada?");
+    expect(i18n.t("airportPanel.openHubConfirm", { ns: "game" })).toBe("Abrir hub");
+    expect(i18n.t("aircraftPanel.title", { ns: "game" })).toBe("Aeronave");
+    expect(i18n.t("corporate.hubContractReview", { ns: "game" })).toBe(
+      "Revisión del contrato del hub",
+    );
+    expect(i18n.t("backup.localKeyAccessFailed", { ns: "identity" })).toBe(
+      "No se pudo acceder a tu clave de cuenta almacenada localmente.",
+    );
   });
 
   it("falls back to English for unsupported language", async () => {

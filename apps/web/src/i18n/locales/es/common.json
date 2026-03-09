@@ -68,7 +68,15 @@
     "dismiss": "Descartar",
     "panelChapter11Title": "Capítulo 11 — Operaciones suspendidas",
     "panelLiquidatedTitle": "Aerolínea liquidada",
-    "whatThisMeans": "Qué significa esto"
+    "whatThisMeans": "Qué significa esto",
+    "panelChapter11Desc": "La deuda acumulada de tu aerolínea superó el umbral crítico de {{threshold}}. Todas las operaciones de vuelo se suspendieron automáticamente y las aeronaves quedaron en tierra para evitar más pérdidas.",
+    "panelLiquidatedDesc": "Esta aerolínea ha sido disuelta permanentemente. Todas las operaciones han cesado.",
+    "restartConfirm": "Esto disolverá permanentemente {{name}}. Se perderán todas las aeronaves, rutas y hubs. Crearás una nueva aerolínea desde cero.",
+    "consequences": {
+      "grounded": "Todos los vuelos están en tierra — no se generan ingresos",
+      "costsAccrue": "Las obligaciones de arrendamiento y los costos de hubs siguen acumulándose",
+      "visible": "Tu aerolínea es visible para los competidores como en bancarrota"
+    }
   },
   "time": {
     "justNow": "Ahora mismo",

@@ -13,6 +13,7 @@ import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Building2, MapPin, Plane, PlaneTakeoff, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FlightBoard } from "@/features/network/components/FlightBoard";
 import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
@@ -56,6 +57,7 @@ function routeLabel(route: Route) {
 }
 
 export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
+  const { t } = useTranslation(["common", "game"]);
   const confirm = useConfirm();
   const navigate = useNavigate();
   const search = useSearch({ from: "__root__" });
@@ -191,16 +193,20 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   const handleOpenHub = async () => {
     if (!airline) return;
     const approved = await confirm({
-      title: `Open hub at ${airport.iata}?`,
-      description: `This will cost ${currencyFormat.format(hubPricing.openFee)} to open and ${currencyFormat.format(hubPricing.monthlyOpex)} per month in operating expenses.`,
-      confirmLabel: "Open Hub",
+      title: t("airportPanel.openHubTitle", { ns: "game", iata: airport.iata }),
+      description: t("airportPanel.openHubDescription", {
+        ns: "game",
+        openFee: currencyFormat.format(hubPricing.openFee),
+        monthlyOpex: currencyFormat.format(hubPricing.monthlyOpex),
+      }),
+      confirmLabel: t("airportPanel.openHubConfirm", { ns: "game" }),
     });
     if (!approved) return;
     try {
       await modifyHubs({ type: "add", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error("Hub creation failed", { description: message });
+      toast.error(t("airportPanel.hubCreationFailed", { ns: "game" }), { description: message });
     }
   };
 
@@ -208,25 +214,28 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     if (!airline) return;
     const relocationFee = fpScale(fp(hubPricing.openFee), 0.25);
     const approved = await confirm({
-      title: `Relocate HQ to ${airport.iata}?`,
-      description: `This will cost ${fpFormat(relocationFee, 0)} as a relocation fee. Monthly hub OPEX remains active on all owned hubs.`,
-      confirmLabel: "Relocate HQ",
+      title: t("airportPanel.relocateHqTitle", { ns: "game", iata: airport.iata }),
+      description: t("airportPanel.relocateHqDescription", {
+        ns: "game",
+        relocationFee: fpFormat(relocationFee, 0),
+      }),
+      confirmLabel: t("airportPanel.relocateHqConfirm", { ns: "game" }),
     });
     if (!approved) return;
     try {
       await modifyHubs({ type: "switch", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error("HQ relocation failed", { description: message });
+      toast.error(t("airportPanel.hqRelocationFailed", { ns: "game" }), { description: message });
     }
   };
 
   const handleRemoveHub = async () => {
     if (!airline) return;
     const approved = await confirm({
-      title: `Remove hub at ${airport.iata}?`,
-      description: "Routes touching this hub will be suspended and aircraft will be unassigned.",
-      confirmLabel: "Remove Hub",
+      title: t("airportPanel.removeHubTitle", { ns: "game", iata: airport.iata }),
+      description: t("airportPanel.removeHubDescription", { ns: "game" }),
+      confirmLabel: t("airportPanel.removeHubConfirm", { ns: "game" }),
       tone: "destructive",
     });
     if (!approved) return;
@@ -234,23 +243,31 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       await modifyHubs({ type: "remove", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error("Hub removal failed", { description: message });
+      toast.error(t("airportPanel.hubRemovalFailed", { ns: "game" }), { description: message });
     }
   };
 
   const handleOpenRoute = async () => {
     if (!airline || !originHubIata || !distanceKm) return;
     const approved = await confirm({
-      title: `Open route from ${originHubIata} to ${airport.iata}?`,
-      description: `Slot fee ${routeSlotFeeLabel}. Distance ${distanceKm.toLocaleString()} km. This route will be added with default pricing and no assigned aircraft.`,
-      confirmLabel: "Open Route",
+      title: t("airportPanel.openRouteTitle", {
+        ns: "game",
+        origin: originHubIata,
+        destination: airport.iata,
+      }),
+      description: t("airportPanel.openRouteDescription", {
+        ns: "game",
+        slotFee: routeSlotFeeLabel,
+        distance: distanceKm.toLocaleString(),
+      }),
+      confirmLabel: t("airportPanel.openRouteConfirm", { ns: "game" }),
     });
     if (!approved) return;
     try {
       await openRoute(originHubIata, airport.iata, distanceKm);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error("Route open failed", { description: message });
+      toast.error(t("airportPanel.routeOpenFailed", { ns: "game" }), { description: message });
     }
   };
 
@@ -275,7 +292,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-            Airport
+            {t("airportPanel.title", { ns: "game" })}
           </p>
           <h3 className="text-lg font-bold text-foreground">{airport.name}</h3>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -292,7 +309,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
           type="button"
           onClick={onClose}
           className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation"
-          aria-label="Close airport panel"
+          aria-label={t("airportPanel.closeAria", { ns: "game" })}
         >
           <X className="mx-auto h-4 w-4" />
         </button>
@@ -302,8 +319,8 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
           {(
             [
-              { key: "info", label: "Info" },
-              { key: "flights", label: "Flights" },
+              { key: "info", label: t("nav.info", { ns: "common" }) },
+              { key: "flights", label: t("airportPanel.flightsTab", { ns: "game" }) },
             ] as const
           ).map((tab) => (
             <button
@@ -325,16 +342,19 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
           <>
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
-                {hubInfo?.tier ?? "regional"} hub
+                {t("airportPanel.hubBadge", {
+                  ns: "game",
+                  tier: hubInfo?.tier ?? t("airportPanel.regional", { ns: "game" }),
+                })}
               </span>
               {isActiveHub ? (
                 <span className="rounded-full bg-emerald-500/20 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">
-                  HQ Hub
+                  {t("airportPanel.hqHub", { ns: "game" })}
                 </span>
               ) : null}
               {!isActiveHub && isPlayerHub ? (
                 <span className="rounded-full bg-emerald-500/10 text-emerald-200 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold">
-                  Operational Hub
+                  {t("airportPanel.operationalHub", { ns: "game" })}
                 </span>
               ) : null}
             </div>
@@ -342,7 +362,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  Population
+                  {t("airportPanel.population", { ns: "game" })}
                 </p>
                 <p className="mt-1 text-sm font-mono font-semibold">
                   {formatPopulation(airport.population)}
@@ -350,7 +370,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
               <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  GDP/Capita
+                  {t("airportPanel.gdpPerCapita", { ns: "game" })}
                 </p>
                 <p className="mt-1 text-sm font-mono font-semibold">
                   {currencyFormat.format(airport.gdpPerCapita)}
@@ -358,7 +378,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
               <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  Altitude
+                  {t("airportPanel.altitude", { ns: "game" })}
                 </p>
                 <p className="mt-1 text-sm font-mono font-semibold">
                   {numberFormat.format(airport.altitude)} ft
@@ -366,7 +386,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
               <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                  Timezone
+                  {t("airportPanel.timezone", { ns: "game" })}
                 </p>
                 <p className="mt-1 text-sm font-mono font-semibold">{airport.timezone}</p>
               </div>
@@ -374,7 +394,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                 <>
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Capacity/hr
+                      {t("airportPanel.capacityPerHour", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
                       {hubInfo.baseCapacityPerHour}
@@ -382,10 +402,12 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   </div>
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Slot Control
+                      {t("airportPanel.slotControl", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
-                      {hubInfo.slotControlled ? "Yes" : "No"}
+                      {hubInfo.slotControlled
+                        ? t("airportPanel.yes", { ns: "game" })
+                        : t("airportPanel.no", { ns: "game" })}
                     </p>
                   </div>
                 </>
@@ -396,18 +418,18 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                   <MapPin className="h-4 w-4" />
-                  Your Operations
+                  {t("airportPanel.yourOperations", { ns: "game" })}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Fleet Here
+                      {t("airportPanel.fleetHere", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">{stationedFleet.length}</p>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Routes Touching
+                      {t("airportPanel.routesTouching", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">{routesTouching.length}</p>
                   </div>
@@ -432,7 +454,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     })}
                     {routesTouching.length > 5 ? (
                       <span className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
-                        +{routesTouching.length - 5} more
+                        {t("airportPanel.more", {
+                          ns: "game",
+                          count: routesTouching.length - 5,
+                        })}
                       </span>
                     ) : null}
                   </div>
@@ -444,7 +469,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                   <Users className="h-4 w-4" />
-                  Competitor Hubs
+                  {t("airportPanel.competitorHubs", { ns: "game" })}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {competitorHubNames.slice(0, 4).map((entry) => (
@@ -458,7 +483,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   ))}
                   {competitorHubNames.length > 4 ? (
                     <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-                      +{competitorHubNames.length - 4} more
+                      {t("airportPanel.more", {
+                        ns: "game",
+                        count: competitorHubNames.length - 4,
+                      })}
                     </span>
                   ) : null}
                 </div>
@@ -469,11 +497,11 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                   <Plane className="h-4 w-4" />
-                  Ground Traffic
+                  {t("airportPanel.groundTraffic", { ns: "game" })}
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 px-4 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Total on ground</span>
+                    <span>{t("airportPanel.totalOnGround", { ns: "game" })}</span>
                     <span className="font-mono font-semibold text-foreground">
                       {groundTraffic.totalCount}
                     </span>
@@ -513,12 +541,12 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <Building2 className="h-4 w-4" />
-                Actions
+                {t("airportPanel.actions", { ns: "game" })}
               </div>
               {playerHubs.length > 1 ? (
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Route Origin
+                    {t("airportPanel.routeOrigin", { ns: "game" })}
                   </label>
                   <select
                     value={originHubIata ?? ""}
@@ -532,7 +560,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     ))}
                   </select>
                   <p className="text-[11px] text-muted-foreground">
-                    Map clicks only change focus. Choose a hub to open routes.
+                    {t("airportPanel.mapClicksHint", { ns: "game" })}
                   </p>
                 </div>
               ) : null}
@@ -543,7 +571,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={handleOpenHub}
                     className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
                   >
-                    Open Hub ({currencyFormat.format(hubPricing.openFee)})
+                    {t("airportPanel.openHubButton", {
+                      ns: "game",
+                      amount: currencyFormat.format(hubPricing.openFee),
+                    })}
                   </button>
                 ) : null}
                 {canSwitchHub ? (
@@ -552,7 +583,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={handleSwitchHub}
                     className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
                   >
-                    Relocate HQ
+                    {t("airportPanel.relocateHqButton", { ns: "game" })}
                   </button>
                 ) : null}
                 {canRemoveHub ? (
@@ -561,7 +592,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={handleRemoveHub}
                     className="flex-1 rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/20 touch-manipulation"
                   >
-                    Remove Hub
+                    {t("airportPanel.removeHubButton", { ns: "game" })}
                   </button>
                 ) : null}
                 {airline && isPlayerHub && lastHub ? (
@@ -570,7 +601,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     disabled
                     className="flex-1 rounded-xl border border-border/40 bg-background/40 px-4 py-2.5 text-sm font-semibold text-muted-foreground opacity-60"
                   >
-                    Last Hub (Locked)
+                    {t("airportPanel.lastHubLocked", { ns: "game" })}
                   </button>
                 ) : null}
                 {canOpenRoute ? (
@@ -579,8 +610,11 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={handleOpenRoute}
                     className="flex-1 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/80 touch-manipulation"
                   >
-                    Open Route {distanceKm ? `(${distanceKm.toLocaleString()} km)` : ""} •{" "}
-                    {routeSlotFeeLabel}
+                    {t("airportPanel.openRouteButton", {
+                      ns: "game",
+                      distance: distanceKm?.toLocaleString() ?? "",
+                      slotFee: routeSlotFeeLabel,
+                    })}
                   </button>
                 ) : null}
                 {originHubRoute ? (
@@ -589,7 +623,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={() => navigate({ to: "/network", search: { tab: "active" } })}
                     className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
                   >
-                    View Route
+                    {t("airportPanel.viewRoute", { ns: "game" })}
                   </button>
                 ) : null}
                 {!airline ? (
@@ -598,14 +632,14 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     onClick={handleSetHome}
                     className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
                   >
-                    Set as Home
+                    {t("airportPanel.setAsHome", { ns: "game" })}
                   </button>
                 ) : null}
               </div>
               {distanceKm && originHubAirport ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
-                  Distance from{" "}
+                  {t("airportPanel.distanceFrom", { ns: "game" })}{" "}
                   <button
                     type="button"
                     onClick={() => navigateToAirport(originHubAirport.iata)}
@@ -619,7 +653,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               {!originHubAirport && hqDistanceKm && activeHubAirport ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <PlaneTakeoff className="h-4 w-4" />
-                  Distance from HQ{" "}
+                  {t("airportPanel.distanceFromHq", { ns: "game" })}{" "}
                   <button
                     type="button"
                     onClick={() => navigateToAirport(activeHubAirport.iata)}

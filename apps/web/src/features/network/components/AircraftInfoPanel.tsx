@@ -6,6 +6,7 @@ import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plane, Route as RouteIcon, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { AircraftLiveryImage } from "@/features/fleet/components/AircraftLiveryImage";
 import { getAircraftTimer } from "@/features/fleet/utils/aircraftTimers";
 import {
@@ -24,21 +25,23 @@ type AircraftSearchParams = {
 };
 
 const numberFormat = new Intl.NumberFormat("en-US");
-const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 const airportIndex = new Map(AIRPORTS.map((a) => [a.iata, a]));
 
 const statusConfig = {
-  enroute: { label: "En Route", className: "bg-sky-500/20 text-sky-200" },
+  enroute: { labelKey: "aircraftPanel.status.enroute", className: "bg-sky-500/20 text-sky-200" },
   turnaround: {
-    label: "Turnaround",
+    labelKey: "aircraftPanel.status.turnaround",
     className: "bg-amber-400/20 text-amber-200",
   },
-  idle: { label: "Idle", className: "bg-emerald-500/20 text-emerald-200" },
+  idle: { labelKey: "aircraftPanel.status.idle", className: "bg-emerald-500/20 text-emerald-200" },
   maintenance: {
-    label: "Maintenance",
+    labelKey: "aircraftPanel.status.maintenance",
     className: "bg-rose-500/20 text-rose-200",
   },
-  delivery: { label: "Delivery", className: "bg-blue-500/20 text-blue-200" },
+  delivery: {
+    labelKey: "aircraftPanel.status.delivery",
+    className: "bg-blue-500/20 text-blue-200",
+  },
 } as const;
 
 function AircraftSilhouette({ familyId, className }: { familyId: string; className?: string }) {
@@ -87,6 +90,7 @@ function FlightStrip({
   timer: ReturnType<typeof getAircraftTimer>;
   speedKmh: number;
 }) {
+  const { t } = useTranslation("game");
   const flight = aircraft.flight;
   if (!flight || !timer) return null;
 
@@ -116,7 +120,7 @@ function FlightStrip({
         </div>
         {isFerry ? (
           <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-semibold text-amber-200">
-            Ferry
+            {t("aircraftPanel.ferry", { ns: "game" })}
           </span>
         ) : null}
       </div>
@@ -130,7 +134,8 @@ function FlightStrip({
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          ETA <span className="font-mono font-semibold text-sky-200">{timer.time}</span>
+          {t("aircraftPanel.eta", { ns: "game" })}{" "}
+          <span className="font-mono font-semibold text-sky-200">{timer.time}</span>
         </span>
         <span>{numberFormat.format(speedKmh)} km/h</span>
         {flight.distanceKm ? <span>{numberFormat.format(flight.distanceKm)} km</span> : null}
@@ -140,6 +145,7 @@ function FlightStrip({
 }
 
 export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps) {
+  const { t } = useTranslation(["common", "game"]);
   const navigate = useNavigate();
   const search = useSearch({ from: "__root__" });
   const { airline, fleet, routesByOwner, competitors } = useAirlineStore();
@@ -245,7 +251,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
           />
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Aircraft
+              {t("aircraftPanel.title", { ns: "game" })}
             </p>
             <h3 className="text-lg font-bold text-foreground truncate">{aircraft.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -276,7 +282,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
           type="button"
           onClick={onClose}
           className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation shrink-0"
-          aria-label="Close aircraft panel"
+          aria-label={t("aircraftPanel.closeAria", { ns: "game" })}
         >
           <X className="mx-auto h-4 w-4" />
         </button>
@@ -307,7 +313,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
           <span
             className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold ${status.className}`}
           >
-            {status.label}
+            {t(status.labelKey, { ns: "game" })}
           </span>
           {model ? (
             <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
@@ -315,7 +321,9 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             </span>
           ) : null}
           <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
-            {aircraft.purchaseType === "lease" ? "Leased" : "Owned"}
+            {aircraft.purchaseType === "lease"
+              ? t("aircraftPanel.leased", { ns: "game" })
+              : t("aircraftPanel.owned", { ns: "game" })}
           </span>
         </div>
 
@@ -323,8 +331,8 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
         <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
           {(
             [
-              { key: "info", label: "Info" },
-              { key: "route", label: "Route" },
+              { key: "info", label: t("nav.info", { ns: "common" }) },
+              { key: "route", label: t("aircraftPanel.routeTab", { ns: "game" }) },
             ] as const
           ).map((tab) => (
             <button
@@ -364,7 +372,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Range
+                    {t("aircraft.range", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {numberFormat.format(model.rangeKm)} km
@@ -372,7 +380,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Speed
+                    {t("aircraft.speed", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {numberFormat.format(model.speedKmh)} km/h
@@ -380,7 +388,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Capacity
+                    {t("aircraft.capacity", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {aircraft.configuration.economy > 0 ? `Y${aircraft.configuration.economy}` : ""}
@@ -392,7 +400,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Fuel Burn
+                    {t("aircraft.fuelBurn", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {numberFormat.format(model.fuelBurnKgPerHour)} kg/h
@@ -400,7 +408,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    MTOW
+                    {t("aircraftPanel.mtow", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {numberFormat.format(model.maxTakeoffWeight)} kg
@@ -408,7 +416,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Wingspan
+                    {t("aircraftPanel.wingspan", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">{model.wingspanM} m</p>
                 </div>
@@ -419,19 +427,19 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <Wrench className="h-4 w-4" />
-                Condition & Maintenance
+                {t("aircraftPanel.conditionAndMaintenance", { ns: "game" })}
               </div>
               <div className="rounded-xl border border-border/60 bg-background/70 p-4 space-y-3">
                 <div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                    <span>Airframe Condition</span>
+                    <span>{t("aircraftPanel.airframeCondition", { ns: "game" })}</span>
                   </div>
                   <ConditionBar condition={aircraft.condition} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Total Hours
+                      {t("aircraftPanel.totalHours", { ns: "game" })}
                     </p>
                     <p className="mt-0.5 text-sm font-mono font-semibold">
                       {numberFormat.format(Math.round(aircraft.flightHoursTotal))}
@@ -439,7 +447,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Since Check
+                      {t("aircraftPanel.sinceCheck", { ns: "game" })}
                     </p>
                     <p className="mt-0.5 text-sm font-mono font-semibold">
                       {numberFormat.format(Math.round(aircraft.flightHoursSinceCheck))} hrs
@@ -453,12 +461,12 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <Plane className="h-4 w-4" />
-                Economics
+                {t("aircraftPanel.economics", { ns: "game" })}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Purchase Price
+                    {t("aircraftPanel.purchasePrice", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {fpFormat(aircraft.purchasePrice, 0)}
@@ -467,7 +475,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {bookValue !== null ? (
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Appraisal
+                      {t("fleet.appraisal", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">{fpFormat(bookValue, 0)}</p>
                   </div>
@@ -475,7 +483,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {model ? (
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      CASM
+                      {t("aircraftPanel.casm", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
                       {fpFormat(model.casm, 4)}
@@ -485,7 +493,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {model ? (
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Maint/hr
+                      {t("aircraftPanel.maintPerHour", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
                       {fpFormat(model.maintCostPerHour, 0)}
@@ -495,7 +503,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {aircraft.purchaseType === "lease" && model ? (
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Monthly Lease
+                      {t("aircraftPanel.monthlyLease", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
                       {fpFormat(model.monthlyLease, 0)}
@@ -505,7 +513,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {aircraft.lastKnownLoadFactor !== undefined ? (
                   <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                      Last Load Factor
+                      {t("aircraftPanel.lastLoadFactor", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">
                       {Math.round(aircraft.lastKnownLoadFactor * 100)}%
@@ -519,12 +527,12 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <RouteIcon className="h-4 w-4" />
-                Assignment
+                {t("aircraftPanel.assignment", { ns: "game" })}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Base
+                    {t("aircraftPanel.base", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {aircraft.baseAirportIata ? (
@@ -542,7 +550,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 </div>
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                    Route
+                    {t("fleet.route", { ns: "game" })}
                   </p>
                   <p className="mt-1 text-sm font-mono font-semibold">
                     {assignedRoute ? (
@@ -564,7 +572,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                         </button>
                       </>
                     ) : (
-                      "Unassigned"
+                      t("fleet.unassigned", { ns: "game" })
                     )}
                   </p>
                 </div>
@@ -589,12 +597,25 @@ function RouteTab({
   siblings: AircraftInstance[];
   aircraft: AircraftInstance;
 }) {
+  const { t, i18n } = useTranslation(["common", "game"]);
+  const regionNames = useMemo(
+    () =>
+      new Intl.DisplayNames([i18n.resolvedLanguage || i18n.language || "en"], {
+        type: "region",
+      }),
+    [i18n.resolvedLanguage, i18n.language],
+  );
+
   if (!route) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <RouteIcon className="h-8 w-8 mb-3 opacity-40" />
-        <p className="text-sm font-semibold">No route assigned</p>
-        <p className="text-xs mt-1">This aircraft is not currently operating a route.</p>
+        <p className="text-sm font-semibold">
+          {t("aircraftPanel.noRouteAssigned", { ns: "game" })}
+        </p>
+        <p className="text-xs mt-1">
+          {t("aircraftPanel.noRouteAssignedDescription", { ns: "game" })}
+        </p>
       </div>
     );
   }
@@ -613,7 +634,7 @@ function RouteTab({
   const getLocalTime = (tz: string | undefined) => {
     if (!tz) return null;
     try {
-      return new Date().toLocaleTimeString("en-US", {
+      return new Date().toLocaleTimeString(i18n.resolvedLanguage || i18n.language || "en-US", {
         timeZone: tz,
         hour: "2-digit",
         minute: "2-digit",
@@ -687,14 +708,17 @@ function RouteTab({
                 : "bg-muted text-muted-foreground"
             }`}
           >
-            {route.status}
+            {t(`aircraftPanel.routeStatus.${route.status}`, {
+              ns: "game",
+              defaultValue: route.status,
+            })}
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Distance
+              {t("aircraftPanel.distance", { ns: "game" })}
             </p>
             <p className="mt-0.5 text-sm font-mono font-semibold">
               {numberFormat.format(route.distanceKm)} km
@@ -702,7 +726,7 @@ function RouteTab({
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Frequency
+              {t("aircraftPanel.frequency", { ns: "game" })}
             </p>
             <p className="mt-0.5 text-sm font-mono font-semibold">{frequency}x/wk</p>
           </div>
@@ -712,18 +736,18 @@ function RouteTab({
       {/* Fares */}
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-          Fares
+          {t("aircraftPanel.fares", { ns: "game" })}
         </p>
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Economy
+              {t("timeline.economy", { ns: "game" })}
             </p>
             <p className="mt-1 text-sm font-mono font-semibold">{fpFormat(route.fareEconomy, 0)}</p>
           </div>
           <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Business
+              {t("timeline.business", { ns: "game" })}
             </p>
             <p className="mt-1 text-sm font-mono font-semibold">
               {fpFormat(route.fareBusiness, 0)}
@@ -731,7 +755,7 @@ function RouteTab({
           </div>
           <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              First
+              {t("timeline.first", { ns: "game" })}
             </p>
             <p className="mt-1 text-sm font-mono font-semibold">{fpFormat(route.fareFirst, 0)}</p>
           </div>
@@ -742,7 +766,7 @@ function RouteTab({
       {siblings.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-            Other Aircraft on Route
+            {t("aircraftPanel.otherAircraftOnRoute", { ns: "game" })}
           </p>
           <div className="space-y-1.5">
             {siblings.slice(0, 5).map((ac) => {
@@ -761,7 +785,9 @@ function RouteTab({
               );
             })}
             {siblings.length > 5 ? (
-              <p className="text-[11px] text-muted-foreground px-1">+{siblings.length - 5} more</p>
+              <p className="text-[11px] text-muted-foreground px-1">
+                {t("aircraftPanel.more", { ns: "game", count: siblings.length - 5 })}
+              </p>
             ) : null}
           </div>
         </div>
