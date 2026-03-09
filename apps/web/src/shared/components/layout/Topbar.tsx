@@ -2,7 +2,7 @@ import { FP_ZERO, fp, fpAdd, fpDiv, fpFormat, fpSub, fpSum } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
+import { AlertTriangle, Bell, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
@@ -61,6 +61,17 @@ export function Topbar() {
   const mobilePanelTitle = airline ? t("topbar.flightDeck") : t("topbar.identity");
   const mobilePanelLabel = mobilePanelTitle.toLowerCase();
   const canManageLocalKey = isEphemeral && !isViewingOther;
+
+  const openNotificationSettings = () => {
+    navigate({ to: "/corporate" });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById("notifications")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  };
 
   function renderMobileToggle(summary: React.ReactNode) {
     return (
@@ -489,6 +500,18 @@ export function Topbar() {
                   </span>
                 </button>
               )}
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  onClick={openNotificationSettings}
+                  className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" />
+                    {t("topbar.notifications")}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div
@@ -610,6 +633,18 @@ export function Topbar() {
                   <span className="inline-flex items-center gap-1.5">
                     <KeyRound className="h-3.5 w-3.5" />
                     {showKeyTools ? t("topbar.hideKeyTools") : t("topbar.accountKey")}
+                  </span>
+                </button>
+              )}
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  onClick={openNotificationSettings}
+                  className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" />
+                    {t("topbar.notifications")}
                   </span>
                 </button>
               )}

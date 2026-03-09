@@ -51,6 +51,7 @@ import {
 import { WorkspaceLockedState } from "@/shared/components/identity/WorkspaceLockedState";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
+import { NotificationSettingsCard } from "@/features/notifications/components/NotificationSettingsCard";
 
 export type CorporateSection = "overview" | "company" | "network" | "hubs" | "activity";
 
@@ -1515,14 +1516,17 @@ export function CorporateWorkspace({ section = "overview" }: { section?: Corpora
           )}
 
           {section === "overview" && (
-            <FinancialPulse
-              corporateBalance={airline.corporateBalance}
-              pulse={pulse}
-              hubOpex={currentMonthlyOpex}
-              fleetLease={totalMonthlyLease}
-              leasedCount={leasedCount}
-              tick={tick}
-            />
+            <>
+              <FinancialPulse
+                corporateBalance={airline.corporateBalance}
+                pulse={pulse}
+                hubOpex={currentMonthlyOpex}
+                fleetLease={totalMonthlyLease}
+                leasedCount={leasedCount}
+                tick={tick}
+              />
+              {!isViewingOther && <NotificationSettingsCard />}
+            </>
           )}
 
           {(section === "overview" || section === "network") && routePerformance.length > 0 && (

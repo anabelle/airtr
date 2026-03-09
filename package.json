@@ -54,5 +54,8 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
   }
 }
