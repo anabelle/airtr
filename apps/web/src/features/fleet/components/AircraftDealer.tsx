@@ -5,7 +5,6 @@ import { loadMarketplace, type MarketplaceListing, type SellerFleetIndex } from 
 import { useAirlineStore } from "@acars/store";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  ArrowRight,
   Check,
   Coins,
   History,
@@ -186,8 +185,8 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
   const rowHeight =
     displayMode === "factory"
       ? gridColumns === 1
-        ? 380
-        : 360
+        ? 430
+        : 400
       : displayMode === "used-loading"
         ? gridColumns === 1
           ? 300
@@ -295,9 +294,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
         {displayMode === "used-empty" ? (
           <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
             <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-            <p className="text-muted-foreground">
-              {t("fleet.noUsedAircraft", { ns: "game" })}
-            </p>
+            <p className="text-muted-foreground">{t("fleet.noUsedAircraft", { ns: "game" })}</p>
           </div>
         ) : !useVirtualGrid ? (
           <div className="space-y-4">
@@ -408,6 +405,20 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
 }
 
 /**
+ * Displays a compact aircraft spec tile.
+ */
+function AircraftSpecTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-base font-mono font-bold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+/**
  * Shows a factory aircraft card with tier gating.
  */
 function AircraftCard({
@@ -432,6 +443,7 @@ function AircraftCard({
   const totalCapacity =
     aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first;
   const isLocked = aircraft.unlockTier > airlineTier;
+  const leadTimeMinutes = Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60);
 
   return (
     <div
@@ -470,50 +482,31 @@ function AircraftCard({
           </h3>
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-3 pb-5 sm:mb-6 sm:gap-4 sm:pb-0">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
-              <Users className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">
-                {t("aircraft.capacity")}
-              </p>
-              <p className="truncate text-base font-medium sm:text-sm">
-                {totalCapacity} {t("fleet.passengersAbbr")}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/30 text-accent-foreground border border-accent/20">
-              <ArrowRight className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">
-                {t("aircraft.range")}
-              </p>
-              <p className="truncate text-base font-medium sm:text-sm">
-                {aircraft.rangeKm.toLocaleString()} km
-              </p>
-            </div>
-          </div>
-
-          <div className="flex min-w-0 items-center gap-3 col-span-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
-              <Timer className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">
-                {t("fleet.factoryLeadTime")}
-              </p>
-              <p className="truncate text-base font-medium text-yellow-500 sm:text-sm">
-                {t("fleet.minutesEstimate", {
-                  count: Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60),
-                })}
-              </p>
-            </div>
-          </div>
+        <div className="mt-auto grid grid-cols-2 gap-2 pb-5 sm:mb-6 sm:grid-cols-3 sm:gap-3 sm:pb-0">
+          <AircraftSpecTile
+            label={t("aircraft.range")}
+            value={`${aircraft.rangeKm.toLocaleString()} km`}
+          />
+          <AircraftSpecTile
+            label={t("aircraft.speed")}
+            value={`${aircraft.speedKmh.toLocaleString()} km/h`}
+          />
+          <AircraftSpecTile
+            label={t("fleet.baseSeats")}
+            value={`${totalCapacity.toLocaleString()} ${t("fleet.passengersAbbr")}`}
+          />
+          <AircraftSpecTile
+            label={t("fleet.cargoCapacity")}
+            value={`${aircraft.capacity.cargoKg.toLocaleString()} kg`}
+          />
+          <AircraftSpecTile
+            label={t("aircraft.fuelBurn")}
+            value={`${aircraft.fuelBurnKgPerHour.toLocaleString()} kg/h`}
+          />
+          <AircraftSpecTile
+            label={t("fleet.factoryLeadTime")}
+            value={t("fleet.minutesEstimate", { count: leadTimeMinutes })}
+          />
         </div>
 
         <div className="mb-4 h-px w-full bg-border/50" />
@@ -619,9 +612,9 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
             </p>
           </div>
           <div className="col-span-2 pt-1 border-t border-border/10 mt-1 flex items-center justify-between">
-              <p className="text-[9px] uppercase text-muted-foreground font-bold flex items-center gap-1">
-                <Timer className="h-3 w-3" /> {t("fleet.deliveryTime")}
-              </p>
+            <p className="text-[9px] uppercase text-muted-foreground font-bold flex items-center gap-1">
+              <Timer className="h-3 w-3" /> {t("fleet.deliveryTime")}
+            </p>
             <p className="text-[10px] font-bold text-orange-400">~1:00m</p>
           </div>
         </div>
@@ -724,7 +717,8 @@ function PurchaseModal({
       onClose();
       if (onPurchaseSuccess) onPurchaseSuccess();
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("fleet.unknownError", { ns: "game" });
+      const message =
+        error instanceof Error ? error.message : t("fleet.unknownError", { ns: "game" });
       toast.error(t("fleet.purchaseFailed", { ns: "game" }), {
         description: message,
       });
@@ -744,6 +738,9 @@ function PurchaseModal({
 
   const upfrontCost = purchaseType === "buy" ? aircraft.price : fpScale(aircraft.price, 0.1); // 10% Deposit
   const canAfford = typeof corporateBalance === "number" ? corporateBalance >= upfrontCost : true;
+  const baseCapacity =
+    aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first;
+  const leadTimeMinutes = Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
@@ -805,10 +802,10 @@ function PurchaseModal({
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                    placeholder={t("fleet.registrationPlaceholder", {
-                      ns: "game",
-                      name: aircraft.name,
-                    })}
+                  placeholder={t("fleet.registrationPlaceholder", {
+                    ns: "game",
+                    name: aircraft.name,
+                  })}
                   className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -839,39 +836,31 @@ function PurchaseModal({
           </div>
 
           <div className="rounded-2xl border border-border/50 bg-background/40 p-4 sm:p-5">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("aircraft.range", { ns: "game" })}
-                </p>
-                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
-                  {aircraft.rangeKm.toLocaleString()} km
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("aircraft.speed", { ns: "game" })}
-                </p>
-                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
-                  {aircraft.speedKmh.toLocaleString()} km/h
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("fleet.baseSeats", { ns: "game" })}
-                </p>
-                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
-                  {aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first}
-                </p>
-              </div>
-              <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t("fleet.leadTime", { ns: "game" })}
-                </p>
-                <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
-                  ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}m
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <AircraftSpecTile
+                label={t("aircraft.range", { ns: "game" })}
+                value={`${aircraft.rangeKm.toLocaleString()} km`}
+              />
+              <AircraftSpecTile
+                label={t("aircraft.speed", { ns: "game" })}
+                value={`${aircraft.speedKmh.toLocaleString()} km/h`}
+              />
+              <AircraftSpecTile
+                label={t("fleet.baseSeats", { ns: "game" })}
+                value={baseCapacity.toLocaleString()}
+              />
+              <AircraftSpecTile
+                label={t("fleet.cargoCapacity", { ns: "game" })}
+                value={`${aircraft.capacity.cargoKg.toLocaleString()} kg`}
+              />
+              <AircraftSpecTile
+                label={t("aircraft.fuelBurn", { ns: "game" })}
+                value={`${aircraft.fuelBurnKgPerHour.toLocaleString()} kg/h`}
+              />
+              <AircraftSpecTile
+                label={t("fleet.leadTime", { ns: "game" })}
+                value={t("fleet.minutesEstimate", { ns: "game", count: leadTimeMinutes })}
+              />
             </div>
           </div>
 

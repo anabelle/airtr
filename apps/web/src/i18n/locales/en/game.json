@@ -186,6 +186,7 @@
     "registrationPlaceholder": "e.g. {{name}} 1…",
     "deliveryHub": "Delivery Hub",
     "baseSeats": "Base Seats",
+    "cargoCapacity": "Cargo Capacity",
     "leadTime": "Lead Time",
     "acquisitionMethod": "Acquisition Method",
     "cashPurchase": "Cash Purchase",
