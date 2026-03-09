@@ -67,7 +67,7 @@ export function Ticker() {
 
       <div className="hidden md:flex items-center space-x-2 border-r border-border pr-6">
         <span>{t("ticker.season")}</span>
-        <span className="text-info text-blue-400 capitalize">{season}</span>
+        <span className="text-info text-blue-400 capitalize">{t(`ticker.seasons.${season}`)}</span>
       </div>
       <div className="hidden md:flex items-center space-x-2 border-r border-border pr-6">
         <span>{t("ticker.economy")}</span>

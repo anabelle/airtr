@@ -36,7 +36,10 @@
     "icaoPending": "ICAO pendiente",
     "launchingAirline": "Lanzando aerolínea...",
     "launchAirline": "Lanzar Aerolínea",
-    "exportKeyWarning": "Exporta tu clave de recuperación antes del lanzamiento para que esta aerolínea siga siendo tuya si pierdes este navegador."
+    "exportKeyWarning": "Exporta tu clave de recuperación antes del lanzamiento para que esta aerolínea siga siendo tuya si pierdes este navegador.",
+    "callsignSuggested": "{{icao}} HEAVY",
+    "callsignDefaultIcao": "APX",
+    "unknownError": "Error desconocido"
   },
   "guest": {
     "title": "Inicia tu aerolínea",

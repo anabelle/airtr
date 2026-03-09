@@ -1,9 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
+import { useTranslation } from "react-i18next";
 import type { ConfirmOptions } from '@/shared/lib/confirm';
 import { ConfirmContext } from '@/shared/lib/confirm-context';
 
 const ConfirmProviderComponent = ({ children }: { children: React.ReactNode }) => {
+    const { t } = useTranslation("common");
     const [request, setRequest] = React.useState<ConfirmOptions | null>(null);
     const resolverRef = React.useRef<((value: boolean) => void) | null>(null);
 
@@ -42,7 +44,7 @@ const ConfirmProviderComponent = ({ children }: { children: React.ReactNode }) =
                                 onClick={() => handleResolve(false)}
                                 className="rounded-md border border-border bg-background/60 px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
                             >
-                                {request.cancelLabel ?? 'Cancel'}
+                                {request.cancelLabel ?? t("actions.cancel")}
                             </button>
                             <button
                                 type="button"
@@ -53,7 +55,7 @@ const ConfirmProviderComponent = ({ children }: { children: React.ReactNode }) =
                                         : 'bg-primary hover:bg-primary/90'
                                 }`}
                             >
-                                {request.confirmLabel ?? 'Confirm'}
+                                {request.confirmLabel ?? t("actions.confirm")}
                             </button>
                         </div>
                     </div>

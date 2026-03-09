@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
 import { useConfirm } from "@/shared/lib/useConfirm";
@@ -28,6 +29,7 @@ import { CatalogImage } from "./CatalogImage";
  * Renders the aircraft dealer with factory and marketplace listings.
  */
 export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () => void }) {
+  const { t } = useTranslation(["common", "game"]);
   const logger = useMemo(() => createLogger("AircraftDealer"), []);
   const [mode, setMode] = useState<"factory" | "marketplace">("factory");
   const [search, setSearch] = useState("");
@@ -66,10 +68,13 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
 
   const handleBuyUsed = async (listing: MarketplaceListing) => {
     const approved = await confirm({
-      title: "Purchase used aircraft?",
-      description: `Confirm purchase for ${fpFormat(listing.marketplacePrice, 0)}. Delivery starts immediately.`,
-      confirmLabel: "Purchase",
-      cancelLabel: "Cancel",
+      title: t("fleet.purchaseUsedTitle", { ns: "game" }),
+      description: t("fleet.purchaseUsedDescription", {
+        ns: "game",
+        amount: fpFormat(listing.marketplacePrice, 0),
+      }),
+      confirmLabel: t("fleet.purchase", { ns: "game" }),
+      cancelLabel: t("actions.cancel"),
       tone: "default",
     });
     if (!approved) return;
@@ -79,8 +84,8 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
       fetchUsed(); // Refresh the list
       if (onPurchaseSuccess) onPurchaseSuccess();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      toast.error("Purchase failed", {
+      const message = e instanceof Error ? e.message : t("fleet.unknownError", { ns: "game" });
+      toast.error(t("fleet.purchaseFailed", { ns: "game" }), {
         description: message,
       });
     }
@@ -207,7 +212,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
           className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${mode === "factory" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-accent/40"}`}
         >
           <ShoppingBag className="h-4 w-4" />
-          <span className="truncate">Factory New</span>
+          <span className="truncate">{t("fleet.factoryNew", { ns: "game" })}</span>
         </button>
         <button
           type="button"
@@ -218,7 +223,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
           className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all ${mode === "marketplace" ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-muted-foreground hover:bg-accent/40"}`}
         >
           <History className={`h-4 w-4 ${isLoadingUsed ? "animate-spin" : ""}`} />
-          <span className="truncate">Used Marketplace</span>
+          <span className="truncate">{t("fleet.usedMarketplace", { ns: "game" })}</span>
         </button>
       </div>
 
@@ -230,7 +235,9 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
             <input
               className="h-10 w-full rounded-xl bg-background border border-border/50 pl-10 pr-4 text-sm transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground outline-none"
               placeholder={
-                mode === "factory" ? "Search aircraft models..." : "Search marketplace listings..."
+                mode === "factory"
+                  ? t("fleet.searchAircraftModels", { ns: "game" })
+                  : t("fleet.searchMarketplaceListings", { ns: "game" })
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -244,7 +251,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
               className="flex h-10 items-center justify-center gap-2 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 text-xs font-bold text-orange-400 transition-all hover:bg-orange-500/20 disabled:opacity-50 sm:self-start"
             >
               <History className={`h-4 w-4 ${isLoadingUsed ? "animate-spin" : ""}`} />
-              Refresh
+              {t("fleet.refreshListings", { ns: "game" })}
             </button>
           )}
 
@@ -260,7 +267,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
-                  All
+                  {t("fleet.allTiers", { ns: "game" })}
                 </button>
                 {[1, 2, 3, 4].map((tier) => (
                   <button
@@ -273,7 +280,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     }`}
                   >
-                    Tier {tier}
+                    {t("fleet.tierLabel", { ns: "game", tier })}
                   </button>
                 ))}
               </div>
@@ -288,7 +295,7 @@ export function AircraftDealer({ onPurchaseSuccess }: { onPurchaseSuccess?: () =
           <div className="py-20 text-center flex flex-col items-center border border-dashed border-border/50 rounded-2xl bg-card/20">
             <History className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
             <p className="text-muted-foreground">
-              No used aircraft currently listed on the Marketplace.
+              {t("fleet.noUsedAircraft", { ns: "game" })}
             </p>
           </div>
         ) : !useVirtualGrid ? (
@@ -411,6 +418,7 @@ function AircraftCard({
   airlineTier: number;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation("game");
   const gradientMap: Record<string, string> = {
     Airbus: "from-blue-500/20 via-blue-900/10 to-transparent",
     Boeing: "from-indigo-500/20 via-purple-900/10 to-transparent",
@@ -436,7 +444,7 @@ function AircraftCard({
       >
         <div className="absolute left-3 top-3 flex gap-2 sm:left-4 sm:top-4">
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold text-foreground border border-border/50">
-            Tier {aircraft.unlockTier}
+            {t("fleet.tierLabel", { tier: aircraft.unlockTier })}
           </span>
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground border border-border/50">
             {aircraft.type}
@@ -467,8 +475,12 @@ function AircraftCard({
               <Users className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Capacity</p>
-              <p className="truncate text-base font-medium sm:text-sm">{totalCapacity} pax</p>
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                {t("aircraft.capacity")}
+              </p>
+              <p className="truncate text-base font-medium sm:text-sm">
+                {totalCapacity} {t("fleet.passengersAbbr")}
+              </p>
             </div>
           </div>
 
@@ -477,7 +489,9 @@ function AircraftCard({
               <ArrowRight className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Range</p>
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">
+                {t("aircraft.range")}
+              </p>
               <p className="truncate text-base font-medium sm:text-sm">
                 {aircraft.rangeKm.toLocaleString()} km
               </p>
@@ -490,10 +504,12 @@ function AircraftCard({
             </div>
             <div className="min-w-0">
               <p className="text-[10px] uppercase text-muted-foreground font-semibold">
-                Factory Lead Time
+                {t("fleet.factoryLeadTime")}
               </p>
               <p className="truncate text-base font-medium text-yellow-500 sm:text-sm">
-                ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)} minutes
+                {t("fleet.minutesEstimate", {
+                  count: Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60),
+                })}
               </p>
             </div>
           </div>
@@ -504,7 +520,7 @@ function AircraftCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
-              List Price
+              {t("fleet.listPrice")}
             </p>
             <p className="truncate text-xl font-bold text-primary transition-colors duration-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.2)] group-hover:-translate-y-0.5 group-hover:text-primary-foreground sm:text-lg">
               {fpFormat(aircraft.price, 0)}
@@ -522,7 +538,9 @@ function AircraftCard({
             }`}
           >
             <span className="relative flex items-center justify-center gap-2 truncate">
-              {isLocked ? `Requires Tier ${aircraft.unlockTier}` : "Configure & Buy"}
+              {isLocked
+                ? t("fleet.requiresTier", { tier: aircraft.unlockTier })
+                : t("fleet.configureAndBuy")}
             </span>
           </button>
         </div>
@@ -542,6 +560,7 @@ type UsedListingCardProps = {
  * Shows a used aircraft listing with tier gating.
  */
 function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps) {
+  const { t } = useTranslation("game");
   const model = getAircraftById(listing.modelId);
   if (!model) return null;
   const isLocked = model.unlockTier > airlineTier;
@@ -555,10 +574,10 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
       >
         <div className="absolute top-3 left-3 flex gap-2">
           <span className="inline-flex items-center rounded-full bg-orange-500/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-orange-400 border border-orange-500/20 uppercase">
-            Used
+            {t("fleet.used")}
           </span>
           <span className="inline-flex items-center rounded-full bg-background/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/50">
-            Tier {model.unlockTier}
+            {t("fleet.tierLabel", { tier: model.unlockTier })}
           </span>
         </div>
 
@@ -575,7 +594,9 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
 
         <div className="grid grid-cols-2 gap-3 mb-4 mt-auto bg-background/40 p-3 rounded-xl border border-border/20">
           <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-bold">Condition</p>
+            <p className="text-[9px] uppercase text-muted-foreground font-bold">
+              {t("fleet.condition")}
+            </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1 rounded-full bg-border/50 overflow-hidden">
                 <div
@@ -589,15 +610,17 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
             </div>
           </div>
           <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-bold">Flight Hours</p>
+            <p className="text-[9px] uppercase text-muted-foreground font-bold">
+              {t("fleet.flightHours")}
+            </p>
             <p className="text-xs font-mono font-bold">
               {(listing.flightHoursTotal || 0).toLocaleString()}h
             </p>
           </div>
           <div className="col-span-2 pt-1 border-t border-border/10 mt-1 flex items-center justify-between">
-            <p className="text-[9px] uppercase text-muted-foreground font-bold flex items-center gap-1">
-              <Timer className="h-3 w-3" /> Delivery Time
-            </p>
+              <p className="text-[9px] uppercase text-muted-foreground font-bold flex items-center gap-1">
+                <Timer className="h-3 w-3" /> {t("fleet.deliveryTime")}
+              </p>
             <p className="text-[10px] font-bold text-orange-400">~1:00m</p>
           </div>
         </div>
@@ -605,13 +628,13 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
         <div className="flex min-w-0 items-end justify-between gap-3 pt-2">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] uppercase text-muted-foreground font-bold mb-0.5">
-              Asking Price
+              {t("fleet.askingPrice")}
             </p>
             <p className="truncate text-lg font-bold text-orange-400 drop-shadow-[0_0_10px_rgba(249,115,22,0.2)]">
               {fpFormat(listing.marketplacePrice || FP_ZERO, 0)}
             </p>
             <p className="text-[9px] text-muted-foreground mt-0.5 italic truncate">
-              Seller: {listing.sellerPubkey?.slice(0, 8)}...
+              {t("fleet.seller")}: {listing.sellerPubkey?.slice(0, 8)}...
             </p>
           </div>
 
@@ -625,7 +648,7 @@ function UsedAircraftCard({ listing, airlineTier, onBuy }: UsedListingCardProps)
                 : "bg-orange-500 text-white hover:bg-orange-600 hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]"
             }`}
           >
-            {isLocked ? `Tier ${model.unlockTier}` : "Purchase"}
+            {isLocked ? t("fleet.tierLabel", { tier: model.unlockTier }) : t("fleet.purchase")}
           </button>
         </div>
       </div>
@@ -645,6 +668,7 @@ function PurchaseModal({
   onClose: () => void;
   onPurchaseSuccess?: () => void;
 }) {
+  const { t } = useTranslation(["common", "game"]);
   const hubs = useAirlineStore((state) => state.airline?.hubs || []);
   const purchaseAircraft = useAirlineStore((state) => state.purchaseAircraft);
   const corporateBalance = useAirlineStore((state) => state.airline?.corporateBalance);
@@ -686,15 +710,21 @@ function PurchaseModal({
         customName,
         purchaseType,
       );
-      toast.success(`${aircraft.name} ordered`, {
-        description: `Your ${purchaseType === "lease" ? "lease" : "purchase"} is confirmed. Check the fleet list for delivery status.`,
+      toast.success(t("fleet.aircraftOrdered", { ns: "game", name: aircraft.name }), {
+        description: t("fleet.purchaseConfirmed", {
+          ns: "game",
+          type:
+            purchaseType === "lease"
+              ? t("fleet.leaseAgreement", { ns: "game" })
+              : t("fleet.cashPurchase", { ns: "game" }),
+        }),
       });
       setIsPurchasing(false);
       onClose();
       if (onPurchaseSuccess) onPurchaseSuccess();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error("Purchase failed", {
+      const message = error instanceof Error ? error.message : t("fleet.unknownError", { ns: "game" });
+      toast.error(t("fleet.purchaseFailed", { ns: "game" }), {
         description: message,
       });
       setIsPurchasing(false);
@@ -746,7 +776,7 @@ function PurchaseModal({
             type="button"
             onClick={onClose}
             className="absolute right-4 top-4 z-20 rounded-full bg-background/20 p-2 backdrop-blur-md transition-colors hover:bg-background/40"
-            aria-label="Close purchase modal"
+            aria-label={t("fleet.closePurchaseModal", { ns: "game" })}
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -757,7 +787,7 @@ function PurchaseModal({
           <div className="space-y-4">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <Tag className="h-4 w-4 text-primary" />
-              Aircraft Identity
+              {t("fleet.aircraftIdentity", { ns: "game" })}
             </h4>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
@@ -765,14 +795,17 @@ function PurchaseModal({
                   htmlFor={nameInputId}
                   className="text-[10px] font-semibold text-muted-foreground uppercase block"
                 >
-                  Registration / Name (Optional)
+                  {t("fleet.registrationNameOptional", { ns: "game" })}
                 </label>
                 <input
                   id={nameInputId}
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  placeholder={`e.g. ${aircraft.name} 1…`}
+                    placeholder={t("fleet.registrationPlaceholder", {
+                      ns: "game",
+                      name: aircraft.name,
+                    })}
                   className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -783,7 +816,7 @@ function PurchaseModal({
                     htmlFor={hubSelectId}
                     className="text-[10px] font-semibold text-muted-foreground uppercase block flex items-center gap-1"
                   >
-                    <MapPin className="h-3 w-3" /> Delivery Hub
+                    <MapPin className="h-3 w-3" /> {t("fleet.deliveryHub", { ns: "game" })}
                   </label>
                   <select
                     id={hubSelectId}
@@ -806,7 +839,7 @@ function PurchaseModal({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Range
+                  {t("aircraft.range", { ns: "game" })}
                 </p>
                 <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
                   {aircraft.rangeKm.toLocaleString()} km
@@ -814,7 +847,7 @@ function PurchaseModal({
               </div>
               <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Speed
+                  {t("aircraft.speed", { ns: "game" })}
                 </p>
                 <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
                   {aircraft.speedKmh.toLocaleString()} km/h
@@ -822,7 +855,7 @@ function PurchaseModal({
               </div>
               <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Base Seats
+                  {t("fleet.baseSeats", { ns: "game" })}
                 </p>
                 <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
                   {aircraft.capacity.economy + aircraft.capacity.business + aircraft.capacity.first}
@@ -830,7 +863,7 @@ function PurchaseModal({
               </div>
               <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-background/60 p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Lead Time
+                  {t("fleet.leadTime", { ns: "game" })}
                 </p>
                 <p className="mt-1 truncate text-base font-mono font-bold text-foreground">
                   ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}m
@@ -843,7 +876,7 @@ function PurchaseModal({
           <div className="space-y-3">
             <h4 className="text-sm font-bold flex items-center gap-2">
               <ShoppingBag className="h-4 w-4 text-primary" />
-              Acquisition Method
+              {t("fleet.acquisitionMethod", { ns: "game" })}
             </h4>
             <div className="grid w-full grid-cols-2 gap-0 rounded-xl border border-border/50 bg-background/50 p-1">
               <button
@@ -855,7 +888,7 @@ function PurchaseModal({
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                 }`}
               >
-                Cash Purchase
+                {t("fleet.cashPurchase", { ns: "game" })}
               </button>
               <button
                 type="button"
@@ -866,13 +899,15 @@ function PurchaseModal({
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                 }`}
               >
-                Lease Agreement
+                {t("fleet.leaseAgreement", { ns: "game" })}
               </button>
             </div>
             {purchaseType === "lease" && (
               <p className="px-2 text-[10px] italic text-muted-foreground">
-                * Lease requires a 10% refundable security deposit and monthly payments of{" "}
-                {fpFormat(aircraft.monthlyLease, 0)}.
+                {t("fleet.leaseTerms", {
+                  ns: "game",
+                  amount: fpFormat(aircraft.monthlyLease, 0),
+                })}
               </p>
             )}
           </div>
@@ -883,7 +918,7 @@ function PurchaseModal({
           <div className="space-y-4">
             <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-primary" />
-              Cabin Configuration
+              {t("fleet.cabinConfiguration", { ns: "game" })}
             </h4>
 
             <div className="space-y-6 rounded-xl border border-border/50 bg-background/50 p-4 sm:p-5">
@@ -892,7 +927,7 @@ function PurchaseModal({
                   htmlFor={firstSliderId}
                   className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
                 >
-                  <span>First Class (4x space)</span>
+                  <span>{t("fleet.firstClassSpace", { ns: "game" })}</span>
                   <span className={firstSeats > 0 ? "text-primary" : ""}>{firstSeats} seats</span>
                 </label>
                 <input
@@ -920,7 +955,7 @@ function PurchaseModal({
                   htmlFor={businessSliderId}
                   className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
                 >
-                  <span>Business Class (2.5x space)</span>
+                  <span>{t("fleet.businessClassSpace", { ns: "game" })}</span>
                   <span className={busSeats > 0 ? "text-primary" : ""}>{busSeats} seats</span>
                 </label>
                 <input
@@ -939,19 +974,19 @@ function PurchaseModal({
                 <div className="mb-2 flex items-center justify-between gap-2 text-sm">
                   <div className="min-w-0 flex-1 overflow-hidden text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      First
+                      {t("timeline.first", { ns: "game" })}
                     </span>
                     <span className="font-mono text-lg font-bold truncate block">{firstSeats}</span>
                   </div>
                   <div className="min-w-0 flex-1 overflow-hidden border-x border-border/50 text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      Business
+                      {t("timeline.business", { ns: "game" })}
                     </span>
                     <span className="font-mono text-lg font-bold truncate block">{busSeats}</span>
                   </div>
                   <div className="min-w-0 flex-1 overflow-hidden text-center">
                     <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      Economy
+                      {t("timeline.economy", { ns: "game" })}
                     </span>
                     <span className="font-mono text-lg font-bold text-primary truncate block">
                       {econSeats}
@@ -960,7 +995,7 @@ function PurchaseModal({
                 </div>
                 <div className="flex min-w-0 justify-between items-center text-xs mt-4 px-4 py-2 bg-accent/20 rounded-lg border border-accent/20">
                   <span className="truncate text-accent-foreground font-semibold uppercase text-[10px]">
-                    Total Passengers
+                    {t("fleet.totalPassengers", { ns: "game" })}
                   </span>
                   <span className="shrink-0 font-mono font-bold text-accent-foreground">
                     {totalCapacity}
@@ -974,7 +1009,9 @@ function PurchaseModal({
             <div className="flex min-w-0 items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {purchaseType === "buy" ? "Full Purchase Price" : "Security Deposit (10%)"}
+                  {purchaseType === "buy"
+                    ? t("fleet.fullPurchasePrice", { ns: "game" })
+                    : t("fleet.securityDeposit", { ns: "game" })}
                 </p>
                 <p
                   className={`mt-1 truncate text-3xl font-black ${canAfford ? "text-primary" : "text-red-500"}`}
@@ -983,12 +1020,15 @@ function PurchaseModal({
                 </p>
                 {purchaseType === "lease" ? (
                   <p className="mt-1 truncate text-xs font-bold uppercase text-orange-400">
-                    + {fpFormat(aircraft.monthlyLease, 0)} / month
+                    {t("fleet.monthlyLeaseAmount", {
+                      ns: "game",
+                      amount: fpFormat(aircraft.monthlyLease, 0),
+                    })}
                   </p>
                 ) : null}
               </div>
               <div className="shrink-0 text-right text-xs text-yellow-500">
-                <p className="font-semibold">Ready in</p>
+                <p className="font-semibold">{t("fleet.readyIn", { ns: "game" })}</p>
                 <p className="font-mono font-bold">
                   ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
                   :00
@@ -1001,7 +1041,7 @@ function PurchaseModal({
         {/* Footer Action */}
         <div className="flex shrink-0 min-w-0 flex-col gap-3 overflow-hidden border-t border-border/50 bg-background/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:p-6">
           <p className="truncate text-center text-xs text-muted-foreground sm:mr-auto sm:text-left">
-            Review your configuration above, then confirm the order.
+            {t("fleet.reviewConfiguration", { ns: "game" })}
           </p>
           <button
             type="button"
@@ -1019,14 +1059,14 @@ function PurchaseModal({
               {isPurchasing ? (
                 <>
                   <Check className="h-5 w-5 shrink-0 animate-pulse" />
-                  Purchasing…
+                  {t("fleet.purchasing", { ns: "game" })}
                 </>
               ) : !canAfford ? (
-                <>Insufficient Funds</>
+                <>{t("fleet.insufficientFunds", { ns: "game" })}</>
               ) : (
                 <>
                   <Coins className="h-5 w-5 shrink-0" />
-                  Confirm Order
+                  {t("fleet.confirmOrder", { ns: "game" })}
                 </>
               )}
             </span>

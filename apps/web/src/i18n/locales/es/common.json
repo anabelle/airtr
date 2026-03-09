@@ -46,7 +46,9 @@
     "relaysConnected": "{{count}} relé conectado",
     "relaysConnected_other": "{{count}} relés conectados",
     "relaysOffline": "Relés Nostr desconectados",
-    "disconnectedWarning": "Desconectado de Nostr — los cambios podrían no guardarse"
+    "disconnectedWarning": "Desconectado de Nostr — los cambios podrían no guardarse",
+    "openPanel": "Abrir {{panel}}",
+    "closePanel": "Cerrar {{panel}}"
   },
   "bankruptcy": {
     "chapter11Banner": "Bancarrota Capítulo 11 — Todas las operaciones suspendidas",
@@ -111,5 +113,11 @@
         "description": "Miles de aerolíneas, clasificaciones en vivo y un mercado global de rutas."
       }
     }
+  },
+  "actions": {
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "clear": "Limpiar",
+    "close": "Cerrar"
   }
 }
