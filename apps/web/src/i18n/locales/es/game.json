@@ -186,6 +186,7 @@
     "registrationPlaceholder": "p. ej. {{name}} 1…",
     "deliveryHub": "Hub de entrega",
     "baseSeats": "Asientos base",
+    "cargoCapacity": "Capacidad de carga",
     "leadTime": "Tiempo de entrega",
     "acquisitionMethod": "Método de adquisición",
     "cashPurchase": "Compra al contado",
