@@ -447,7 +447,7 @@ function AircraftCard({
 
   return (
     <div
-      className={`group relative flex min-w-0 flex-col rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-border/80 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] ${
+      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] focus-within:-translate-y-0.5 focus-within:border-primary/45 focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.5)] ${
         isLocked ? "opacity-60" : ""
       }`}
     >
@@ -516,7 +516,7 @@ function AircraftCard({
             <p className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
               {t("fleet.listPrice")}
             </p>
-            <p className="truncate text-xl font-bold text-primary transition-colors duration-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.2)] group-hover:-translate-y-0.5 group-hover:text-primary-foreground sm:text-lg">
+            <p className="truncate text-xl font-bold text-primary transition-[color,transform,text-shadow] duration-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.2)] group-hover:-translate-y-0.5 group-hover:text-primary group-hover:drop-shadow-[0_0_14px_rgba(16,185,129,0.32)] group-focus-within:-translate-y-0.5 group-focus-within:text-primary group-focus-within:drop-shadow-[0_0_14px_rgba(16,185,129,0.32)] sm:text-lg">
               {fpFormat(aircraft.price, 0)}
             </p>
           </div>

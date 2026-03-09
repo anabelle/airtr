@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AircraftDealer } from "./AircraftDealer";
 
@@ -110,6 +110,20 @@ describe("AircraftDealer", () => {
     expect(screen.getByText("9,000 kg")).toBeInTheDocument();
     expect(screen.getByText("Fuel Burn")).toBeInTheDocument();
     expect(screen.getByText("2,700 kg/h")).toBeInTheDocument();
+  });
+
+  it("keeps the list price readable when the card is hovered", () => {
+    render(<AircraftDealer />);
+
+    const listPriceBlock = screen.getAllByText("List Price")[0]?.parentElement;
+
+    expect(listPriceBlock).not.toBeNull();
+
+    const listPrice = within(listPriceBlock as HTMLElement).getByText(/\d/);
+
+    expect(listPrice).toHaveClass("text-primary");
+    expect(listPrice).toHaveClass("group-hover:text-primary");
+    expect(listPrice).not.toHaveClass("group-hover:text-primary-foreground");
   });
 
   it("shows the expanded spec grid in the purchase modal", () => {
