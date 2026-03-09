@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fpToNumber } from "./fixed-point.js";
+import { fp, fpSub, fpToNumber } from "./fixed-point.js";
 import {
   FUEL_PRICE_MAX_PER_KG,
   FUEL_PRICE_MEAN_PER_KG,
@@ -35,9 +35,30 @@ describe("fuel market", () => {
   });
 
   it("mean reversion nudges extreme values back toward center", () => {
-    const fromHigh = stepFuelPrice(fpToNumber(FUEL_PRICE_MAX_PER_KG), 10);
-    const fromLow = stepFuelPrice(fpToNumber(FUEL_PRICE_MIN_PER_KG), 11);
-    expect(fromHigh).toBeLessThanOrEqual(fpToNumber(FUEL_PRICE_MAX_PER_KG));
-    expect(fromLow).toBeGreaterThanOrEqual(fpToNumber(FUEL_PRICE_MIN_PER_KG));
+    const highStart = fp(1.55);
+    const lowStart = fp(0.85);
+    const highTick = Array.from({ length: 256 }, (_, tick) => tick).find(
+      (tick) => stepFuelPrice(highStart, tick) < highStart,
+    );
+    const lowTick = Array.from({ length: 256 }, (_, tick) => tick).find(
+      (tick) => stepFuelPrice(lowStart, tick) > lowStart,
+    );
+
+    expect(highTick).toBeDefined();
+    expect(lowTick).toBeDefined();
+
+    const fromHigh = stepFuelPrice(highStart, highTick ?? 0);
+    const fromHighMean = stepFuelPrice(FUEL_PRICE_MEAN_PER_KG, highTick ?? 0);
+    const fromLow = stepFuelPrice(lowStart, lowTick ?? 0);
+    const fromLowMean = stepFuelPrice(FUEL_PRICE_MEAN_PER_KG, lowTick ?? 0);
+
+    expect(fromHigh).toBeLessThan(highStart);
+    expect(fromLow).toBeGreaterThan(lowStart);
+    expect(fpToNumber(fpSub(fromHigh, fromHighMean))).toBeLessThan(
+      fpToNumber(fpSub(highStart, FUEL_PRICE_MEAN_PER_KG)),
+    );
+    expect(fpToNumber(fpSub(fromLowMean, fromLow))).toBeLessThan(
+      fpToNumber(fpSub(FUEL_PRICE_MEAN_PER_KG, lowStart)),
+    );
   });
 });

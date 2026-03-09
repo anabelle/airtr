@@ -1,4 +1,4 @@
-import { fp } from "./fixed-point.js";
+import { fp, fpAdd, fpScale, fpSub } from "./fixed-point.js";
 import { createTickPRNG } from "./prng.js";
 import type { FixedPoint } from "./types.js";
 import { TICKS_PER_DAY } from "./types.js";
@@ -8,16 +8,15 @@ export const FUEL_PRICE_MIN_PER_KG = fp(0.8);
 export const FUEL_PRICE_MAX_PER_KG = fp(1.6);
 export const FUEL_PRICE_EPOCH_TICKS = TICKS_PER_DAY;
 
-const FUEL_MEAN = 1.2;
-const FUEL_MIN = 0.8;
-const FUEL_MAX = 1.6;
 const FUEL_THETA = 0.00018;
 const FUEL_SIGMA = 0.0035;
 
-const epochCache = new Map<number, number>([[0, FUEL_MEAN]]);
+const epochCache = new Map<number, FixedPoint>([[0, FUEL_PRICE_MEAN_PER_KG]]);
 
-function clampFuelPrice(price: number): number {
-  return Math.min(FUEL_MAX, Math.max(FUEL_MIN, price));
+function clampFuelPrice(price: FixedPoint): FixedPoint {
+  if (price < FUEL_PRICE_MIN_PER_KG) return FUEL_PRICE_MIN_PER_KG;
+  if (price > FUEL_PRICE_MAX_PER_KG) return FUEL_PRICE_MAX_PER_KG;
+  return price;
 }
 
 function randomStandardNormal(tick: number): number {
@@ -27,15 +26,13 @@ function randomStandardNormal(tick: number): number {
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
-export function stepFuelPrice(currentPrice: number, tick: number): number {
-  const nextPrice =
-    currentPrice +
-    FUEL_THETA * (FUEL_MEAN - currentPrice) +
-    FUEL_SIGMA * randomStandardNormal(tick);
-  return clampFuelPrice(nextPrice);
+export function stepFuelPrice(currentPrice: FixedPoint, tick: number): FixedPoint {
+  const drift = fpScale(fpSub(FUEL_PRICE_MEAN_PER_KG, currentPrice), FUEL_THETA);
+  const shock = fp(FUEL_SIGMA * randomStandardNormal(tick));
+  return clampFuelPrice(fpAdd(currentPrice, fpAdd(drift, shock)));
 }
 
-function getEpochFuelPrice(epoch: number): number {
+function getEpochFuelPrice(epoch: number): FixedPoint {
   const cached = epochCache.get(epoch);
   if (cached !== undefined) return cached;
 
@@ -62,7 +59,7 @@ export function getFuelPriceAtTick(tick: number): FixedPoint {
     price = stepFuelPrice(price, currentTick);
   }
 
-  return fp(price);
+  return price;
 }
 
 export interface FuelPriceSample {

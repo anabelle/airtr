@@ -13,6 +13,7 @@ import {
   getFuelPriceAtTick,
   getFuelPriceHistory,
   TICK_DURATION,
+  TICKS_PER_HOUR,
   TIER_THRESHOLDS,
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
@@ -89,7 +90,13 @@ function FinancialPulse({
 
   const lowConfidence = pulse.flightCount > 0 && pulse.financialFlightCount < 5;
   const fuelPrice = getFuelPriceAtTick(tick);
-  const fuelHistory = useMemo(() => getFuelPriceHistory(tick, 24, 600), [tick]);
+  const fuelHistory = useMemo(() => {
+    const fuelTrendWindowHours = 4;
+    const fuelTrendSampleCount = 25;
+    const fuelTrendSpacingTicks =
+      (fuelTrendWindowHours * TICKS_PER_HOUR) / (fuelTrendSampleCount - 1);
+    return getFuelPriceHistory(tick, fuelTrendSampleCount, fuelTrendSpacingTicks);
+  }, [tick]);
   const fuelMin = Math.min(...fuelHistory.map((sample) => fpToNumber(sample.price)));
   const fuelMax = Math.max(...fuelHistory.map((sample) => fpToNumber(sample.price)));
   const sparklinePoints = fuelHistory
