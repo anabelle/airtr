@@ -512,17 +512,11 @@ export function Topbar() {
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
                   {t("topbar.corporateBalance")}
                 </span>
-                <span className="mt-1 font-mono text-sm font-bold text-green-400">
-                  {fpFormat(activeAirline.corporateBalance)}
-                </span>
-                {cashFlowTicker}
-              </div>
-              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
-                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  {t("topbar.stockPrice")}
-                </span>
-                <span className="mt-1 font-mono text-sm font-bold text-primary">
-                  {fpFormat(activeAirline.stockPrice)}
+                <span className="mt-1 flex items-baseline gap-1.5">
+                  <span className="font-mono text-sm font-bold text-green-400">
+                    {fpFormat(activeAirline.corporateBalance)}
+                  </span>
+                  {cashFlowTicker}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
@@ -637,17 +631,11 @@ export function Topbar() {
                 <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
                   {t("topbar.corporateBalance")}
                 </span>
-                <span className="mt-1 font-mono text-sm font-bold text-green-400">
-                  {fpFormat(activeAirline.corporateBalance)}
-                </span>
-                {cashFlowTicker}
-              </div>
-              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
-                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
-                  {t("topbar.stockPrice")}
-                </span>
-                <span className="mt-1 font-mono text-sm font-bold text-primary">
-                  {fpFormat(activeAirline.stockPrice)}
+                <span className="mt-1 flex items-baseline gap-1.5">
+                  <span className="font-mono text-sm font-bold text-green-400">
+                    {fpFormat(activeAirline.corporateBalance)}
+                  </span>
+                  {cashFlowTicker}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
