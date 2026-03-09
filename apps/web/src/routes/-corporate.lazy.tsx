@@ -1331,7 +1331,21 @@ export default function CorporateDashboard() {
       />
       <PanelBody className="pt-3 sm:pt-4">
         <div className="flex w-full flex-col gap-4">
-          {/* 1. Financial Pulse — the heartbeat */}
+          {/* ── Zone 1: Identity ── */}
+          <CompanyProfile
+            name={airline.name}
+            icaoCode={airline.icaoCode}
+            callsign={airline.callsign}
+            tier={airline.tier}
+            brandScore={airline.brandScore}
+            cumulativeRevenue={airline.cumulativeRevenue}
+            activeRouteCount={activeRouteCount}
+            status={airline.status}
+            ceoPubkey={airline.ceoPubkey}
+          />
+          <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
+
+          {/* ── Zone 2: Financials ── */}
           <FinancialPulse
             corporateBalance={airline.corporateBalance}
             pulse={pulse}
@@ -1340,14 +1354,18 @@ export default function CorporateDashboard() {
             leasedCount={leasedCount}
           />
 
+          {/* ── Zone 3: Network Intelligence ── */}
           {routePerformance.length > 0 && (
             <section className="rounded-xl border border-border/50 bg-background/50 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Route Performance
+                  {t("corporate.routePerformance", { ns: "game" })}
                 </p>
                 <span className="text-[10px] text-muted-foreground">
-                  Last {RECENT_FLIGHT_COUNT} flights
+                  {t("corporate.lastFlights", {
+                    ns: "game",
+                    count: RECENT_FLIGHT_COUNT,
+                  })}
                 </span>
               </div>
               <div ref={routePerformanceContainerRef} className="max-h-64 overflow-y-auto">
@@ -1401,18 +1419,31 @@ export default function CorporateDashboard() {
             routesNeedingCuts={networkHealth.routesNeedingCuts}
           />
 
-          {/* 2. Company Profile — identity + tier/brand/status */}
-          <CompanyProfile
-            name={airline.name}
-            icaoCode={airline.icaoCode}
-            callsign={airline.callsign}
-            tier={airline.tier}
-            brandScore={airline.brandScore}
-            cumulativeRevenue={airline.cumulativeRevenue}
-            activeRouteCount={activeRouteCount}
-            status={airline.status}
-            ceoPubkey={airline.ceoPubkey}
-          />
+          {/* ── Zone 4: Operations ── */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Operations Centers ({airline.hubs.length})
+                </p>
+              </div>
+              {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {airline.hubs.map((hub) => (
+                <HubCard
+                  key={hub}
+                  iata={hub}
+                  isActive={homeAirport?.iata === hub}
+                  onSwitch={() => handleSwitchActiveHub(hub)}
+                  onClose={() => handleCloseHub(hub)}
+                  canClose={!isViewingOther && airline.hubs.length > 1}
+                  isReadOnly={isViewingOther}
+                />
+              ))}
+            </div>
+          </section>
 
           {/* Bankruptcy explanation panel */}
           {(airline.status === "chapter11" || airline.status === "liquidated") &&
@@ -1443,36 +1474,7 @@ export default function CorporateDashboard() {
               />
             )}
 
-          {/* 3. Hub Operations — actionable */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Operations Centers ({airline.hubs.length})
-                </p>
-              </div>
-              {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {airline.hubs.map((hub) => (
-                <HubCard
-                  key={hub}
-                  iata={hub}
-                  isActive={homeAirport?.iata === hub}
-                  onSwitch={() => handleSwitchActiveHub(hub)}
-                  onClose={() => handleCloseHub(hub)}
-                  canClose={!isViewingOther && airline.hubs.length > 1}
-                  isReadOnly={isViewingOther}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* 4. Livery — compact */}
-          <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
-
-          {/* 5. Activity Log — collapsed by default */}
+          {/* ── Zone 5: Activity ── */}
           {isViewingOther ? (
             <section className="rounded-xl border border-border/50 bg-background/50 p-4">
               <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
