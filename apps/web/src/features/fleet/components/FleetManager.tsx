@@ -366,7 +366,11 @@ export function FleetManager() {
                       const isMaintenanceLocked =
                         ac.status === "enroute" ||
                         ac.status === "maintenance" ||
-                        ac.status === "delivery";
+                        ac.status === "delivery" ||
+                        ac.condition >= 1.0;
+                      const isMaintenanceCritical = !isMaintenanceLocked && ac.condition < 0.25;
+                      const isMaintenanceDiscouraged =
+                        !isMaintenanceLocked && !isMaintenanceCritical;
                       const baseHub = getAircraftBaseHub(ac, routes, airline);
                       const maintenanceBaseFee = fp(15000);
                       const maintenanceRepairCost = fpScale(model.price, (1 - ac.condition) * 0.1);
@@ -887,12 +891,20 @@ export function FleetManager() {
                                       if (isMaintenanceLocked) return;
                                       confirm({
                                         title: t("fleet.maintenanceTitle", { ns: "game" }),
-                                        description: t("fleet.maintenanceDescription", {
-                                          ns: "game",
-                                          name: ac.name,
-                                          hours: maintenanceDowntimeHours,
-                                          amount: fpFormat(maintenanceCost, 0),
-                                        }),
+                                        description: isMaintenanceDiscouraged
+                                          ? t("fleet.maintenanceDescriptionDiscouraged", {
+                                              ns: "game",
+                                              name: ac.name,
+                                              pct: Math.round(ac.condition * 100),
+                                              hours: maintenanceDowntimeHours,
+                                              amount: fpFormat(maintenanceCost, 0),
+                                            })
+                                          : t("fleet.maintenanceDescription", {
+                                              ns: "game",
+                                              name: ac.name,
+                                              hours: maintenanceDowntimeHours,
+                                              amount: fpFormat(maintenanceCost, 0),
+                                            }),
                                         confirmLabel: t("fleet.maintain", { ns: "game" }),
                                         cancelLabel: t("actions.cancel"),
                                       }).then(async (approved: boolean) => {
@@ -914,24 +926,33 @@ export function FleetManager() {
                                         ns: "game",
                                         name: ac.name,
                                       })}
-                                    className={`flex items-center justify-center rounded-lg border p-2 transition-all ${isMaintenanceLocked ? "cursor-not-allowed border-border/50 bg-muted/20 text-muted-foreground" : "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-white"}`}
+                                    className={`flex items-center justify-center rounded-lg border p-2 transition-all ${isMaintenanceLocked ? "cursor-not-allowed border-border/50 bg-muted/20 text-muted-foreground opacity-40" : isMaintenanceCritical ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-white" : "border-border/50 bg-muted/20 text-muted-foreground hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300"}`}
                                     title={
                                       isMaintenanceLocked
-                                        ? ac.status === "maintenance"
-                                          ? t("fleet.maintenanceUnavailableCurrent", {
+                                        ? ac.condition >= 1.0
+                                          ? t("fleet.maintenanceUnavailableFullCondition", {
                                               ns: "game",
                                             })
-                                          : ac.status === "delivery"
-                                            ? t("fleet.maintenanceUnavailableDelivery", {
+                                          : ac.status === "maintenance"
+                                            ? t("fleet.maintenanceUnavailableCurrent", {
                                                 ns: "game",
                                               })
-                                            : t("fleet.maintenanceUnavailableEnroute", {
-                                                ns: "game",
-                                              })
-                                        : t("fleet.maintenanceTooltip", {
-                                            ns: "game",
-                                            amount: fpFormat(maintenanceCost, 0),
-                                          })
+                                            : ac.status === "delivery"
+                                              ? t("fleet.maintenanceUnavailableDelivery", {
+                                                  ns: "game",
+                                                })
+                                              : t("fleet.maintenanceUnavailableEnroute", {
+                                                  ns: "game",
+                                                })
+                                        : isMaintenanceDiscouraged
+                                          ? t("fleet.maintenanceTooltipDiscouraged", {
+                                              ns: "game",
+                                              amount: fpFormat(maintenanceCost, 0),
+                                            })
+                                          : t("fleet.maintenanceTooltip", {
+                                              ns: "game",
+                                              amount: fpFormat(maintenanceCost, 0),
+                                            })
                                     }
                                     disabled={isMaintenanceLocked}
                                   >
