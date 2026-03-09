@@ -31,7 +31,7 @@ export function computeFleetValue(
 ): FixedPoint {
   return fleetIds.reduce((total, aircraftId) => {
     const aircraft = aircraftById.get(aircraftId);
-    if (!aircraft) return total;
+    if (!aircraft || aircraft.purchaseType !== "buy") return total;
     const model = getAircraftById(aircraft.modelId);
     if (!model) return total;
     return fpAdd(
@@ -50,7 +50,7 @@ export function computeFleetValue(
 export function computeNetworkDistance(routeIds: string[], routeById: Map<string, Route>): number {
   return routeIds.reduce((total, routeId) => {
     const route = routeById.get(routeId);
-    if (!route) return total;
+    if (!route || route.assignedAircraftIds.length === 0) return total;
     return total + route.distanceKm;
   }, 0);
 }
