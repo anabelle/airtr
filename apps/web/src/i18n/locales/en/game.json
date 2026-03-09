@@ -261,6 +261,10 @@
     "tierLabel": "Tier {{tier}}",
     "brand": "Brand",
     "cumulativeRevenue": "Cumulative revenue: {{amount}}",
+    "nextTierLabel": "Next Tier",
+    "nextTierRevenue": "Cumulative Revenue",
+    "nextTierRoutes": "Active Routes",
+    "maxTierReached": "Global Mega-Carrier — Max Tier Reached",
     "status": {
       "private": "private",
       "public": "public",

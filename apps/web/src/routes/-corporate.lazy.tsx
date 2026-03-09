@@ -2,6 +2,7 @@ import type { Airport, FixedPoint, TimelineEvent } from "@acars/core";
 import {
   CHAPTER11_BALANCE_THRESHOLD_USD,
   FP_ZERO,
+  TIER_THRESHOLDS,
   fp,
   fpAdd,
   fpDiv,
@@ -446,6 +447,7 @@ function CompanyProfile({
   tier,
   brandScore,
   cumulativeRevenue,
+  activeRouteCount,
   status,
   ceoPubkey,
 }: {
@@ -455,6 +457,7 @@ function CompanyProfile({
   tier: number;
   brandScore: number;
   cumulativeRevenue: FixedPoint;
+  activeRouteCount: number;
   status: string;
   ceoPubkey?: string | null;
 }) {
@@ -486,6 +489,17 @@ function CompanyProfile({
     chapter11: t("corporate.status.chapter11", { ns: "game" }),
     liquidated: t("corporate.status.liquidated", { ns: "game" }),
   };
+
+  const nextThreshold = TIER_THRESHOLDS[tier + 1] ?? null;
+  const nextRevenueTarget = nextThreshold ? fpToNumber(nextThreshold.minCumulativeRevenue) : 0;
+  const revenuePct = nextThreshold
+    ? Math.min(100, Math.round((fpToNumber(cumulativeRevenue) / nextRevenueTarget) * 100))
+    : 100;
+  const routesPct = nextThreshold
+    ? Math.min(100, Math.round((activeRouteCount / nextThreshold.minActiveRoutes) * 100))
+    : 100;
+  const revenueMet = nextThreshold ? cumulativeRevenue >= nextThreshold.minCumulativeRevenue : true;
+  const routesMet = nextThreshold ? activeRouteCount >= nextThreshold.minActiveRoutes : true;
 
   return (
     <section className="rounded-xl border border-border/50 bg-background/50 p-4">
@@ -580,6 +594,76 @@ function CompanyProfile({
           amount: fpFormat(cumulativeRevenue, 0),
         })}
       </p>
+
+      {/* Next Tier Requirements */}
+      {nextThreshold ? (
+        <div className="mt-3 rounded-lg border border-border/40 bg-muted/10 p-3 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {t("corporate.nextTierLabel", { ns: "game" })}
+            </span>
+            <span className="text-[10px] font-semibold text-foreground">
+              {tierLabels[tier + 1]}
+            </span>
+          </div>
+          {/* Revenue requirement */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                {revenueMet ? (
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                ) : (
+                  <div className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
+                )}
+                <span>{t("corporate.nextTierRevenue", { ns: "game" })}</span>
+              </div>
+              <span
+                className="font-mono text-muted-foreground"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {fpFormat(cumulativeRevenue, 0)} / {fpFormat(nextThreshold.minCumulativeRevenue, 0)}
+              </span>
+            </div>
+            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-[width] duration-500 ${revenueMet ? "bg-emerald-500" : "bg-primary"}`}
+                style={{ width: `${revenuePct}%` }}
+              />
+            </div>
+          </div>
+          {/* Active routes requirement */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[10px]">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                {routesMet ? (
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                ) : (
+                  <div className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
+                )}
+                <span>{t("corporate.nextTierRoutes", { ns: "game" })}</span>
+              </div>
+              <span
+                className="font-mono text-muted-foreground"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {activeRouteCount} / {nextThreshold.minActiveRoutes}
+              </span>
+            </div>
+            <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-[width] duration-500 ${routesMet ? "bg-emerald-500" : "bg-primary"}`}
+                style={{ width: `${routesPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+            {t("corporate.maxTierReached", { ns: "game" })}
+          </span>
+        </div>
+      )}
     </section>
   );
 }
@@ -1102,6 +1186,11 @@ export default function CorporateDashboard() {
     [airline?.hubs],
   );
 
+  const activeRouteCount = useMemo(
+    () => routes.filter((r) => r.status === "active").length,
+    [routes],
+  );
+
   const { totalMonthlyLease, leasedCount } = useMemo(() => {
     const leasedAircraft = fleet.filter((ac) => ac.purchaseType === "lease");
     const leaseAmounts = leasedAircraft.map((ac) => {
@@ -1320,6 +1409,7 @@ export default function CorporateDashboard() {
             tier={airline.tier}
             brandScore={airline.brandScore}
             cumulativeRevenue={airline.cumulativeRevenue}
+            activeRouteCount={activeRouteCount}
             status={airline.status}
             ceoPubkey={airline.ceoPubkey}
           />
