@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { AirportInfoPanel } from "./AirportInfoPanel";
 
 type Selector<T> = (state: T) => unknown;
@@ -57,6 +58,10 @@ vi.mock("@/features/network/components/FlightBoard", () => {
 });
 
 describe("AirportInfoPanel", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("renders airport details and handles close", () => {
     const onClose = vi.fn();
     mockUseAirlineStore.mockReturnValue({
@@ -94,5 +99,46 @@ describe("AirportInfoPanel", () => {
     expect(screen.getByText("John F Kennedy")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Close airport panel"));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("renders translated airport actions in Spanish", async () => {
+    await i18n.changeLanguage("es");
+    mockUseAirlineStore.mockReturnValue({
+      airline: null,
+      routes: [],
+      fleet: [],
+      fleetByOwner: new Map(),
+      competitors: new Map(),
+      modifyHubs: vi.fn(),
+      openRoute: vi.fn(),
+    });
+    mockUseEngineStore.mockReturnValue({ setHub: vi.fn() });
+
+    render(
+      <AirportInfoPanel
+        airport={{
+          iata: "JFK",
+          icao: "KJFK",
+          name: "John F Kennedy",
+          city: "New York",
+          country: "US",
+          latitude: 0,
+          longitude: 0,
+          population: 1000,
+          gdpPerCapita: 1000,
+          altitude: 0,
+          timezone: "UTC",
+          tags: [],
+          id: "1",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("Aeropuerto").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Establecer como base" }).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByLabelText("Cerrar panel del aeropuerto").length).toBeGreaterThan(0);
   });
 });

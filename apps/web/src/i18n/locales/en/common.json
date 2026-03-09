@@ -68,7 +68,15 @@
     "dismiss": "Dismiss",
     "panelChapter11Title": "Chapter 11 — Operations Suspended",
     "panelLiquidatedTitle": "Airline Liquidated",
-    "whatThisMeans": "What This Means"
+    "whatThisMeans": "What This Means",
+    "panelChapter11Desc": "Your airline's accumulated debt exceeded the critical threshold of {{threshold}}. All flight operations have been automatically suspended and aircraft grounded to prevent further losses.",
+    "panelLiquidatedDesc": "This airline has been permanently dissolved. All operations have ceased.",
+    "restartConfirm": "This will permanently dissolve {{name}}. All aircraft, routes, and hubs will be lost. You will create a new airline from scratch.",
+    "consequences": {
+      "grounded": "All flights are grounded — no revenue is being generated",
+      "costsAccrue": "Lease obligations and hub costs continue to accrue",
+      "visible": "Your airline is visible to competitors as bankrupt"
+    }
   },
   "time": {
     "justNow": "Just now",

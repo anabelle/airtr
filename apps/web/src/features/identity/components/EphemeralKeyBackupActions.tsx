@@ -35,10 +35,7 @@ export function EphemeralKeyBackupActions({
         markEphemeralKeySecured(pubkey);
       }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to access your locally stored account key.";
+      const message = error instanceof Error ? error.message : t("backup.localKeyAccessFailed");
       toast.error(action === "copy" ? t("backup.copyFailed") : t("backup.downloadFailed"), {
         description: message,
       });
@@ -69,7 +66,7 @@ export function EphemeralKeyBackupActions({
     await withKeyExport("download", async (nsec) => {
       const blob = new Blob(
         [
-          `ACARS Secret Key — keep this safe!\n\nDo NOT share this with anyone.\n\n${nsec}\n\nTo restore your account, paste this key in the ACARS login screen.`,
+          `${t("backup.fileTitle")}\n\n${t("backup.fileWarning")}\n\n${nsec}\n\n${t("backup.fileRestoreInstructions")}`,
         ],
         { type: "text/plain" },
       );

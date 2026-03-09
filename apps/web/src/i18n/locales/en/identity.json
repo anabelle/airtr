@@ -76,7 +76,11 @@
     "downloadKey": "Download key file",
     "switchToWallet": "Switch to wallet extension",
     "switching": "Switching…",
-    "keyExplainer": "Your secret key starts with nsec1… — treat it like a password. ACARS stores it locally on this device and exports it from here whenever you need your recovery copy."
+    "keyExplainer": "Your secret key starts with nsec1… — treat it like a password. ACARS stores it locally on this device and exports it from here whenever you need your recovery copy.",
+    "localKeyAccessFailed": "Unable to access your locally stored account key.",
+    "fileTitle": "ACARS Secret Key — keep this safe!",
+    "fileWarning": "Do NOT share this with anyone.",
+    "fileRestoreInstructions": "To restore your account, paste this key in the ACARS login screen."
   },
   "access": {
     "badge": "New to Nostr? Start here",

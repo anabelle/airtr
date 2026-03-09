@@ -1,6 +1,7 @@
 import { useActiveAirline, useEngineStore } from "@acars/store";
 import { Plane } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   buildAirlineFlightBoardRows,
   type AirlineFlightRow,
@@ -58,6 +59,7 @@ function AirlineFidsRow({ flight }: { flight: AirlineFlightRow }) {
 }
 
 export function AirlineFlightBoard() {
+  const { t } = useTranslation("game");
   const { airline, fleet } = useActiveAirline();
   const tick = useEngineStore((s) => s.tick);
 
@@ -73,10 +75,10 @@ export function AirlineFlightBoard() {
       {/* Header bar */}
       <div className="flex items-center justify-between bg-slate-950 px-3 py-2 border-b border-slate-700/60">
         <span className="text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-slate-300">
-          {airline?.icaoCode ?? "---"} — Flights
+          {airline?.icaoCode ?? "---"} — {t("airlineFlightBoard.title", { ns: "game" })}
         </span>
         <span className="text-[10px] font-mono tabular-nums text-slate-500">
-          {flights.length} active
+          {t("airlineFlightBoard.activeCount", { ns: "game", count: flights.length })}
         </span>
       </div>
 
@@ -84,19 +86,19 @@ export function AirlineFlightBoard() {
       <div className="flex items-center gap-2 bg-amber-500/90 px-3 py-1.5">
         <Plane className="h-3 w-3 text-slate-950" />
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-950 font-mono">
-          Flights
+          {t("airlineFlightBoard.title", { ns: "game" })}
         </span>
       </div>
 
       {/* Column headers */}
       <div className="grid grid-cols-[68px_1fr_44px_44px_52px_72px_36px] gap-1.5 border-b border-slate-600 bg-slate-800/80 px-3 py-1 text-[9px] uppercase tracking-[0.15em] text-slate-400 font-mono font-semibold">
-        <span>Status</span>
-        <span>Flight</span>
-        <span>From</span>
-        <span>To</span>
-        <span>A/C</span>
-        <span className="text-right">Time</span>
-        <span className="text-right">LF</span>
+        <span>{t("flightBoard.status", { ns: "game" })}</span>
+        <span>{t("flightBoard.flight", { ns: "game" })}</span>
+        <span>{t("flightBoard.from", { ns: "game" })}</span>
+        <span>{t("flightBoard.to", { ns: "game" })}</span>
+        <span>{t("flightBoard.aircraft", { ns: "game" })}</span>
+        <span className="text-right">{t("airlineFlightBoard.time", { ns: "game" })}</span>
+        <span className="text-right">{t("flightBoard.loadFactor", { ns: "game" })}</span>
       </div>
 
       {/* Rows */}
