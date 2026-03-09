@@ -558,7 +558,7 @@ export function Topbar() {
 
       <div className="hidden sm:block">{renderBankruptcyBanner()}</div>
       <div className="pointer-events-auto hidden w-full border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl sm:block sm:px-6 md:py-2">
-        <div className="flex w-full flex-col gap-3 md:min-h-14 md:justify-between">
+        <div className="flex w-full flex-col gap-3 md:min-h-11 md:justify-between">
           <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
               <div
