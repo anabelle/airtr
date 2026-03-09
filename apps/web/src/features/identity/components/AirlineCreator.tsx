@@ -11,7 +11,7 @@ import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 import { findAirlineConflicts } from "../utils/airlineConflicts";
 
 export function AirlineCreator() {
-  const { t } = useTranslation("identity");
+  const { t } = useTranslation(["identity", "common"]);
   const { createAirline, identityStatus, isLoading, error, competitors } = useAirlineStore();
   const isEphemeral = useAirlineStore((state) => state.isEphemeral);
   const homeAirport = useEngineStore((s) => s.homeAirport);
@@ -30,7 +30,12 @@ export function AirlineCreator() {
   );
   const hubPricing = homeAirport ? getHubPricingForIata(homeAirport.iata) : null;
   const normalizedIcao = icao.toUpperCase();
-  const suggestedCallsign = callsign || (normalizedIcao ? `${normalizedIcao} HEAVY` : "APX HEAVY");
+  const suggestedCallsign =
+    callsign ||
+    t("creator.callsignSuggested", {
+      ns: "identity",
+      icao: normalizedIcao || t("creator.callsignDefaultIcao", { ns: "identity" }),
+    });
 
   const handleHubChange = (airport: Airport | null) => {
     if (!airport) return;
@@ -58,7 +63,7 @@ export function AirlineCreator() {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : t("creator.unknownError", { ns: "identity" });
       toast.error(t("creator.creationFailed"), { description: message });
     }
   };
@@ -95,14 +100,16 @@ export function AirlineCreator() {
               className="inline-flex items-center gap-2 self-start rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-200 transition hover:bg-amber-500/20"
             >
               <KeyRound className="h-3.5 w-3.5" />
-              {showKeyTools ? "Hide key tools" : "Account key"}
+              {showKeyTools
+                ? t("topbar.hideKeyTools", { ns: "common" })
+                : t("topbar.accountKey", { ns: "common" })}
             </button>
           )}
         </div>
         {isEphemeral && showKeyTools && (
           <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-950/30 p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
-              Local account key
+              {t("topbar.localAccountKey", { ns: "common" })}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
               {t("creator.exportKeyWarning")}
@@ -253,7 +260,10 @@ export function AirlineCreator() {
                 id="airline-callsign"
                 value={callsign}
                 onChange={(e) => setCallsign(e.target.value.toUpperCase())}
-                placeholder={normalizedIcao ? `${normalizedIcao} HEAVY` : "APEX HEAVY"}
+                placeholder={t("creator.callsignSuggested", {
+                  ns: "identity",
+                  icao: normalizedIcao || t("creator.callsignDefaultIcao", { ns: "identity" }),
+                })}
                 className="flex h-10 w-full uppercase rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
               <p className="text-xs text-muted-foreground">

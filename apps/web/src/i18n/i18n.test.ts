@@ -29,6 +29,8 @@ describe("i18n", () => {
     expect(i18n.t("flightBoard.departures", { ns: "game" })).toBe("Departures");
     expect(i18n.t("corporate.pageTitle", { ns: "game" })).toBe("Corporate");
     expect(i18n.t("routeManager.suspended.title", { ns: "game" })).toBe("Suspended Routes");
+    expect(i18n.t("fleet.searchPlaceholder", { ns: "game" })).toBe("Search active fleet…");
+    expect(i18n.t("fleet.purchaseUsedTitle", { ns: "game" })).toBe("Purchase used aircraft?");
   });
 
   it("switches to Spanish", async () => {
@@ -53,10 +55,16 @@ describe("i18n", () => {
   it("loads Spanish common and game additions for interface flows", async () => {
     await i18n.changeLanguage("es");
     expect(i18n.t("panel.closeAria", { ns: "common" })).toBe("Cerrar panel y ver mapa");
+    expect(i18n.t("actions.cancel", { ns: "common" })).toBe("Cancelar");
+    expect(i18n.t("topbar.openPanel", { ns: "common", panel: "cabina de vuelo" })).toBe(
+      "Abrir cabina de vuelo",
+    );
     expect(i18n.t("join.features.realTimeFlights.title", { ns: "common" })).toBe(
       "Vuelos en tiempo real",
     );
     expect(i18n.t("hubPicker.dialogTitle", { ns: "game" })).toBe("Elegir un aeropuerto hub");
+    expect(i18n.t("fleet.searchPlaceholder", { ns: "game" })).toBe("Buscar flota activa…");
+    expect(i18n.t("fleet.purchaseUsedTitle", { ns: "game" })).toBe("¿Comprar aeronave usada?");
   });
 
   it("falls back to English for unsupported language", async () => {

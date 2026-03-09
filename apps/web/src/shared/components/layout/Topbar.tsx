@@ -40,7 +40,9 @@ export function Topbar() {
           type="button"
           aria-expanded={mobileMenuOpen}
           aria-controls="mobile-topbar-panel"
-          aria-label={`${mobileMenuOpen ? "Close" : "Open"} ${mobilePanelLabel}`}
+          aria-label={t(mobileMenuOpen ? "topbar.closePanel" : "topbar.openPanel", {
+            panel: mobilePanelLabel,
+          })}
           onClick={() => setMobileMenuOpen((open) => !open)}
           className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-border/80 bg-background/88 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
         >
@@ -88,7 +90,9 @@ export function Topbar() {
             type="button"
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-topbar-panel"
-            aria-label={`${mobileMenuOpen ? "Close" : "Open"} ${mobilePanelLabel}`}
+            aria-label={t(mobileMenuOpen ? "topbar.closePanel" : "topbar.openPanel", {
+              panel: mobilePanelLabel,
+            })}
             onClick={() => setMobileMenuOpen((open) => !open)}
             className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-left shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
           >

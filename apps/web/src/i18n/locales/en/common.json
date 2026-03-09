@@ -46,7 +46,9 @@
     "relaysConnected": "{{count}} relay connected",
     "relaysConnected_other": "{{count}} relays connected",
     "relaysOffline": "Nostr relays offline",
-    "disconnectedWarning": "Disconnected from Nostr — changes may not save"
+    "disconnectedWarning": "Disconnected from Nostr — changes may not save",
+    "openPanel": "Open {{panel}}",
+    "closePanel": "Close {{panel}}"
   },
   "bankruptcy": {
     "chapter11Banner": "Chapter 11 Bankruptcy — All operations suspended",
@@ -111,5 +113,11 @@
         "description": "Thousands of airlines, live leaderboards, and a global route marketplace."
       }
     }
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "clear": "Clear",
+    "close": "Close"
   }
 }

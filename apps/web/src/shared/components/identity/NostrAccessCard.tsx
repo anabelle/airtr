@@ -65,7 +65,7 @@ export function NostrAccessCard({
             id="access-card-nsec"
             name="nsec"
             type="password"
-            placeholder="nsec1…"
+            placeholder={t("topbar.pasteNsec", { ns: "common" })}
             autoComplete="off"
             className="min-h-11 w-full rounded-md border border-border bg-background/70 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/60 focus:outline-none"
           />

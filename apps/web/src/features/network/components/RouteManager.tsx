@@ -539,8 +539,9 @@ export function RouteManager() {
       });
       setFareEditor(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Fare update failed", {
+      const message =
+        err instanceof Error ? err.message : t("routeManager.unknownError", { ns: "game" });
+      toast.error(t("routeManager.fareUpdateFailed", { ns: "game" }), {
         description: message,
       });
     } finally {
@@ -718,29 +719,35 @@ export function RouteManager() {
                                 await rebaseRoute(route.id, targetHub);
                               } catch (err) {
                                 const message =
-                                  err instanceof Error ? err.message : "Route rebase failed";
-                                toast.error("Route rebase failed", {
+                                  err instanceof Error
+                                    ? err.message
+                                    : t("routeManager.routeRebaseFailed", { ns: "game" });
+                                toast.error(t("routeManager.routeRebaseFailed", { ns: "game" }), {
                                   description: message,
                                 });
                               }
                             }}
                             className="h-9 rounded-lg bg-amber-500 px-3 text-xs font-bold text-amber-950 hover:bg-amber-400 transition"
                           >
-                            Rebase to Hub
+                            {t("routeManager.rebaseToHub", { ns: "game" })}
                           </button>
                         </>
                       ) : (
                         <div className="text-xs font-bold text-amber-100/70">
-                          Open another hub to rebase.
+                          {t("routeManager.openAnotherHubToRebase", { ns: "game" })}
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={async () => {
                           const approved = await confirm({
-                            title: "Close route?",
-                            description: `This removes ${route.originIata} → ${route.destinationIata} from your network. Any assigned aircraft will be unassigned.`,
-                            confirmLabel: "Close Route",
+                            title: t("routeManager.closeRouteTitle", { ns: "game" }),
+                            description: t("routeManager.closeRouteDescription", {
+                              ns: "game",
+                              origin: route.originIata,
+                              destination: route.destinationIata,
+                            }),
+                            confirmLabel: t("routeManager.closeRoute", { ns: "game" }),
                             tone: "destructive",
                           });
                           if (!approved) return;
@@ -748,15 +755,17 @@ export function RouteManager() {
                             await closeRoute(route.id);
                           } catch (err) {
                             const message =
-                              err instanceof Error ? err.message : "Route close failed";
-                            toast.error("Route close failed", {
+                              err instanceof Error
+                                ? err.message
+                                : t("routeManager.routeCloseFailed", { ns: "game" });
+                            toast.error(t("routeManager.routeCloseFailed", { ns: "game" }), {
                               description: message,
                             });
                           }
                         }}
                         className="h-9 rounded-lg border border-amber-500/30 bg-transparent px-3 text-xs font-bold text-amber-100 hover:bg-amber-500/20 transition"
                       >
-                        Close Route
+                        {t("routeManager.closeRoute", { ns: "game" })}
                       </button>
                     </div>
                   </div>
@@ -785,7 +794,7 @@ export function RouteManager() {
                   onClick={() => setSearchQuery("")}
                   className="text-xs font-bold text-muted-foreground hover:text-foreground"
                 >
-                  Clear
+                   {t("actions.clear", { ns: "common" })}
                 </button>
               )}
             </div>
@@ -797,7 +806,9 @@ export function RouteManager() {
               {activeRoutes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
                   <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                  <p className="text-muted-foreground font-medium">Your network is empty.</p>
+                  <p className="text-muted-foreground font-medium">
+                    {t("routeManager.networkEmpty", { ns: "game" })}
+                  </p>
                   {!isViewingOther && (
                     <button
                       type="button"

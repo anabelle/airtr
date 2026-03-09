@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { Ticker } from "./Ticker";
 
 type Selector<T> = (state: T) => unknown;
@@ -44,6 +45,10 @@ vi.mock("@acars/data", () => {
 });
 
 describe("Ticker", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("renders null when no home airport", () => {
     mockUseEngineStore.mockReturnValue({
       routes: [],
@@ -80,7 +85,28 @@ describe("Ticker", () => {
     });
 
     render(<Ticker />);
-    expect(screen.getByText("summer")).toBeInTheDocument();
+    expect(screen.getByText("Summer")).toBeInTheDocument();
     expect(screen.getByText(/Live Data/i)).toBeInTheDocument();
+  });
+
+  it("renders translated season labels in Spanish", async () => {
+    await i18n.changeLanguage("es");
+    mockUseEngineStore.mockReturnValue({
+      routes: [{ season: "summer" }],
+      tick: 10,
+      homeAirport: { iata: "JFK" },
+      tickProgress: 0.5,
+      catchupProgress: null,
+    });
+    mockUseAirlineStore.mockReturnValue({
+      competitors: new Map(),
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
+      fleet: [],
+      routes: [],
+    });
+
+    render(<Ticker />);
+    expect(screen.getAllByText("Verano").length).toBeGreaterThan(0);
   });
 });
