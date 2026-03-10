@@ -24,6 +24,7 @@ function makeAirport(overrides: Partial<Airport> = {}): Airport {
     latitude: 40.0,
     longitude: -74.0,
     altitude: 100,
+    runwayLengthFt: 9000,
     timezone: "America/New_York",
     country: "US",
     city: "Test City",

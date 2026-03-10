@@ -14,7 +14,16 @@ describe("airports data", () => {
       expect(airport.iata).toBeTruthy();
       expect(airport.latitude).toBeTypeOf("number");
       expect(airport.longitude).toBeTypeOf("number");
+      expect(airport.runwayLengthFt === null || typeof airport.runwayLengthFt === "number").toBe(
+        true,
+      );
       expect(airport.country).toBeTruthy();
     }
+  });
+
+  it("includes runway lengths for representative airports", () => {
+    expect(airports.find((airport) => airport.iata === "LAX")?.runwayLengthFt).toBe(12923);
+    expect(airports.find((airport) => airport.iata === "LCY")?.runwayLengthFt).toBe(4948);
+    expect(airports.find((airport) => airport.iata === "POM")?.runwayLengthFt).toBe(9022);
   });
 });

@@ -7,6 +7,10 @@ import AdmZip from "adm-zip";
 
 const OPEN_FLIGHTS_URL =
   "https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat";
+const OURAIRPORTS_AIRPORTS_URL =
+  "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/airports.csv";
+const OURAIRPORTS_RUNWAYS_URL =
+  "https://raw.githubusercontent.com/davidmegginson/ourairports-data/main/runways.csv";
 const WORLD_BANK_GDP_URL =
   "https://api.worldbank.org/v2/en/indicator/NY.GDP.PCAP.CD?downloadformat=csv";
 const GEONAMES_CITIES_URL = "https://download.geonames.org/export/dump/cities15000.zip";
@@ -15,6 +19,8 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_DIR = path.resolve(SCRIPT_DIR, "..");
 const DATA_DIR = path.join(SCRIPT_DIR, "data-cache");
 const OPEN_FLIGHTS_FILE = path.join(DATA_DIR, "airports.dat");
+const OURAIRPORTS_AIRPORTS_FILE = path.join(DATA_DIR, "ourairports-airports.csv");
+const OURAIRPORTS_RUNWAYS_FILE = path.join(DATA_DIR, "ourairports-runways.csv");
 const WORLD_BANK_ZIP = path.join(DATA_DIR, "worldbank-gdp.zip");
 const GEONAMES_ZIP = path.join(DATA_DIR, "cities15000.zip");
 const GEONAMES_TXT = path.join(DATA_DIR, "cities15000.txt");
@@ -414,17 +420,43 @@ const downloadFile = (url, outputPath, maxRedirects = 10) =>
 
 const readFile = (filePath) => fs.readFileSync(filePath, "utf8");
 
+const parseCsvLine = (line) => {
+  const parts = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      parts.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  parts.push(current);
+  return parts;
+};
+
 const parseOpenFlights = (csv) => {
   const lines = csv.split("\n");
   const airports = [];
   for (const line of lines) {
     if (!line.trim()) continue;
-    const regex = /(?:^|,)(?:"([^"]*)"|([^,]*))/g;
-    const parts = [];
-    let match;
-    while ((match = regex.exec(line))) {
-      parts.push(match[1] !== undefined ? match[1] : match[2]);
-    }
+    const parts = parseCsvLine(line);
 
     const type = parts[12];
     if (type !== "airport") continue;
@@ -453,6 +485,114 @@ const parseOpenFlights = (csv) => {
   }
   return airports;
 };
+
+const parseOurAirportsAirports = (csv) => {
+  const lines = csv.split("\n").filter(Boolean);
+  const header = parseCsvLine(lines[0]);
+  const identIndex = header.indexOf("ident");
+  const iataIndex = header.indexOf("iata_code");
+  const gpsCodeIndex = header.indexOf("gps_code");
+
+  const airportIdentByIata = new Map();
+  const airportIdentByGpsCode = new Map();
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const parts = parseCsvLine(lines[i]);
+    const ident = parts[identIndex]?.trim();
+    if (!ident) continue;
+
+    const iata = parts[iataIndex]?.trim();
+    if (iata && !airportIdentByIata.has(iata)) {
+      airportIdentByIata.set(iata, ident);
+    }
+
+    const gpsCode = parts[gpsCodeIndex]?.trim();
+    if (gpsCode && !airportIdentByGpsCode.has(gpsCode)) {
+      airportIdentByGpsCode.set(gpsCode, ident);
+    }
+  }
+
+  return { airportIdentByIata, airportIdentByGpsCode };
+};
+
+const parseOurAirportsRunways = (csv) => {
+  const lines = csv.split("\n").filter(Boolean);
+  const header = parseCsvLine(lines[0]);
+  const airportIdentIndex = header.indexOf("airport_ident");
+  const lengthFtIndex = header.indexOf("length_ft");
+
+  const runwayLengthByAirportIdent = new Map();
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const parts = parseCsvLine(lines[i]);
+    const airportIdent = parts[airportIdentIndex]?.trim();
+    const runwayLengthFt = Number.parseInt(parts[lengthFtIndex], 10);
+    if (!airportIdent || Number.isNaN(runwayLengthFt)) continue;
+
+    const existingLength = runwayLengthByAirportIdent.get(airportIdent) ?? 0;
+    if (runwayLengthFt > existingLength) {
+      runwayLengthByAirportIdent.set(airportIdent, runwayLengthFt);
+    }
+  }
+
+  return runwayLengthByAirportIdent;
+};
+
+const findRunwayLengthFt = (
+  airport,
+  airportIdentByIata,
+  airportIdentByGpsCode,
+  runwayLengthByAirportIdent,
+) => {
+  if (airport.icao) {
+    const directLength = runwayLengthByAirportIdent.get(airport.icao);
+    if (directLength != null) return directLength;
+
+    const gpsMappedIdent = airportIdentByGpsCode.get(airport.icao);
+    if (gpsMappedIdent) {
+      const gpsMappedLength = runwayLengthByAirportIdent.get(gpsMappedIdent);
+      if (gpsMappedLength != null) return gpsMappedLength;
+    }
+  }
+
+  const iataMappedIdent = airportIdentByIata.get(airport.iata);
+  if (iataMappedIdent) {
+    const iataMappedLength = runwayLengthByAirportIdent.get(iataMappedIdent);
+    if (iataMappedLength != null) return iataMappedLength;
+  }
+
+  return null;
+};
+
+const formatScalar = (value) => {
+  if (value === null) return "null";
+  return typeof value === "string" ? JSON.stringify(value) : String(value);
+};
+
+const formatAirport = (airport) => `  {
+    id: ${formatScalar(airport.id)},
+    name: ${formatScalar(airport.name)},
+    iata: ${formatScalar(airport.iata)},
+    icao: ${formatScalar(airport.icao)},
+    latitude: ${formatScalar(airport.latitude)},
+    longitude: ${formatScalar(airport.longitude)},
+    altitude: ${formatScalar(airport.altitude)},
+    runwayLengthFt: ${formatScalar(airport.runwayLengthFt)},
+    timezone: ${formatScalar(airport.timezone)},
+    country: ${formatScalar(airport.country)},
+    city: ${formatScalar(airport.city)},
+    population: ${formatScalar(airport.population)},
+    gdpPerCapita: ${formatScalar(airport.gdpPerCapita)},
+    tags: [${airport.tags.map((tag) => JSON.stringify(tag)).join(", ")}],
+  }`;
+
+const formatAirportsFile = (airports) => `// auto-generated file
+import type { Airport } from "@acars/core";
+
+export const airports: Airport[] = [
+${airports.map(formatAirport).join(",\n")}
+];
+`;
 
 const parseWorldBankGdp = (zipPath) => {
   const zip = new AdmZip(zipPath);
@@ -793,6 +933,16 @@ async function main() {
     await downloadFile(OPEN_FLIGHTS_URL, OPEN_FLIGHTS_FILE);
   }
 
+  if (!fs.existsSync(OURAIRPORTS_AIRPORTS_FILE)) {
+    console.log("Downloading OurAirports airport data...");
+    await downloadFile(OURAIRPORTS_AIRPORTS_URL, OURAIRPORTS_AIRPORTS_FILE);
+  }
+
+  if (!fs.existsSync(OURAIRPORTS_RUNWAYS_FILE)) {
+    console.log("Downloading OurAirports runway data...");
+    await downloadFile(OURAIRPORTS_RUNWAYS_URL, OURAIRPORTS_RUNWAYS_FILE);
+  }
+
   if (!fs.existsSync(WORLD_BANK_ZIP)) {
     console.log("Downloading World Bank GDP per capita data...");
     await downloadFile(WORLD_BANK_GDP_URL, WORLD_BANK_ZIP);
@@ -812,8 +962,12 @@ async function main() {
   }
 
   const openFlightsCsv = readFile(OPEN_FLIGHTS_FILE);
+  const ourAirportsCsv = readFile(OURAIRPORTS_AIRPORTS_FILE);
+  const ourAirportsRunwaysCsv = readFile(OURAIRPORTS_RUNWAYS_FILE);
   const gdpByIso3 = parseWorldBankGdp(WORLD_BANK_ZIP);
   const cities = parseGeoNames(GEONAMES_TXT);
+  const { airportIdentByIata, airportIdentByGpsCode } = parseOurAirportsAirports(ourAirportsCsv);
+  const runwayLengthByAirportIdent = parseOurAirportsRunways(ourAirportsRunwaysCsv);
 
   const cityIndex = new Map();
   for (const city of cities) {
@@ -849,6 +1003,12 @@ async function main() {
       latitude: airport.latitude,
       longitude: airport.longitude,
       altitude: airport.altitude,
+      runwayLengthFt: findRunwayLengthFt(
+        airport,
+        airportIdentByIata,
+        airportIdentByGpsCode,
+        runwayLengthByAirportIdent,
+      ),
       timezone: airport.timezone,
       country: iso2 ?? "XX",
       city: airport.city,
@@ -860,11 +1020,7 @@ async function main() {
 
   console.log(`Parsed ${enriched.length} valid airports.`);
 
-  const fileContent = `// auto-generated file
-import type { Airport } from '@acars/core';
-
-export const airports: Airport[] = ${JSON.stringify(enriched, null, 2)};
-`;
+  const fileContent = formatAirportsFile(enriched);
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   fs.writeFileSync(OUTPUT_FILE, fileContent);

@@ -37,6 +37,7 @@ const BOG: Airport = {
   city: "Bogota",
   population: 7_674_366,
   gdpPerCapita: 7_919,
+  runwayLengthFt: 12_467,
   tags: ["business"],
 };
 
@@ -53,6 +54,7 @@ const MDE: Airport = {
   city: "Rio Negro",
   population: 1_999_979,
   gdpPerCapita: 7_919,
+  runwayLengthFt: 11_286,
   tags: ["general"],
 };
 
@@ -69,6 +71,7 @@ const CTG: Airport = {
   city: "Cartagena",
   population: 1_206_319,
   gdpPerCapita: 7_919,
+  runwayLengthFt: 8_530,
   tags: ["beach"],
 };
 
@@ -85,6 +88,7 @@ const MAD: Airport = {
   city: "Madrid",
   population: 3_255_944,
   gdpPerCapita: 35_327,
+  runwayLengthFt: 14_271,
   tags: ["business"],
 };
 
@@ -101,6 +105,7 @@ const SMALL_AIRPORT: Airport = {
   city: "Tinytown",
   population: 50_000,
   gdpPerCapita: 5_000,
+  runwayLengthFt: 3_500,
   tags: ["general"],
 };
 
@@ -373,6 +378,7 @@ const SYM_A: Airport = {
   city: "Sym City A",
   population: 2_000_000,
   gdpPerCapita: 20_000,
+  runwayLengthFt: 13_000,
   tags: ["general"],
 };
 
@@ -389,6 +395,7 @@ const SYM_B: Airport = {
   city: "Sym City B",
   population: 2_000_000,
   gdpPerCapita: 20_000,
+  runwayLengthFt: 13_000,
   tags: ["general"],
 };
 
