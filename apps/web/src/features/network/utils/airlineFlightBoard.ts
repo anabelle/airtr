@@ -6,19 +6,24 @@ import {
   TICK_DURATION,
 } from "@acars/core";
 import { airports as ALL_AIRPORTS } from "@acars/data";
-import { getFlightNumber } from "@/features/network/utils/flightNumber";
 import {
-  type FlightRow,
-  BOARDING_WINDOW_TICKS,
   aircraftModelIndex,
+  BOARDING_WINDOW_TICKS,
+  type FlightRow,
   formatTickTime,
   getFlightSeed,
   getStatusTone,
 } from "@/features/network/utils/flightBoard";
+import { getFlightNumber } from "@/features/network/utils/flightNumber";
 
 export type AirlineFlightRow = FlightRow & {
   originIata: string;
   destinationIata: string;
+};
+
+type FlightBoardWindow = {
+  start: number;
+  end: number;
 };
 
 const airportByIata = new Map<string, Airport>(ALL_AIRPORTS.map((a) => [a.iata, a]));
@@ -125,10 +130,21 @@ function getRelevantTimezone(aircraft: AircraftInstance, tick: number): string {
   return airportByIata.get(displayLeg.originIata)?.timezone ?? "UTC";
 }
 
+function canAppearOnBoard(aircraft: AircraftInstance) {
+  return (
+    Boolean(aircraft.flight) && aircraft.status !== "delivery" && aircraft.status !== "maintenance"
+  );
+}
+
+export function countAirlineFlightBoardRows(fleet: AircraftInstance[]) {
+  return fleet.filter(canAppearOnBoard).length;
+}
+
 export function buildAirlineFlightBoardRows(
   fleet: AircraftInstance[],
   airline: AirlineEntity | null,
   tick: number,
+  window?: FlightBoardWindow,
 ): AirlineFlightRow[] {
   const rows: AirlineFlightRow[] = [];
   const icaoCode = airline?.icaoCode ?? "UNK";
@@ -137,8 +153,7 @@ export function buildAirlineFlightBoardRows(
 
   for (const aircraft of fleet) {
     const flight = aircraft.flight;
-    if (!flight) continue;
-    if (aircraft.status === "delivery" || aircraft.status === "maintenance") continue;
+    if (!canAppearOnBoard(aircraft) || !flight) continue;
 
     const displayLeg = getDisplayLeg(aircraft, tick);
     if (!displayLeg) continue;
@@ -167,5 +182,9 @@ export function buildAirlineFlightBoardRows(
     });
   }
 
-  return rows.sort((a, b) => a.timeSort - b.timeSort);
+  const sortedRows = rows.sort((a, b) => a.timeSort - b.timeSort);
+
+  if (!window) return sortedRows;
+
+  return sortedRows.slice(window.start, window.end + 1);
 }
