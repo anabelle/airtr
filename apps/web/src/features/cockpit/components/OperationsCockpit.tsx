@@ -464,7 +464,7 @@ export function OperationsCockpit() {
             </div>
             <button
               type="button"
-              onClick={() => navigate({ to: "/" })}
+              onClick={() => navigate({ to: "/", search: { panel: "map" } })}
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               title={t("panel.closeTitle", { ns: "common" })}
               aria-label={t("panel.closeAria", { ns: "common" })}
@@ -588,7 +588,7 @@ export function OperationsCockpit() {
           </div>
           <button
             type="button"
-            onClick={() => navigate({ to: "/" })}
+            onClick={() => navigate({ to: "/", search: { panel: "map" } })}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             title={t("panel.closeTitle", { ns: "common" })}
             aria-label={t("panel.closeAria", { ns: "common" })}

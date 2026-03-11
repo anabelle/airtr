@@ -6,7 +6,9 @@ type HomeSearch = {
 
 export const Route = createFileRoute("/")({
   component: lazyRouteComponent(() => import("./-index.lazy")),
-  validateSearch: (search: Record<string, unknown>): HomeSearch => ({
-    panel: search.panel === "cockpit" ? "cockpit" : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): HomeSearch => {
+    if (search.panel === "cockpit") return { panel: "cockpit" };
+    if (search.panel === "map") return { panel: "map" };
+    return {};
+  },
 });

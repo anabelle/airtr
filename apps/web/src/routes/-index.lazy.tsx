@@ -1,16 +1,21 @@
 import { useActiveAirline } from "@acars/store";
-import { Link, useSearch } from "@tanstack/react-router";
-import { Map as MapIcon, Radar } from "lucide-react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Radar, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { OperationsCockpit } from "@/features/cockpit/components/OperationsCockpit";
 
 export default function HomeRoute() {
   const { t } = useTranslation(["common", "game"]);
+  const navigate = useNavigate();
   const { panel } = useSearch({ from: "/" });
   const { airline } = useActiveAirline();
 
   if (panel === "cockpit") {
     return <OperationsCockpit />;
+  }
+
+  if (panel === "map") {
+    return null;
   }
 
   if (airline) {
@@ -29,9 +34,15 @@ export default function HomeRoute() {
                 {airline.icaoCode} / {airline.callsign}
               </p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-background/60 p-3 text-primary">
-              <MapIcon className="h-5 w-5" aria-hidden="true" />
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/", search: { panel: "map" } })}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              title={t("panel.closeTitle", { ns: "common" })}
+              aria-label={t("panel.closeAria", { ns: "common" })}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
 
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -84,9 +95,15 @@ export default function HomeRoute() {
               {t("home.mapDescription", { ns: "game" })}
             </p>
           </div>
-          <div className="rounded-2xl border border-border/60 bg-background/60 p-3 text-primary">
-            <MapIcon className="h-5 w-5" aria-hidden="true" />
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/", search: { panel: "map" } })}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            title={t("panel.closeTitle", { ns: "common" })}
+            aria-label={t("panel.closeAria", { ns: "common" })}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -105,7 +122,7 @@ export default function HomeRoute() {
           <Link
             to="/"
             search={{ panel: "cockpit" }}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.99]"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.99]}"
           >
             <Radar className="h-4 w-4" aria-hidden="true" />
             {t("home.openCockpit", { ns: "game" })}

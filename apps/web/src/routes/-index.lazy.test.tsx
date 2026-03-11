@@ -4,9 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import MapView from "./-index.lazy";
 
 const mockUseSearch = vi.fn();
+const mockNavigate = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   useSearch: () => mockUseSearch(),
+  useNavigate: () => mockNavigate,
   Link: ({
     children,
     to,
@@ -45,5 +47,11 @@ describe("MapView", () => {
     mockUseSearch.mockReturnValue({ panel: "cockpit" });
     render(<MapView />);
     expect(screen.getByText("Operations Cockpit")).toBeInTheDocument();
+  });
+
+  it("renders nothing when map panel is requested", () => {
+    mockUseSearch.mockReturnValue({ panel: "map" });
+    const { container } = render(<MapView />);
+    expect(container.firstChild).toBeNull();
   });
 });

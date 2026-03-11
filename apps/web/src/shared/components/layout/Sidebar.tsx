@@ -80,7 +80,7 @@ export function Sidebar() {
   const { t } = useTranslation("common");
 
   return (
-    <div className="pointer-events-auto hidden h-full w-16 border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all sm:flex md:w-72 md:px-3">
+    <div className="pointer-events-auto hidden h-full w-16 flex-col border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all sm:flex md:w-72 md:px-3">
       <div className="flex flex-1 flex-col space-y-2">
         {navItems.map((item) => {
           const isDisabled = item.requiresAirline && !hasAirlineContext;
@@ -111,12 +111,10 @@ export function Sidebar() {
             </Link>
           );
         })}
-      </div>
 
-      <div className="flex flex-col space-y-2">
         <Link
           to="/about"
-          className="group relative flex h-12 items-center justify-center rounded-xl transition-all md:justify-start md:gap-3 md:px-3"
+          className="group relative mt-auto flex h-12 items-center justify-center rounded-xl transition-all md:justify-start md:gap-3 md:px-3"
           activeProps={{
             className: "bg-primary/20 text-primary shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]",
           }}
