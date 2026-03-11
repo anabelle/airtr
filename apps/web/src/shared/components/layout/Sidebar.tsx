@@ -1,12 +1,12 @@
 import { useAirlineStore } from "@acars/store";
 import { Link } from "@tanstack/react-router";
-import { Building2, Globe, Info, Map as MapIcon, Plane, Trophy } from "lucide-react";
+import { Briefcase, Globe, Info, Plane, Radar, Trophy, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavBadges } from "@/shared/hooks/useNavBadges";
 import { NavBadge } from "./NavBadge";
 
 type NavItem = {
-  icon: typeof MapIcon;
+  icon: typeof Radar;
   labelKey: string;
   mobileLabelKey: string;
   to: string;
@@ -15,9 +15,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: MapIcon,
+    icon: Radar,
     labelKey: "nav.map",
-    mobileLabelKey: "nav.map",
+    mobileLabelKey: "nav.mobileOps",
     to: "/",
     requiresAirline: false,
   },
@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
     labelKey: "nav.network",
     mobileLabelKey: "nav.mobileNet",
     to: "/network",
-    requiresAirline: false,
+    requiresAirline: true,
   },
   {
     icon: Trophy,
@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
     requiresAirline: false,
   },
   {
-    icon: Building2,
+    icon: Wallet,
     labelKey: "nav.corporate",
     mobileLabelKey: "nav.mobileCorp",
     to: "/corporate",
@@ -80,8 +80,8 @@ export function Sidebar() {
   const { t } = useTranslation("common");
 
   return (
-    <div className="pointer-events-auto hidden sm:flex h-full w-16 md:w-20 flex-col items-center border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all">
-      <div className="flex flex-1 flex-col space-y-4">
+    <div className="pointer-events-auto hidden h-full w-16 border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all sm:flex md:w-72 md:px-3">
+      <div className="flex flex-1 flex-col space-y-2">
         {navItems.map((item) => {
           const isDisabled = item.requiresAirline && !hasAirlineContext;
           const badge = resolveNavBadge(item.to, badges);
@@ -89,7 +89,7 @@ export function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
-              className={`group relative flex h-12 w-12 items-center justify-center rounded-xl transition-all ${isDisabled ? "pointer-events-none opacity-40" : ""}`}
+              className={`group relative flex h-12 items-center justify-center rounded-xl transition-all md:justify-start md:gap-3 md:px-3 ${isDisabled ? "pointer-events-none opacity-40" : ""}`}
               activeProps={{
                 className:
                   "bg-primary/20 text-primary shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]",
@@ -102,8 +102,10 @@ export function Sidebar() {
             >
               <item.icon className="h-6 w-6" />
               {badge && <NavBadge count={badge.count} variant={badge.variant} />}
-              {/* Tooltip on hover */}
-              <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap">
+              <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap md:hidden">
+                {t(item.labelKey)}
+              </span>
+              <span className="hidden min-w-0 flex-1 truncate text-sm font-semibold md:block">
                 {t(item.labelKey)}
               </span>
             </Link>
@@ -111,10 +113,10 @@ export function Sidebar() {
         })}
       </div>
 
-      <div className="flex flex-col space-y-4">
+      <div className="flex flex-col space-y-2">
         <Link
           to="/about"
-          className="group relative flex h-12 w-12 items-center justify-center rounded-xl transition-all"
+          className="group relative flex h-12 items-center justify-center rounded-xl transition-all md:justify-start md:gap-3 md:px-3"
           activeProps={{
             className: "bg-primary/20 text-primary shadow-[inset_0_0_15px_rgba(16,185,129,0.2)]",
           }}
@@ -122,8 +124,12 @@ export function Sidebar() {
             className: "text-muted-foreground hover:bg-muted hover:text-foreground",
           }}
         >
-          <Info className="h-6 w-6" />
-          <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap">
+          <Briefcase className="hidden h-6 w-6 md:block" />
+          <Info className="h-6 w-6 md:hidden" />
+          <span className="absolute left-14 z-50 rounded-md bg-popover px-2 py-1 text-xs font-semibold text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 pointer-events-none whitespace-nowrap md:hidden">
+            {t("nav.about")}
+          </span>
+          <span className="hidden min-w-0 flex-1 truncate text-sm font-semibold md:block">
             {t("nav.about")}
           </span>
         </Link>

@@ -5,6 +5,7 @@ import { WorldMap } from "@/features/network/components/WorldMap";
 import { MOBILE_TOPBAR_PANEL_PADDING_CLASS } from "@/shared/components/layout/mobileLayout";
 import { MobileNav, Sidebar } from "@/shared/components/layout/Sidebar";
 import { Topbar } from "@/shared/components/layout/Topbar";
+import { WorkspaceContextBar } from "@/shared/components/layout/WorkspaceContextBar";
 import { AppInitializer } from "../app/AppInitializer";
 
 type RootSearch = {
@@ -39,6 +40,7 @@ export const Route = createRootRoute({
             {/* Shell is only visible when Identity is fully established */}
             <div className="flex h-full w-full min-h-0 flex-col">
               <Topbar />
+              <WorkspaceContextBar />
 
               <div className="flex flex-1 min-h-0 overflow-hidden relative pb-0 sm:pb-10">
                 <Sidebar />

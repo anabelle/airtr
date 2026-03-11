@@ -42,11 +42,11 @@ vi.mock("@tanstack/react-router", () => {
 describe("Sidebar", () => {
   it("renders navigation items", () => {
     render(<Sidebar />);
-    expect(screen.getByText("Map")).toBeInTheDocument();
-    expect(screen.getByText("Fleet")).toBeInTheDocument();
-    expect(screen.getByText("Network")).toBeInTheDocument();
-    expect(screen.getByText("Leaderboard")).toBeInTheDocument();
-    expect(screen.getByText("Corporate")).toBeInTheDocument();
+    expect(screen.getAllByText("Cockpit").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Fleet").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Planning").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Competition").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Finance").length).toBeGreaterThan(0);
   });
 
   it("renders no badges when no airline is loaded", () => {
@@ -58,14 +58,14 @@ describe("Sidebar", () => {
 describe("MobileNav", () => {
   it("renders navigation items", () => {
     render(<MobileNav />);
-    expect(screen.getByText("Map")).toBeInTheDocument();
+    expect(screen.getByText("Ops")).toBeInTheDocument();
     expect(screen.getByText("Fleet")).toBeInTheDocument();
-    expect(screen.getByText("Net")).toBeInTheDocument();
-    expect(screen.getByText("Rank")).toBeInTheDocument();
-    expect(screen.getByText("Corp")).toBeInTheDocument();
+    expect(screen.getByText("Plan")).toBeInTheDocument();
+    expect(screen.getByText("Rivals")).toBeInTheDocument();
+    expect(screen.getByText("Cash")).toBeInTheDocument();
     expect(screen.getByText("Info")).toBeInTheDocument();
-    expect(screen.queryByText("Leaderboard")).not.toBeInTheDocument();
-    expect(screen.queryByText("Corporate")).not.toBeInTheDocument();
+    expect(screen.queryByText("Competition")).not.toBeInTheDocument();
+    expect(screen.queryByText("Finance")).not.toBeInTheDocument();
   });
 
   it("uses evenly sized slots for mobile navigation items", () => {

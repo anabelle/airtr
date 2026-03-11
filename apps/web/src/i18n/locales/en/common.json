@@ -1,15 +1,16 @@
 {
   "nav": {
-    "map": "Map",
+    "map": "Cockpit",
     "fleet": "Fleet",
-    "network": "Network",
-    "leaderboard": "Leaderboard",
-    "corporate": "Corporate",
-    "about": "About",
+    "network": "Planning",
+    "leaderboard": "Competition",
+    "corporate": "Finance",
+    "about": "Briefing",
     "info": "Info",
-    "mobileNet": "Net",
-    "mobileRank": "Rank",
-    "mobileCorp": "Corp"
+    "mobileOps": "Ops",
+    "mobileNet": "Plan",
+    "mobileRank": "Rivals",
+    "mobileCorp": "Cash"
   },
   "topbar": {
     "flightDeck": "Flight deck",
@@ -91,8 +92,30 @@
     "auto": "Auto-detect"
   },
   "panel": {
-    "closeTitle": "Close Panel (View Map)",
-    "closeAria": "Close panel and view map"
+    "closeTitle": "Close Panel (Return to Cockpit)",
+    "closeAria": "Close panel and return to cockpit"
+  },
+  "workspace": {
+    "cockpitDescription": "Your command deck for cash, route health, alerts, and next operational moves.",
+    "fleetDescription": "Manage aircraft as productive assets: deploy idle capacity, monitor condition, and control acquisitions.",
+    "networkDescription": "Plan and tune the network: open routes, adjust fares, and line up capacity with demand.",
+    "leaderboardDescription": "Track the competitive field, compare operators, and scout rivals before they out-position you.",
+    "corporateDescription": "Review liquidity, fixed costs, route profitability, and bankruptcy risk in one finance workspace.",
+    "aboutDescription": "Reference material, protocol context, language controls, and project links.",
+    "airportTitle": "Airport desk",
+    "airportDescription": "Inspect airport-level demand, hub posture, and local flight activity without leaving the world map.",
+    "aircraftTitle": "Aircraft desk",
+    "aircraftDescription": "Inspect one aircraft in detail: route assignment, condition, seat mix, and latest operating performance.",
+    "modeGuest": "Guest scouting mode",
+    "modeGuestDetail": "You can inspect the world and the competition, but route, fleet, and finance controls stay locked until you launch an airline.",
+    "modeObserver": "Read-only mode",
+    "modeObserverDetail": "You are browsing without an active operator context. Launch or restore an airline to unlock management workspaces.",
+    "modeCompetitor": "Competitor analysis",
+    "modeCompetitorDetail": "You are studying another airline. Operate your own network again when you are ready to act.",
+    "modeRestricted": "Restricted operations",
+    "modeRestrictedDetail": "Your airline is in a constrained state. Prioritize balance-sheet recovery before expansion.",
+    "modeLive": "Live operator mode",
+    "modeLiveDetail": "You are controlling a live airline. Every move now affects the network, balance sheet, and competitive posture."
   },
   "join": {
     "badge": "Free to play · No account needed",

@@ -1,15 +1,16 @@
 {
   "nav": {
-    "map": "Mapa",
+    "map": "Cabina",
     "fleet": "Flota",
-    "network": "Red",
-    "leaderboard": "Clasificación",
-    "corporate": "Corporativo",
-    "about": "Acerca de",
+    "network": "Planificación",
+    "leaderboard": "Competencia",
+    "corporate": "Finanzas",
+    "about": "Briefing",
     "info": "Info",
-    "mobileNet": "Red",
-    "mobileRank": "Ranking",
-    "mobileCorp": "Corp"
+    "mobileOps": "Ops",
+    "mobileNet": "Plan",
+    "mobileRank": "Rivales",
+    "mobileCorp": "Caja"
   },
   "topbar": {
     "flightDeck": "Cabina de vuelo",
@@ -91,8 +92,30 @@
     "auto": "Detectar automáticamente"
   },
   "panel": {
-    "closeTitle": "Cerrar panel (ver mapa)",
-    "closeAria": "Cerrar panel y ver mapa"
+    "closeTitle": "Cerrar panel (volver a cabina)",
+    "closeAria": "Cerrar panel y volver a cabina"
+  },
+  "workspace": {
+    "cockpitDescription": "Tu mesa de mando para caja, salud de rutas, alertas y próximos movimientos operativos.",
+    "fleetDescription": "Gestiona aeronaves como activos productivos: despliega capacidad ociosa, vigila la condición y controla adquisiciones.",
+    "networkDescription": "Planifica y ajusta la red: abre rutas, modifica tarifas y alinea capacidad con demanda.",
+    "leaderboardDescription": "Sigue el campo competitivo, compara operadores y explora rivales antes de que te superen en posición.",
+    "corporateDescription": "Revisa liquidez, costos fijos, rentabilidad por ruta y riesgo de bancarrota en un solo espacio financiero.",
+    "aboutDescription": "Material de referencia, contexto del protocolo, controles de idioma y enlaces del proyecto.",
+    "airportTitle": "Mesa de aeropuerto",
+    "airportDescription": "Inspecciona demanda a nivel aeropuerto, postura de hubs y actividad local de vuelos sin salir del mapa mundial.",
+    "aircraftTitle": "Mesa de aeronave",
+    "aircraftDescription": "Inspecciona una aeronave en detalle: asignación de ruta, condición, mezcla de cabina y rendimiento operativo reciente.",
+    "modeGuest": "Modo exploración invitado",
+    "modeGuestDetail": "Puedes inspeccionar el mundo y la competencia, pero los controles de rutas, flota y finanzas siguen bloqueados hasta que lances una aerolínea.",
+    "modeObserver": "Modo solo lectura",
+    "modeObserverDetail": "Estás navegando sin un contexto operativo activo. Lanza o restaura una aerolínea para desbloquear los espacios de gestión.",
+    "modeCompetitor": "Análisis competitivo",
+    "modeCompetitorDetail": "Estás estudiando otra aerolínea. Vuelve a operar tu propia red cuando estés listo para actuar.",
+    "modeRestricted": "Operaciones restringidas",
+    "modeRestrictedDetail": "Tu aerolínea está en un estado limitado. Prioriza la recuperación del balance antes de expandirte.",
+    "modeLive": "Modo operador en vivo",
+    "modeLiveDetail": "Estás controlando una aerolínea en vivo. Cada movimiento afecta la red, el balance y la postura competitiva."
   },
   "join": {
     "badge": "Gratis para jugar · No se necesita cuenta",

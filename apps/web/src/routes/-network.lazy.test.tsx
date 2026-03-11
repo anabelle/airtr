@@ -36,6 +36,8 @@ describe("Network route", () => {
     mockUseAirlineStore.mockReturnValue({
       airline: { id: "airline" },
       initializeIdentity: vi.fn(),
+      createNewIdentity: vi.fn(),
+      loginWithNsec: vi.fn(),
       isLoading: false,
       viewedPubkey: null,
     });
