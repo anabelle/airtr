@@ -1728,7 +1728,7 @@ export function RouteManager() {
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 space-y-4 sm:px-6 sm:py-5">
+              <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 pb-28 space-y-4 sm:px-6 sm:pb-32 sm:space-y-5">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-xl border border-border/50 bg-background/60 p-4">
                     <label
