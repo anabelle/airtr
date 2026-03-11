@@ -80,7 +80,7 @@ export function Sidebar() {
   const { t } = useTranslation("common");
 
   return (
-    <div className="pointer-events-auto hidden h-full w-16 flex-col border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all sm:flex md:w-72 md:px-3">
+    <div className="pointer-events-auto hidden h-full w-16 flex-col border-r border-border bg-background/80 py-6 backdrop-blur-xl transition-all sm:flex md:w-52 md:px-2">
       <div className="flex flex-1 flex-col space-y-2">
         {navItems.map((item) => {
           const isDisabled = item.requiresAirline && !hasAirlineContext;
