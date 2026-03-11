@@ -318,6 +318,16 @@
       "worldNoExtension": "read-only mode"
     }
   },
+  "home": {
+    "mapKicker": "Live world",
+    "mapTitle": "Start from the map",
+    "mapDescription": "Let the simulation breathe first. Watch your airline in motion, click airports, inspect aircraft, and open drill-down panels directly from the world.",
+    "mapChipAircraft": "Click aircraft",
+    "mapChipAirports": "Inspect airports",
+    "mapChipPanels": "Open live panels",
+    "openCockpit": "Open operator cockpit",
+    "mapSecondary": "The world map stays live as your default command surface."
+  },
   "corporate": {
     "title": "Corporate",
     "financialPulse": "Financial Pulse",

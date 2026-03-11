@@ -14,6 +14,7 @@ export function PanelLayout({ children }: { children: React.ReactNode }) {
         <div
           ref={scrollRef}
           className="custom-scrollbar flex h-full w-full min-h-0 flex-col overflow-y-auto"
+          data-testid="panel-scroll-root"
         >
           {children}
         </div>

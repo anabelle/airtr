@@ -73,7 +73,7 @@ function HeaderCard({ item }: { item: StatusItem }) {
   const Icon = item.icon;
 
   return (
-    <div className={cn("rounded-2xl border p-4 shadow-sm", toneClasses(item.tone))}>
+    <div className={cn("h-full min-w-0 rounded-2xl border p-4 shadow-sm", toneClasses(item.tone))}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -93,7 +93,7 @@ function HeaderCard({ item }: { item: StatusItem }) {
 function ActionCard({ item }: { item: ActionItem }) {
   const Icon = item.icon;
   const className = cn(
-    "group flex min-h-32 flex-col justify-between rounded-2xl border p-4 text-left transition-colors",
+    "group flex min-h-28 flex-col justify-between rounded-2xl border p-4 text-left transition-colors sm:min-h-32",
     toneClasses(item.tone),
   );
 
@@ -129,7 +129,7 @@ function ActionCard({ item }: { item: ActionItem }) {
 
 function InsightCard({ item }: { item: InsightItem }) {
   return (
-    <div className={cn("rounded-2xl border p-4", toneClasses(item.tone))}>
+    <div className={cn("h-full min-w-0 rounded-2xl border p-4", toneClasses(item.tone))}>
       <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
     </div>
@@ -460,7 +460,7 @@ export function OperationsCockpit() {
         </div>
 
         <div className="space-y-6 px-4 py-4 sm:px-6 sm:py-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
             <div className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -478,7 +478,7 @@ export function OperationsCockpit() {
               <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
                 {t("cockpit.guest.mapBody", { ns: "game" })}
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <InsightCard
                   item={{
                     title: t("cockpit.guest.stepOne", { ns: "game" }),
@@ -505,7 +505,7 @@ export function OperationsCockpit() {
               </div>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
               {actions.map((item) => (
                 <ActionCard key={item.title} item={item} />
               ))}
@@ -542,7 +542,7 @@ export function OperationsCockpit() {
   return (
     <PanelLayout>
       <div className="border-b border-border/60 bg-background/88 px-4 py-4 backdrop-blur-xl sm:px-6 sm:py-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
@@ -571,23 +571,17 @@ export function OperationsCockpit() {
                   })}
             </p>
           </div>
-
-          <div className="grid grid-cols-2 gap-3 lg:w-[20rem]">
-            {statusCards.slice(0, 2).map((item) => (
-              <HeaderCard key={item.title} item={item} />
-            ))}
-          </div>
         </div>
       </div>
 
       <div className="space-y-6 px-4 py-4 sm:px-6 sm:py-5">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
           {statusCards.map((item) => (
             <HeaderCard key={item.title} item={item} />
           ))}
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
+        <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,1fr)]">
           <div className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -609,14 +603,14 @@ export function OperationsCockpit() {
             </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-1">
             {actions.map((item) => (
               <ActionCard key={item.title} item={item} />
             ))}
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-4 xl:grid-cols-2">
           <div className="rounded-3xl border border-border/60 bg-card/80 p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -632,7 +626,7 @@ export function OperationsCockpit() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
               <InsightCard
                 item={{
                   title: t("cockpit.networkFootprint", { ns: "game" }),

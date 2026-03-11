@@ -212,7 +212,10 @@ export function FleetManager() {
     const priceFp = fp(priceNum);
     if (priceFp < minListingPrice) {
       setListingError(
-        t("fleet.minimumAllowed", { ns: "game", amount: fpFormat(minListingPrice) }),
+        t("fleet.minimumAllowed", {
+          ns: "game",
+          amount: fpFormat(minListingPrice),
+        }),
       );
       return;
     }
@@ -297,7 +300,7 @@ export function FleetManager() {
 
       <div ref={fleetListRef} className="pb-8">
         {fleet.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/50 rounded-2xl bg-card/10">
+          <div className="flex min-h-[18rem] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border/50 bg-card/10 px-5 py-10 sm:min-h-[22rem]">
             <Plane className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
             <p className="text-xl font-semibold text-foreground mb-2">
               {t("fleet.emptyHangarTitle", { ns: "game" })}
@@ -650,7 +653,9 @@ export function FleetManager() {
                                 <div className="rounded-2xl border border-border/40 bg-muted/20 p-4">
                                   <div className="flex justify-between items-center mb-3">
                                     <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
-                                      {t("fleet.lastFlightOutcome", { ns: "game" })}
+                                      {t("fleet.lastFlightOutcome", {
+                                        ns: "game",
+                                      })}
                                     </span>
                                     <span
                                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isProfitable ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}`}
@@ -690,8 +695,12 @@ export function FleetManager() {
                                     <div className="min-w-0 flex flex-col text-right">
                                       <span className="text-[10px] text-muted-foreground uppercase font-semibold">
                                         {isLeased
-                                          ? t("fleet.trueProfit", { ns: "game" })
-                                          : t("fleet.netProfit", { ns: "game" })}
+                                          ? t("fleet.trueProfit", {
+                                              ns: "game",
+                                            })
+                                          : t("fleet.netProfit", {
+                                              ns: "game",
+                                            })}
                                       </span>
                                       <span
                                         className={`text-sm font-mono font-bold ${isProfitable ? "text-emerald-400" : "text-red-400"}`}
@@ -715,7 +724,9 @@ export function FleetManager() {
                                       {/* Load Factor Bar */}
                                       <div className="flex items-center justify-between mb-1.5">
                                         <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                                          {t("flightBoard.loadFactor", { ns: "game" })}
+                                          {t("flightBoard.loadFactor", {
+                                            ns: "game",
+                                          })}
                                         </span>
                                         <span
                                           className={`text-[10px] font-mono font-black ${
@@ -750,8 +761,10 @@ export function FleetManager() {
                                           <span className="text-foreground font-bold">
                                             {pax.total}
                                           </span>{" "}
-                                           {t("fleet.passengersAbbr", { ns: "game" })}
-                                         </span>
+                                          {t("fleet.passengersAbbr", {
+                                            ns: "game",
+                                          })}
+                                        </span>
                                         <span className="text-muted-foreground/40">|</span>
                                         <span className="text-muted-foreground">
                                           Y:
@@ -777,11 +790,11 @@ export function FleetManager() {
                                         )}
                                         {(lastLanding.details?.spilledPassengers ?? 0) > 0 && (
                                           <span className="text-orange-400 ml-auto font-bold">
-                                             {t("fleet.deniedPassengers", {
-                                               ns: "game",
-                                               count: lastLanding.details!.spilledPassengers,
-                                             })}
-                                           </span>
+                                            {t("fleet.deniedPassengers", {
+                                              ns: "game",
+                                              count: lastLanding.details!.spilledPassengers,
+                                            })}
+                                          </span>
                                         )}
                                       </div>
                                     </div>
@@ -795,9 +808,9 @@ export function FleetManager() {
                             <div className="flex flex-col gap-3">
                               {ac.status !== "delivery" && !isViewingOther && (
                                 <div className="flex flex-col gap-1.5">
-                                    <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-widest pl-1">
-                                     {t("fleet.routeAssignment", { ns: "game" })}
-                                    </p>
+                                  <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-widest pl-1">
+                                    {t("fleet.routeAssignment", { ns: "game" })}
+                                  </p>
                                   <div className="flex gap-2">
                                     <select
                                       aria-label={`Assign route for ${ac.name}`}
@@ -806,7 +819,9 @@ export function FleetManager() {
                                       disabled={isAssignmentLocked}
                                       title={
                                         isAssignmentLocked
-                                          ? t("fleet.routeChangesLocked", { ns: "game" })
+                                          ? t("fleet.routeChangesLocked", {
+                                              ns: "game",
+                                            })
                                           : undefined
                                       }
                                       onChange={async (e) => {
@@ -825,7 +840,9 @@ export function FleetManager() {
                                       }}
                                     >
                                       <option value="">
-                                        {t("fleet.unassignedIdle", { ns: "game" })}
+                                        {t("fleet.unassignedIdle", {
+                                          ns: "game",
+                                        })}
                                       </option>
                                       {routes
                                         .filter((r) =>
@@ -843,10 +860,16 @@ export function FleetManager() {
                                           const loadFactor = Math.round(effectiveLoadFactor * 100);
                                           const healthLabel =
                                             loadFactor >= 80
-                                              ? t("fleet.healthy", { ns: "game" })
+                                              ? t("fleet.healthy", {
+                                                  ns: "game",
+                                                })
                                               : loadFactor >= 60
-                                                ? t("fleet.caution", { ns: "game" })
-                                                : t("corporate.oversupplied", { ns: "game" });
+                                                ? t("fleet.caution", {
+                                                    ns: "game",
+                                                  })
+                                                : t("corporate.oversupplied", {
+                                                    ns: "game",
+                                                  });
                                           return (
                                             <option
                                               key={r.id}
@@ -857,9 +880,9 @@ export function FleetManager() {
                                             >
                                               {r.originIata} &rarr; {r.destinationIata} (
                                               {r.distanceKm}km) — {loadFactor}% {healthLabel}{" "}
-                                               {isOutOfRange
-                                                 ? ` — ${t("fleet.outOfRange", { ns: "game" })}`
-                                                 : ""}
+                                              {isOutOfRange
+                                                ? ` — ${t("fleet.outOfRange", { ns: "game" })}`
+                                                : ""}
                                             </option>
                                           );
                                         })}
@@ -871,8 +894,12 @@ export function FleetManager() {
                                         className={`px-3 py-2 rounded-xl border transition-all ${isAssignmentLocked ? "bg-muted/20 text-muted-foreground border-border/50 cursor-not-allowed" : "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500"}`}
                                         title={
                                           isAssignmentLocked
-                                            ? t("fleet.routeChangesLocked", { ns: "game" })
-                                            : t("fleet.unassignRoute", { ns: "game" })
+                                            ? t("fleet.routeChangesLocked", {
+                                                ns: "game",
+                                              })
+                                            : t("fleet.unassignRoute", {
+                                                ns: "game",
+                                              })
                                         }
                                         disabled={isAssignmentLocked}
                                       >
@@ -890,7 +917,9 @@ export function FleetManager() {
                                     onClick={() => {
                                       if (isMaintenanceLocked) return;
                                       confirm({
-                                        title: t("fleet.maintenanceTitle", { ns: "game" }),
+                                        title: t("fleet.maintenanceTitle", {
+                                          ns: "game",
+                                        }),
                                         description: isMaintenanceDiscouraged
                                           ? t("fleet.maintenanceDescriptionDiscouraged", {
                                               ns: "game",
@@ -905,7 +934,9 @@ export function FleetManager() {
                                               hours: maintenanceDowntimeHours,
                                               amount: fpFormat(maintenanceCost, 0),
                                             }),
-                                        confirmLabel: t("fleet.maintain", { ns: "game" }),
+                                        confirmLabel: t("fleet.maintain", {
+                                          ns: "game",
+                                        }),
                                         cancelLabel: t("actions.cancel"),
                                       }).then(async (approved: boolean) => {
                                         if (!approved) return;
@@ -915,17 +946,24 @@ export function FleetManager() {
                                           const message =
                                             err instanceof Error
                                               ? err.message
-                                              : t("fleet.unknownError", { ns: "game" });
-                                          toast.error(t("fleet.maintenanceFailed", { ns: "game" }), {
-                                            description: message,
-                                          });
+                                              : t("fleet.unknownError", {
+                                                  ns: "game",
+                                                });
+                                          toast.error(
+                                            t("fleet.maintenanceFailed", {
+                                              ns: "game",
+                                            }),
+                                            {
+                                              description: message,
+                                            },
+                                          );
                                         }
                                       });
                                     }}
-                                      aria-label={t("fleet.maintenanceOnAircraft", {
-                                        ns: "game",
-                                        name: ac.name,
-                                      })}
+                                    aria-label={t("fleet.maintenanceOnAircraft", {
+                                      ns: "game",
+                                      name: ac.name,
+                                    })}
                                     className={`flex items-center justify-center rounded-lg border p-2 transition-all ${isMaintenanceLocked ? "cursor-not-allowed border-border/50 bg-muted/20 text-muted-foreground opacity-40" : isMaintenanceCritical ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500 hover:text-white" : "border-border/50 bg-muted/20 text-muted-foreground hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300"}`}
                                     title={
                                       isMaintenanceLocked
@@ -966,7 +1004,9 @@ export function FleetManager() {
                                     if (isScrapLocked) return;
                                     const isLease = ac.purchaseType === "lease";
                                     const title = isLease
-                                      ? t("fleet.returnLeasedTitle", { ns: "game" })
+                                      ? t("fleet.returnLeasedTitle", {
+                                          ns: "game",
+                                        })
                                       : t("fleet.scrapTitle", { ns: "game" });
                                     const description = isLease
                                       ? t("fleet.returnLeasedDescription", {
@@ -982,7 +1022,9 @@ export function FleetManager() {
                                       title,
                                       description,
                                       confirmLabel: isLease
-                                        ? t("fleet.returnAircraft", { ns: "game" })
+                                        ? t("fleet.returnAircraft", {
+                                            ns: "game",
+                                          })
                                         : t("fleet.scrap", { ns: "game" }),
                                       cancelLabel: t("actions.cancel"),
                                       tone: "destructive",
@@ -991,13 +1033,20 @@ export function FleetManager() {
                                       try {
                                         await sellAircraft(ac.id);
                                       } catch (err) {
-                                          const message =
-                                            err instanceof Error
-                                              ? err.message
-                                              : t("fleet.unknownError", { ns: "game" });
-                                          toast.error(t("fleet.scrapFailed", { ns: "game" }), {
+                                        const message =
+                                          err instanceof Error
+                                            ? err.message
+                                            : t("fleet.unknownError", {
+                                                ns: "game",
+                                              });
+                                        toast.error(
+                                          t("fleet.scrapFailed", {
+                                            ns: "game",
+                                          }),
+                                          {
                                             description: message,
-                                          });
+                                          },
+                                        );
                                       }
                                     });
                                   }}
@@ -1007,7 +1056,7 @@ export function FleetManager() {
                                     isScrapLocked
                                       ? t("fleet.scrapIdleOnly", { ns: "game" })
                                       : t("fleet.instantScrap", { ns: "game" })
-                                   }
+                                  }
                                   disabled={isScrapLocked}
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1046,13 +1095,17 @@ export function FleetManager() {
                                           const targetHub = ferryTargets[ac.id];
                                           if (!targetHub) return;
                                           confirm({
-                                            title: t("fleet.ferryTitle", { ns: "game" }),
+                                            title: t("fleet.ferryTitle", {
+                                              ns: "game",
+                                            }),
                                             description: t("fleet.ferryDescription", {
                                               ns: "game",
                                               name: ac.name,
                                               hub: targetHub,
                                             }),
-                                            confirmLabel: t("fleet.ferry", { ns: "game" }),
+                                            confirmLabel: t("fleet.ferry", {
+                                              ns: "game",
+                                            }),
                                             cancelLabel: t("actions.cancel"),
                                           }).then(async (approved: boolean) => {
                                             if (!approved) return;
@@ -1060,12 +1113,19 @@ export function FleetManager() {
                                               await ferryAircraft(ac.id, targetHub);
                                             } catch (err) {
                                               const message =
-                                                 err instanceof Error
-                                                   ? err.message
-                                                   : t("fleet.ferryFailed", { ns: "game" });
-                                               toast.error(t("fleet.ferryFailed", { ns: "game" }), {
-                                                 description: message,
-                                               });
+                                                err instanceof Error
+                                                  ? err.message
+                                                  : t("fleet.ferryFailed", {
+                                                      ns: "game",
+                                                    });
+                                              toast.error(
+                                                t("fleet.ferryFailed", {
+                                                  ns: "game",
+                                                }),
+                                                {
+                                                  description: message,
+                                                },
+                                              );
                                             }
                                           });
                                         }}
@@ -1073,8 +1133,10 @@ export function FleetManager() {
                                       >
                                         <Plane className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase truncate">
-                                           {t("fleet.ferryToHub", { ns: "game" })}
-                                         </span>
+                                          {t("fleet.ferryToHub", {
+                                            ns: "game",
+                                          })}
+                                        </span>
                                       </button>
                                     </div>
                                   )}
@@ -1088,21 +1150,30 @@ export function FleetManager() {
                                           try {
                                             await cancelListing(ac.id);
                                           } catch (err) {
-                                             const message =
-                                               err instanceof Error
-                                                 ? err.message
-                                                 : t("fleet.unknownError", { ns: "game" });
-                                             toast.error(t("fleet.cancellationFailed", { ns: "game" }), {
-                                               description: message,
-                                             });
+                                            const message =
+                                              err instanceof Error
+                                                ? err.message
+                                                : t("fleet.unknownError", {
+                                                    ns: "game",
+                                                  });
+                                            toast.error(
+                                              t("fleet.cancellationFailed", {
+                                                ns: "game",
+                                              }),
+                                              {
+                                                description: message,
+                                              },
+                                            );
                                           }
                                         }}
                                         className="flex-1 flex items-center justify-center gap-2 overflow-hidden rounded-lg border border-emerald-500/30 bg-emerald-500/20 p-2 text-emerald-400 transition-all hover:bg-emerald-500 hover:text-white"
                                       >
                                         <XCircle className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase truncate">
-                                           {t("fleet.cancelListing", { ns: "game" })}
-                                         </span>
+                                          {t("fleet.cancelListing", {
+                                            ns: "game",
+                                          })}
+                                        </span>
                                       </button>
                                     ) : (
                                       <button
@@ -1130,8 +1201,10 @@ export function FleetManager() {
                                       >
                                         <Tag className="h-4 w-4 shrink-0" />
                                         <span className="text-[10px] font-bold uppercase">
-                                           {t("fleet.listForSale", { ns: "game" })}
-                                         </span>
+                                          {t("fleet.listForSale", {
+                                            ns: "game",
+                                          })}
+                                        </span>
                                       </button>
                                     )
                                   ) : (
@@ -1140,13 +1213,17 @@ export function FleetManager() {
                                         type="button"
                                         onClick={() => {
                                           confirm({
-                                            title: t("fleet.buyoutTitle", { ns: "game" }),
+                                            title: t("fleet.buyoutTitle", {
+                                              ns: "game",
+                                            }),
                                             description: t("fleet.buyoutDescription", {
                                               ns: "game",
                                               name: ac.name,
                                               amount: fpFormat(marketVal),
                                             }),
-                                            confirmLabel: t("fleet.buyout", { ns: "game" }),
+                                            confirmLabel: t("fleet.buyout", {
+                                              ns: "game",
+                                            }),
                                             cancelLabel: t("actions.cancel"),
                                             tone: "default",
                                           }).then(async (approved: boolean) => {
@@ -1157,10 +1234,17 @@ export function FleetManager() {
                                               const message =
                                                 err instanceof Error
                                                   ? err.message
-                                                  : t("fleet.unknownError", { ns: "game" });
-                                               toast.error(t("fleet.buyoutFailed", { ns: "game" }), {
-                                                 description: message,
-                                               });
+                                                  : t("fleet.unknownError", {
+                                                      ns: "game",
+                                                    });
+                                              toast.error(
+                                                t("fleet.buyoutFailed", {
+                                                  ns: "game",
+                                                }),
+                                                {
+                                                  description: message,
+                                                },
+                                              );
                                             }
                                           });
                                         }}
@@ -1168,8 +1252,10 @@ export function FleetManager() {
                                       >
                                         <PlusCircle className="h-4 w-4" />
                                         <span className="text-[10px] font-bold uppercase">
-                                           {t("fleet.buyoutLease", { ns: "game" })}
-                                         </span>
+                                          {t("fleet.buyoutLease", {
+                                            ns: "game",
+                                          })}
+                                        </span>
                                       </button>
                                     )
                                   ))}
@@ -1213,7 +1299,10 @@ export function FleetManager() {
                   {t("fleet.marketplaceListing", { ns: "game" })}
                 </p>
                 <h3 className="text-lg font-bold text-foreground">
-                  {t("fleet.listAircraftTitle", { ns: "game", name: listingTarget.name })}
+                  {t("fleet.listAircraftTitle", {
+                    ns: "game",
+                    name: listingTarget.name,
+                  })}
                 </h3>
               </div>
               <button
@@ -1273,9 +1362,9 @@ export function FleetManager() {
 
               <div className="rounded-xl border border-border/50 bg-background/60 p-4">
                 <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      {t("fleet.listingFee", { ns: "game" })}
-                    </span>
+                  <span className="text-muted-foreground">
+                    {t("fleet.listingFee", { ns: "game" })}
+                  </span>
                   <span className="font-mono font-bold text-foreground">
                     {listingFeeFp ? fpFormat(listingFeeFp) : "--"}
                   </span>

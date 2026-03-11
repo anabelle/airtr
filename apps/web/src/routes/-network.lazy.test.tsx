@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mockUseAirlineStore = vi.fn();
 
@@ -15,7 +15,9 @@ vi.mock("@acars/store", () => {
 
 vi.mock("@/shared/components/layout/PanelLayout", () => {
   return {
-    PanelLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    PanelLayout: ({ children }: { children: ReactNode }) => (
+      <div data-testid="panel-scroll-root">{children}</div>
+    ),
   };
 });
 
@@ -32,6 +34,10 @@ vi.mock("@/features/network/components/RouteManager", () => {
 import NetworkRoute from "./-network.lazy";
 
 describe("Network route", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("renders route manager panel", () => {
     mockUseAirlineStore.mockReturnValue({
       airline: { id: "airline" },
@@ -58,6 +64,7 @@ describe("Network route", () => {
     expect(screen.getByText("Network access locked")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Play Free/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Browser wallet/i })).toBeInTheDocument();
+    expect(screen.getAllByTestId("panel-scroll-root").length).toBeGreaterThan(0);
     expect(screen.getByText("What is Nostr?").closest("a")).toHaveAttribute(
       "href",
       "https://nostr.com",

@@ -95,6 +95,11 @@
     "closeTitle": "Cerrar panel (volver a cabina)",
     "closeAria": "Cerrar panel y volver a cabina"
   },
+  "detail": {
+    "backTitle": "Volver al espacio anterior",
+    "backAria": "Volver al espacio anterior",
+    "workspaceHint": "El mapa sigue activo debajo de este desglose."
+  },
   "workspace": {
     "cockpitDescription": "Tu mesa de mando para caja, salud de rutas, alertas y próximos movimientos operativos.",
     "fleetDescription": "Gestiona aeronaves como activos productivos: despliega capacidad ociosa, vigila la condición y controla adquisiciones.",

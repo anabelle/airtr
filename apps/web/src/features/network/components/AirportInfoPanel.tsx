@@ -12,14 +12,14 @@ import { airports as AIRPORTS, getHubPricingForIata, HUB_CLASSIFICATIONS } from 
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Building2, MapPin, Plane, PlaneTakeoff, Users, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { FlightBoard } from "@/features/network/components/FlightBoard";
 import { buildCompetitorHubEntries } from "@/features/network/utils/competitorHubs";
 import { buildGroundTraffic } from "@/features/network/utils/groundTraffic";
 import {
-  MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
+  MOBILE_OVERLAY_MAX_HEIGHT_CLASS,
   MOBILE_TOPBAR_TOP_CLASS,
 } from "@/shared/components/layout/mobileLayout";
 import { navigateToAirport } from "@/shared/lib/permalinkNavigation";
@@ -68,15 +68,18 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   // Default to 'info' if no valid tab is in search params
   const activeTab = search.airportTab === "flights" ? "flights" : "info";
 
-  const setActiveTab = (newTab: "info" | "flights") => {
-    navigate({
-      to: window.location.pathname,
-      search: (prev: AirportSearchParams) => ({
-        ...prev,
-        airportTab: newTab === "info" ? undefined : newTab, // omit info to keep url clean
-      }),
-    });
-  };
+  const setActiveTab = useCallback(
+    (newTab: "info" | "flights") => {
+      navigate({
+        to: window.location.pathname,
+        search: (prev: AirportSearchParams) => ({
+          ...prev,
+          airportTab: newTab === "info" ? undefined : newTab, // omit info to keep url clean
+        }),
+      });
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     let armed = false;
@@ -94,13 +97,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
   }, [onClose]);
 
   useEffect(() => {
-    // Reset to info tab when airport changes, unless URL already specifies a tab
-    // (e.g. ?airportTab=flights from FlightBoard interlinks)
     if (!search.airportTab) {
       setActiveTab("info");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [airport.iata]);
+  }, [search.airportTab, setActiveTab]);
 
   const hubInfo = HUB_CLASSIFICATIONS[airport.iata];
   const hubPricing = getHubPricingForIata(airport.iata);
@@ -206,7 +206,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       await modifyHubs({ type: "add", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(t("airportPanel.hubCreationFailed", { ns: "game" }), { description: message });
+      toast.error(t("airportPanel.hubCreationFailed", { ns: "game" }), {
+        description: message,
+      });
     }
   };
 
@@ -214,7 +216,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
     if (!airline) return;
     const relocationFee = fpScale(fp(hubPricing.openFee), 0.25);
     const approved = await confirm({
-      title: t("airportPanel.relocateHqTitle", { ns: "game", iata: airport.iata }),
+      title: t("airportPanel.relocateHqTitle", {
+        ns: "game",
+        iata: airport.iata,
+      }),
       description: t("airportPanel.relocateHqDescription", {
         ns: "game",
         relocationFee: fpFormat(relocationFee, 0),
@@ -226,14 +231,19 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       await modifyHubs({ type: "switch", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(t("airportPanel.hqRelocationFailed", { ns: "game" }), { description: message });
+      toast.error(t("airportPanel.hqRelocationFailed", { ns: "game" }), {
+        description: message,
+      });
     }
   };
 
   const handleRemoveHub = async () => {
     if (!airline) return;
     const approved = await confirm({
-      title: t("airportPanel.removeHubTitle", { ns: "game", iata: airport.iata }),
+      title: t("airportPanel.removeHubTitle", {
+        ns: "game",
+        iata: airport.iata,
+      }),
       description: t("airportPanel.removeHubDescription", { ns: "game" }),
       confirmLabel: t("airportPanel.removeHubConfirm", { ns: "game" }),
       tone: "destructive",
@@ -243,7 +253,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       await modifyHubs({ type: "remove", iata: airport.iata });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(t("airportPanel.hubRemovalFailed", { ns: "game" }), { description: message });
+      toast.error(t("airportPanel.hubRemovalFailed", { ns: "game" }), {
+        description: message,
+      });
     }
   };
 
@@ -267,7 +279,9 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       await openRoute(originHubIata, airport.iata, distanceKm);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(t("airportPanel.routeOpenFailed", { ns: "game" }), { description: message });
+      toast.error(t("airportPanel.routeOpenFailed", { ns: "game" }), {
+        description: message,
+      });
     }
   };
 
@@ -286,15 +300,15 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
 
   return (
     <aside
-      className={`pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl`}
+      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/88 shadow-[0_26px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
       aria-live="polite"
     >
-      <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
+      <div className="flex items-start justify-between border-b border-border/60 px-4 py-4 sm:px-5">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
             {t("airportPanel.title", { ns: "game" })}
           </p>
-          <h3 className="text-lg font-bold text-foreground">{airport.name}</h3>
+          <h3 className="text-lg font-bold text-foreground sm:text-[1.35rem]">{airport.name}</h3>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="font-mono font-semibold text-foreground">{airport.iata}</span>
             {airport.icao && airport.icao !== airport.iata ? (
@@ -320,7 +334,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
           {(
             [
               { key: "info", label: t("nav.info", { ns: "common" }) },
-              { key: "flights", label: t("airportPanel.flightsTab", { ns: "game" }) },
+              {
+                key: "flights",
+                label: t("airportPanel.flightsTab", { ns: "game" }),
+              },
             ] as const
           ).map((tab) => (
             <button
@@ -538,17 +555,21 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
             ) : null}
 
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-[22px] border border-border/60 bg-background/55 p-4 sm:p-5">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <Building2 className="h-4 w-4" />
                 {t("airportPanel.actions", { ns: "game" })}
               </div>
               {playerHubs.length > 1 ? (
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                  <label
+                    htmlFor="airport-route-origin"
+                    className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold"
+                  >
                     {t("airportPanel.routeOrigin", { ns: "game" })}
                   </label>
                   <select
+                    id="airport-route-origin"
                     value={originHubIata ?? ""}
                     onChange={(event) => setOriginHubIata(event.target.value || null)}
                     className="h-10 rounded-xl border border-border/60 bg-background/70 px-3 text-xs font-bold text-foreground"
@@ -630,7 +651,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   <button
                     type="button"
                     onClick={handleSetHome}
-                    className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+                    className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-[1.02] active:scale-[0.98] touch-manipulation sm:flex-1"
                   >
                     {t("airportPanel.setAsHome", { ns: "game" })}
                   </button>

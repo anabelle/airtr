@@ -48,7 +48,7 @@ import {
   estimateRouteEconomics,
   getPrimaryAssignedAircraft,
 } from "@/features/network/utils/routeEconomics";
-import { NostrAccessCard } from "@/shared/components/identity/NostrAccessCard";
+import { WorkspaceLockedState } from "@/shared/components/identity/WorkspaceLockedState";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
 
@@ -1256,7 +1256,7 @@ function CorporateSectionNav({ section }: { section: CorporateSection }) {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 border-b border-border/40 pb-4">
+    <div className="flex flex-wrap gap-2 border-b border-border/40 pb-4 sm:gap-2.5">
       {items.map((item) => {
         const isActive = item.section === section;
         return (
@@ -1264,7 +1264,7 @@ function CorporateSectionNav({ section }: { section: CorporateSection }) {
             key={item.section}
             to="/corporate"
             search={{ section: item.section }}
-            className={`rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors sm:text-xs ${
+            className={`rounded-full border px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] transition-colors sm:px-3 sm:text-xs ${
               isActive
                 ? "border-primary/30 bg-primary/12 text-primary"
                 : "border-border/60 bg-background/60 text-muted-foreground hover:border-primary/20 hover:text-foreground"
@@ -1396,19 +1396,17 @@ export function CorporateWorkspace({ section = "overview" }: { section?: Corpora
 
   if (!airline && !isViewingOther) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <NostrAccessCard
-          icon={Building2}
-          title={t("access.corporateLockedTitle", { ns: "identity" })}
-          description={t("access.corporateLockedDescription", {
-            ns: "identity",
-          })}
-          onConnect={initializeIdentity}
-          onCreateFree={createNewIdentity}
-          onLoginWithNsec={loginWithNsec}
-          isLoading={isLoading}
-        />
-      </div>
+      <WorkspaceLockedState
+        icon={Building2}
+        title={t("access.corporateLockedTitle", { ns: "identity" })}
+        description={t("access.corporateLockedDescription", {
+          ns: "identity",
+        })}
+        onConnect={initializeIdentity}
+        onCreateFree={createNewIdentity}
+        onLoginWithNsec={loginWithNsec}
+        isLoading={isLoading}
+      />
     );
   }
 

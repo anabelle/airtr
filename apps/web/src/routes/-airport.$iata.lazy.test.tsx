@@ -1,5 +1,6 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* ——— mocks ——— */
 
@@ -12,7 +13,10 @@ vi.mock("@acars/store", () => ({
     const state = {
       permalinkAirportIata: mockPermalinkIata,
       setPermalinkAirport: mockSetPermalinkAirport,
-      homeAirport: { iata: "ATL", name: "Hartsfield-Jackson Atlanta International Airport" },
+      homeAirport: {
+        iata: "ATL",
+        name: "Hartsfield-Jackson Atlanta International Airport",
+      },
     };
     return selector ? selector(state) : state;
   },
@@ -21,6 +25,11 @@ vi.mock("@acars/store", () => ({
 vi.mock("@tanstack/react-router", () => ({
   useParams: () => ({ iata: mockIataParam }),
   useNavigate: () => mockNavigate,
+  Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@acars/data", () => ({
@@ -70,6 +79,7 @@ describe("Airport permalink route", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -95,11 +105,12 @@ describe("Airport permalink route", () => {
     expect(mockSetPermalinkAirport).not.toHaveBeenCalled();
   });
 
-  it("renders null (no visible output) for valid IATA", () => {
+  it("renders a drill-down frame for valid IATA", () => {
     mockIataParam = "LAX";
-    const { container } = render(<AirportPermalinkPage />);
+    render(<AirportPermalinkPage />);
 
-    expect(container.innerHTML).toBe("");
+    expect(screen.getByText("Airport desk")).toBeInTheDocument();
+    expect(screen.getByText("LAX - Los Angeles")).toBeInTheDocument();
   });
 
   it("clears permalink airport on unmount", () => {

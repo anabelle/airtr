@@ -95,6 +95,11 @@
     "closeTitle": "Close Panel (Return to Cockpit)",
     "closeAria": "Close panel and return to cockpit"
   },
+  "detail": {
+    "backTitle": "Return to previous workspace",
+    "backAria": "Return to previous workspace",
+    "workspaceHint": "Map remains live underneath this drill-down."
+  },
   "workspace": {
     "cockpitDescription": "Your command deck for cash, route health, alerts, and next operational moves.",
     "fleetDescription": "Manage aircraft as productive assets: deploy idle capacity, monitor condition, and control acquisitions.",

@@ -140,6 +140,22 @@ describe("AircraftInfoPanel", () => {
     expect(screen.getByText("Business")).toBeInTheDocument();
     expect(screen.getByText("First")).toBeInTheDocument();
     expect(screen.getAllByText("Y120 J16 F4").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("aircraft-livery-image")).toBeInTheDocument();
+  });
+
+  it("renders route endpoints as proper buttons", () => {
+    render(
+      <RouteTab
+        route={route}
+        siblings={[]}
+        aircraft={aircraft}
+        lastLanding={lastLanding}
+        model={model}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "JFK" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "LAX" }).length).toBeGreaterThan(0);
   });
 
   it("shows recent profitability and cabin load details on the route tab", () => {

@@ -836,7 +836,7 @@ export function RouteManager() {
             <>
               <AirlineFlightBoard />
               {activeRoutes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-border/50 rounded-3xl bg-muted/20">
+                <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/50 bg-muted/20 px-5 py-10 sm:h-64">
                   <Globe className="h-12 w-12 text-muted-foreground/30 mb-4" />
                   <p className="text-muted-foreground font-medium">
                     {t("routeManager.networkEmpty", { ns: "game" })}

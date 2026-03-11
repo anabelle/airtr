@@ -119,15 +119,15 @@ export function WorkspaceContextBar() {
   const ModeIcon = mode.icon;
 
   return (
-    <div className="pointer-events-auto border-b border-border/60 bg-background/72 px-4 py-2.5 backdrop-blur-xl sm:px-6">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+    <div className="pointer-events-auto border-b border-border/60 bg-background/72 px-4 py-2 backdrop-blur-xl sm:px-6 sm:py-2.5">
+      <div className="flex flex-col gap-2 sm:gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/80">
               {workspace.title}
             </span>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">
             {workspace.description}
           </p>
         </div>
@@ -136,7 +136,9 @@ export function WorkspaceContextBar() {
           <ModeIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.16em]">{mode.title}</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-current/80">{mode.detail}</p>
+            <p className="mt-0.5 hidden text-[11px] leading-relaxed text-current/80 sm:block">
+              {mode.detail}
+            </p>
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ type RootSearch = {
   airportTab?: "info" | "flights";
   aircraftTab?: "info" | "route";
   tab?: "active" | "opportunities";
+  returnTo?: string;
 };
 
 export const Route = createRootRoute({
@@ -26,6 +27,10 @@ export const Route = createRootRoute({
           ? search.aircraftTab
           : undefined,
       tab: search.tab === "active" || search.tab === "opportunities" ? search.tab : undefined,
+      returnTo:
+        typeof search.returnTo === "string" && search.returnTo.startsWith("/")
+          ? search.returnTo
+          : undefined,
     };
   },
   component: () => (

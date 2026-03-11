@@ -4,10 +4,16 @@ import { airports as AIRPORTS } from "@acars/data";
 import { Globe as CoreGlobe, getGreatCircleInterpolation } from "@acars/map";
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { AircraftInfoPanel } from "@/features/network/components/AircraftInfoPanel";
 import { AirportInfoPanel } from "@/features/network/components/AirportInfoPanel";
-import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { buildGroundPresenceByAirport } from "@/features/network/utils/groundTraffic";
+import {
+  getDetailReturnTo,
+  navigateToAircraft,
+  navigateToAirport,
+  navigateToPath,
+} from "@/shared/lib/permalinkNavigation";
 
 const airportByIata = new Map<string, Airport>(AIRPORTS.map((a) => [a.iata, a]));
 
@@ -115,15 +121,13 @@ export function WorldMap() {
     setInspectedAirport(airport);
     setFocusedAirport(airport);
     setInspectedAircraft(null);
-    // Sync URL to permalink — replaceState so we don't pollute history
-    window.history.replaceState(null, "", `/airport/${airport.iata}`);
+    navigateToAirport(airport.iata);
   };
 
   const clearAirportFocus = () => {
     setInspectedAirport(null);
     setFocusedAirport(null);
-    // Restore URL to root when clearing airport focus
-    window.history.replaceState(null, "", "/");
+    navigateToPath(getDetailReturnTo(), { replace: true });
   };
 
   const competitorFleet = useMemo(() => {
@@ -154,7 +158,7 @@ export function WorldMap() {
       });
     } else if (fleet.length > 0 || competitorFleet.length > 0) {
       // Fleet data loaded but aircraft not found — invalid ID, redirect home
-      window.history.replaceState(null, "", "/");
+      navigateToPath(getDetailReturnTo(), { replace: true });
     }
     // Re-run whenever fleet data updates (aircraft load asynchronously from Nostr)
   }, [permalinkAircraftId, fleet, competitorFleet]);
@@ -178,14 +182,15 @@ export function WorldMap() {
       setInspectedAircraft(ac);
       setInspectedAirport(null);
       setFocusedAirport(getAircraftFocusPoint(ac, tick, tickProgress));
-      window.history.replaceState(null, "", `/aircraft/${aircraftId}`);
+      navigateToAircraft(aircraftId);
     },
     [fleet, competitorFleet, tick, tickProgress],
   );
 
   const clearAircraftFocus = () => {
     setInspectedAircraft(null);
-    window.history.replaceState(null, "", "/");
+    setFocusedAirport(null);
+    navigateToPath(getDetailReturnTo(), { replace: true });
   };
 
   const { presence: groundPresence } = useMemo(
@@ -208,7 +213,14 @@ export function WorldMap() {
           setInspectedAirport(null);
           setInspectedAircraft(null);
           setFocusedAirport(null);
-          window.history.replaceState(null, "", "/");
+          if (
+            permalinkAirportIata ||
+            permalinkAircraftId ||
+            window.location.pathname.startsWith("/airport/") ||
+            window.location.pathname.startsWith("/aircraft/")
+          ) {
+            navigateToPath(getDetailReturnTo(), { replace: true });
+          }
         }}
         groundPresence={groundPresence}
         fleet={fleet}

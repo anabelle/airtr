@@ -318,6 +318,16 @@
       "worldNoExtension": "modo de solo lectura"
     }
   },
+  "home": {
+    "mapKicker": "Mundo en vivo",
+    "mapTitle": "Empieza desde el mapa",
+    "mapDescription": "Deja que la simulación respire primero. Mira tu aerolínea en movimiento, haz clic en aeropuertos, inspecciona aeronaves y abre paneles directamente desde el mundo.",
+    "mapChipAircraft": "Haz clic en aeronaves",
+    "mapChipAirports": "Inspecciona aeropuertos",
+    "mapChipPanels": "Abre paneles en vivo",
+    "openCockpit": "Abrir cabina operativa",
+    "mapSecondary": "El mapa mundial permanece como tu superficie de mando por defecto."
+  },
   "corporate": {
     "title": "Corporativo",
     "financialPulse": "Pulso Financiero",

@@ -2,7 +2,7 @@ import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { AlertTriangle, Plane } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FleetManager } from "@/features/fleet/components/FleetManager";
-import { NostrAccessCard } from "@/shared/components/identity/NostrAccessCard";
+import { WorkspaceLockedState } from "@/shared/components/identity/WorkspaceLockedState";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 
 export default function FleetDashboard() {
@@ -18,17 +18,17 @@ export default function FleetDashboard() {
   if (!airline && !isViewingOther) {
     return (
       <PanelLayout>
-        <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center">
-          <NostrAccessCard
-            icon={Plane}
-            title={t("access.fleetLockedTitle", { ns: "identity" })}
-            description={t("access.fleetLockedDescription", { ns: "identity" })}
-            onConnect={initializeIdentity}
-            onCreateFree={createNewIdentity}
-            onLoginWithNsec={loginWithNsec}
-            isLoading={isLoading}
-          />
-        </div>
+        <WorkspaceLockedState
+          icon={Plane}
+          title={t("access.fleetLockedTitle", { ns: "identity" })}
+          description={t("access.fleetLockedDescription", {
+            ns: "identity",
+          })}
+          onConnect={initializeIdentity}
+          onCreateFree={createNewIdentity}
+          onLoginWithNsec={loginWithNsec}
+          isLoading={isLoading}
+        />
       </PanelLayout>
     );
   }
