@@ -404,7 +404,23 @@
     "collapse": "Contraer",
     "viewAll": "Ver todo",
     "livery": "Librea",
-    "timelineUnavailable": "Los datos de la cronología aún no están disponibles para otras aerolíneas."
+    "timelineUnavailable": "Los datos de la cronología aún no están disponibles para otras aerolíneas.",
+    "sections": {
+      "overview": "Resumen",
+      "company": "Compañía",
+      "network": "Red",
+      "hubs": "Hubs",
+      "activity": "Actividad",
+      "overviewTitle": "Resumen financiero",
+      "companyTitle": "Perfil de la compañía",
+      "networkTitle": "Análisis de red",
+      "hubsTitle": "Operaciones de hubs",
+      "activityTitle": "Registro de actividad",
+      "companySubtitle": "Identidad, marca, progreso de nivel y perfil ejecutivo de la aerolínea.",
+      "networkSubtitle": "Rentabilidad de rutas, riesgo de sobreoferta y dónde la red publicada está rindiendo por debajo de lo esperado.",
+      "hubsSubtitle": "Controla centros operativos, costos de hubs y la huella que sostiene tu horario.",
+      "activitySubtitle": "Revisa el libro operativo completo e investiga los eventos que están moldeando tu aerolínea."
+    }
   },
   "hub": {
     "title": "Selecciona Tu Hub Principal",

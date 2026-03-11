@@ -16,6 +16,14 @@ vi.mock("@/shared/components/layout/panelScrollContext", () => ({
   usePanelScrollRef: () => ({ current: null }),
 }));
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <a className={className} href="/corporate">
+      {children}
+    </a>
+  ),
+}));
+
 vi.mock("@/features/airline/components/Timeline", () => {
   return {
     AirlineTimeline: () => <div data-testid="full-timeline">Timeline</div>,
@@ -165,6 +173,7 @@ describe("Corporate route", () => {
   it("renders financial pulse with corporate balance", () => {
     render(<CorporateRoute />);
     expect(screen.getByText("Corporate Balance")).toBeInTheDocument();
+    expect(screen.getByText("Overview")).toBeInTheDocument();
   });
 
   it("renders beginner-friendly locked state when no airline is connected", () => {

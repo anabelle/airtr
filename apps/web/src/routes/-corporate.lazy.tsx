@@ -18,6 +18,7 @@ import {
 } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore, useEngineStore } from "@acars/store";
+import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   AlertTriangle,
@@ -50,6 +51,8 @@ import {
 import { NostrAccessCard } from "@/shared/components/identity/NostrAccessCard";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
+
+export type CorporateSection = "overview" | "company" | "network" | "hubs" | "activity";
 
 const CHAPTER11_THRESHOLD_DISPLAY = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -1072,10 +1075,20 @@ function HubConfirmDialog({
 /*  Compact Activity Log                                               */
 /* ------------------------------------------------------------------ */
 
-function ActivityLog({ timeline }: { timeline: TimelineEvent[] }) {
+function ActivityLog({
+  timeline,
+  defaultExpanded = false,
+}: {
+  timeline: TimelineEvent[];
+  defaultExpanded?: boolean;
+}) {
   const { t } = useTranslation("game");
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const tick = useEngineStore((s) => s.tick);
+
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
 
   const recentEvents = useMemo(() => timeline.slice(0, 5), [timeline]);
 
@@ -1213,6 +1226,59 @@ function LiveryStrip({ primary, secondary }: { primary: string; secondary: strin
 /* ------------------------------------------------------------------ */
 
 export default function CorporateDashboard() {
+  return <CorporateWorkspace section="overview" />;
+}
+
+function CorporateSectionNav({ section }: { section: CorporateSection }) {
+  const { t } = useTranslation("game");
+
+  const items: Array<{ section: CorporateSection; label: string }> = [
+    {
+      section: "overview",
+      label: t("corporate.sections.overview", { ns: "game" }),
+    },
+    {
+      section: "company",
+      label: t("corporate.sections.company", { ns: "game" }),
+    },
+    {
+      section: "network",
+      label: t("corporate.sections.network", { ns: "game" }),
+    },
+    {
+      section: "hubs",
+      label: t("corporate.sections.hubs", { ns: "game" }),
+    },
+    {
+      section: "activity",
+      label: t("corporate.sections.activity", { ns: "game" }),
+    },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 border-b border-border/40 pb-4">
+      {items.map((item) => {
+        const isActive = item.section === section;
+        return (
+          <Link
+            key={item.section}
+            to="/corporate"
+            search={{ section: item.section }}
+            className={`rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors sm:text-xs ${
+              isActive
+                ? "border-primary/30 bg-primary/12 text-primary"
+                : "border-border/60 bg-background/60 text-muted-foreground hover:border-primary/20 hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+export function CorporateWorkspace({ section = "overview" }: { section?: CorporateSection }) {
   const { t } = useTranslation(["identity", "game"]);
   const {
     airline,
@@ -1400,11 +1466,29 @@ export default function CorporateDashboard() {
 
   if (!airline) return null;
 
+  const isOverview = section === "overview";
+
+  const sectionTitleMap: Record<CorporateSection, string> = {
+    overview: t("corporate.sections.overviewTitle", { ns: "game" }),
+    company: t("corporate.sections.companyTitle", { ns: "game" }),
+    network: t("corporate.sections.networkTitle", { ns: "game" }),
+    hubs: t("corporate.sections.hubsTitle", { ns: "game" }),
+    activity: t("corporate.sections.activityTitle", { ns: "game" }),
+  };
+
+  const sectionSubtitleMap: Record<CorporateSection, string> = {
+    overview: t("corporate.pageSubtitle", { ns: "game" }),
+    company: t("corporate.sections.companySubtitle", { ns: "game" }),
+    network: t("corporate.sections.networkSubtitle", { ns: "game" }),
+    hubs: t("corporate.sections.hubsSubtitle", { ns: "game" }),
+    activity: t("corporate.sections.activitySubtitle", { ns: "game" }),
+  };
+
   return (
     <PanelLayout>
       <PanelHeader
-        title={t("corporate.pageTitle", { ns: "game" })}
-        subtitle={t("corporate.pageSubtitle", { ns: "game" })}
+        title={sectionTitleMap[section]}
+        subtitle={sectionSubtitleMap[section]}
         badge={
           <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary sm:px-3 sm:text-xs">
             Tier {airline.tier}
@@ -1413,32 +1497,37 @@ export default function CorporateDashboard() {
       />
       <PanelBody className="pt-3 sm:pt-4">
         <div className="flex w-full flex-col gap-4">
-          {/* ── Zone 1: Identity ── */}
-          <CompanyProfile
-            name={airline.name}
-            icaoCode={airline.icaoCode}
-            callsign={airline.callsign}
-            tier={airline.tier}
-            brandScore={airline.brandScore}
-            cumulativeRevenue={airline.cumulativeRevenue}
-            activeRouteCount={activeRouteCount}
-            status={airline.status}
-            ceoPubkey={airline.ceoPubkey}
-          />
-          <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
+          <CorporateSectionNav section={section} />
 
-          {/* ── Zone 2: Financials ── */}
-          <FinancialPulse
-            corporateBalance={airline.corporateBalance}
-            pulse={pulse}
-            hubOpex={currentMonthlyOpex}
-            fleetLease={totalMonthlyLease}
-            leasedCount={leasedCount}
-            tick={tick}
-          />
+          {(isOverview || section === "company") && (
+            <>
+              <CompanyProfile
+                name={airline.name}
+                icaoCode={airline.icaoCode}
+                callsign={airline.callsign}
+                tier={airline.tier}
+                brandScore={airline.brandScore}
+                cumulativeRevenue={airline.cumulativeRevenue}
+                activeRouteCount={activeRouteCount}
+                status={airline.status}
+                ceoPubkey={airline.ceoPubkey}
+              />
+              <LiveryStrip primary={airline.livery.primary} secondary={airline.livery.secondary} />
+            </>
+          )}
 
-          {/* ── Zone 3: Network Intelligence ── */}
-          {routePerformance.length > 0 && (
+          {section === "overview" && (
+            <FinancialPulse
+              corporateBalance={airline.corporateBalance}
+              pulse={pulse}
+              hubOpex={currentMonthlyOpex}
+              fleetLease={totalMonthlyLease}
+              leasedCount={leasedCount}
+              tick={tick}
+            />
+          )}
+
+          {(section === "overview" || section === "network") && routePerformance.length > 0 && (
             <section className="rounded-xl border border-border/50 bg-background/50 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -1496,39 +1585,41 @@ export default function CorporateDashboard() {
             </section>
           )}
 
-          <NetworkHealth
-            oversuppliedRoutes={networkHealth.oversuppliedRoutes}
-            projectedWeeklyProfit={networkHealth.projectedWeeklyProfit}
-            routesNeedingCuts={networkHealth.routesNeedingCuts}
-          />
+          {(section === "overview" || section === "network") && (
+            <NetworkHealth
+              oversuppliedRoutes={networkHealth.oversuppliedRoutes}
+              projectedWeeklyProfit={networkHealth.projectedWeeklyProfit}
+              routesNeedingCuts={networkHealth.routesNeedingCuts}
+            />
+          )}
 
-          {/* ── Zone 4: Operations ── */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Operations Centers ({airline.hubs.length})
-                </p>
+          {(section === "overview" || section === "hubs") && (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Operations Centers ({airline.hubs.length})
+                  </p>
+                </div>
+                {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
               </div>
-              {!isViewingOther && <HubPicker currentHub={null} onSelect={handleAddHub} />}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {airline.hubs.map((hub) => (
-                <HubCard
-                  key={hub}
-                  iata={hub}
-                  isActive={homeAirport?.iata === hub}
-                  onSwitch={() => handleSwitchActiveHub(hub)}
-                  onClose={() => handleCloseHub(hub)}
-                  canClose={!isViewingOther && airline.hubs.length > 1}
-                  isReadOnly={isViewingOther}
-                />
-              ))}
-            </div>
-          </section>
+              <div className="grid grid-cols-1 gap-2">
+                {airline.hubs.map((hub) => (
+                  <HubCard
+                    key={hub}
+                    iata={hub}
+                    isActive={homeAirport?.iata === hub}
+                    onSwitch={() => handleSwitchActiveHub(hub)}
+                    onClose={() => handleCloseHub(hub)}
+                    canClose={!isViewingOther && airline.hubs.length > 1}
+                    isReadOnly={isViewingOther}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* Bankruptcy explanation panel */}
           {(airline.status === "chapter11" || airline.status === "liquidated") &&
             !isViewingOther && (
               <BankruptcyPanel
@@ -1557,19 +1648,19 @@ export default function CorporateDashboard() {
               />
             )}
 
-          {/* ── Zone 5: Activity ── */}
-          {isViewingOther ? (
-            <section className="rounded-xl border border-border/50 bg-background/50 p-4">
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                {t("corporate.activityLog", { ns: "game" })}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("corporate.timelineUnavailable", { ns: "game" })}
-              </p>
-            </section>
-          ) : (
-            <ActivityLog timeline={timeline} />
-          )}
+          {(section === "overview" || section === "activity") &&
+            (isViewingOther ? (
+              <section className="rounded-xl border border-border/50 bg-background/50 p-4">
+                <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {t("corporate.activityLog", { ns: "game" })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("corporate.timelineUnavailable", { ns: "game" })}
+                </p>
+              </section>
+            ) : (
+              <ActivityLog timeline={timeline} defaultExpanded={section === "activity"} />
+            ))}
         </div>
 
         {/* Hub Confirmation Dialog */}

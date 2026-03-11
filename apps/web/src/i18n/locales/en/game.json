@@ -404,7 +404,23 @@
     "collapse": "Collapse",
     "viewAll": "View All",
     "livery": "Livery",
-    "timelineUnavailable": "Timeline data is not available for other airlines yet."
+    "timelineUnavailable": "Timeline data is not available for other airlines yet.",
+    "sections": {
+      "overview": "Overview",
+      "company": "Company",
+      "network": "Network",
+      "hubs": "Hubs",
+      "activity": "Activity",
+      "overviewTitle": "Finance Overview",
+      "companyTitle": "Company Profile",
+      "networkTitle": "Network Analysis",
+      "hubsTitle": "Hub Operations",
+      "activityTitle": "Activity Log",
+      "companySubtitle": "Identity, brand, tier progression, and executive profile for the airline.",
+      "networkSubtitle": "Route profitability, oversupply risk, and where the published network is underperforming.",
+      "hubsSubtitle": "Control operating centers, hub costs, and the footprint supporting your schedule.",
+      "activitySubtitle": "Review the full operating ledger and investigate the events shaping your airline."
+    }
   },
   "hub": {
     "title": "Select Your Home Hub",

@@ -102,7 +102,7 @@ export function Topbar() {
         </span>
         <button
           type="button"
-          onClick={() => navigate({ to: "/corporate" })}
+          onClick={() => navigate({ to: "/corporate", search: { section: "overview" } })}
           className="ml-2 shrink-0 rounded border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
         >
           {t("bankruptcy.details")}
