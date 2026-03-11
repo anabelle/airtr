@@ -782,7 +782,7 @@ function PurchaseModal({
           </button>
         </div>
 
-        <div className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 space-y-6 sm:p-6 sm:pb-28 sm:space-y-8">
+        <div className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-40 space-y-6 sm:p-6 sm:pb-44 sm:space-y-8">
           {/* Identification */}
           <div className="space-y-4">
             <h4 className="text-sm font-bold flex items-center gap-2">
@@ -859,7 +859,10 @@ function PurchaseModal({
               />
               <AircraftSpecTile
                 label={t("fleet.leadTime", { ns: "game" })}
-                value={t("fleet.minutesEstimate", { ns: "game", count: leadTimeMinutes })}
+                value={t("fleet.minutesEstimate", {
+                  ns: "game",
+                  count: leadTimeMinutes,
+                })}
               />
             </div>
           </div>
