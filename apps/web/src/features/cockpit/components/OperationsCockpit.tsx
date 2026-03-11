@@ -1,6 +1,6 @@
 import { fpFormat } from "@acars/core";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -138,6 +139,7 @@ function InsightCard({ item }: { item: InsightItem }) {
 
 export function OperationsCockpit() {
   const { t } = useTranslation(["common", "game"]);
+  const navigate = useNavigate();
   const { airline: activeAirline, fleet, routes, timeline, isViewingOther } = useActiveAirline();
   const identityStatus = useAirlineStore((state) => state.identityStatus);
   const competitors = useAirlineStore((state) => state.competitors);
@@ -448,15 +450,28 @@ export function OperationsCockpit() {
     return (
       <PanelLayout>
         <div className="border-b border-border/60 bg-background/88 px-4 py-4 backdrop-blur-xl sm:px-6 sm:py-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/80">
-            {t("cockpit.guest.kicker", { ns: "game" })}
-          </p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-            {t("cockpit.guest.title", { ns: "game" })}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {t("cockpit.guest.subtitle", { ns: "game" })}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/80">
+                {t("cockpit.guest.kicker", { ns: "game" })}
+              </p>
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+                {t("cockpit.guest.title", { ns: "game" })}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                {t("cockpit.guest.subtitle", { ns: "game" })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/" })}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              title={t("panel.closeTitle", { ns: "common" })}
+              aria-label={t("panel.closeAria", { ns: "common" })}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6 px-4 py-4 sm:px-6 sm:py-5">
@@ -542,8 +557,8 @@ export function OperationsCockpit() {
   return (
     <PanelLayout>
       <div className="border-b border-border/60 bg-background/88 px-4 py-4 backdrop-blur-xl sm:px-6 sm:py-5">
-        <div className="flex flex-col gap-4">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
                 {t("cockpit.kicker", { ns: "game" })}
@@ -571,6 +586,15 @@ export function OperationsCockpit() {
                   })}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/" })}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background/70 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            title={t("panel.closeTitle", { ns: "common" })}
+            aria-label={t("panel.closeAria", { ns: "common" })}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
