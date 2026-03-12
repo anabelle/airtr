@@ -114,6 +114,7 @@ describe("Topbar", () => {
     expect(screen.getAllByText("Test Air")).toHaveLength(2);
     expect(screen.getByText("TEST")).toBeInTheDocument();
     expect(screen.getByText("Corporate Balance")).toBeInTheDocument();
+    expect(screen.getAllByText("Notifications").length).toBeGreaterThan(0);
     expect(screen.getByText(/T2/)).toBeInTheDocument();
     expect(screen.getByTestId("topbar-metrics").className).not.toMatch(/\bhidden\b/);
   });
