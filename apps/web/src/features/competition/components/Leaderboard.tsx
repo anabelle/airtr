@@ -1,6 +1,7 @@
 import type { AircraftInstance, FixedPoint, Route } from "@acars/core";
 import { fpFormat } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDownRight, ArrowUpRight, ChevronDown, MapPin, Trophy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -134,10 +135,23 @@ function LeaderboardRow({
               {row.icaoCode} · {displayName}
             </span>
             {row.hubs.length > 0 && (
-              <span className="inline-flex items-center gap-1 truncate text-muted-foreground/80">
-                <MapPin className="h-3 w-3" />
-                {row.hubs.slice(0, 3).join(", ")}
-                {row.hubs.length > 3 && <span>+{row.hubs.length - 3}</span>}
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <MapPin className="h-3 w-3 shrink-0" />
+                {row.hubs.slice(0, 3).map((hub, i) => (
+                  <span key={hub} className="inline-flex items-center gap-1">
+                    {i > 0 && <span className="text-muted-foreground/60">,</span>}
+                    <Link
+                      to="/airport/$iata"
+                      params={{ iata: hub }}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {hub}
+                    </Link>
+                  </span>
+                ))}
+                {row.hubs.length > 3 && (
+                  <span className="text-muted-foreground/60">+{row.hubs.length - 3}</span>
+                )}
               </span>
             )}
             {profile.nip05 && (
