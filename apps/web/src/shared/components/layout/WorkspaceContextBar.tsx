@@ -1,8 +1,24 @@
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useRouterState } from "@tanstack/react-router";
-import { Compass, Radar, ShieldAlert, Target } from "lucide-react";
-import { useMemo } from "react";
+import { Compass, Radar, ShieldAlert, Target, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+const DISMISSED_UNTIL_KEY = "acars:workspace-context:dismissed-until";
+const DISMISS_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
+
+function getDismissedUntil(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(DISMISSED_UNTIL_KEY);
+  if (!raw) return 0;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function persistDismissal(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DISMISSED_UNTIL_KEY, String(Date.now() + DISMISS_DURATION_MS));
+}
 
 type WorkspaceCopy = {
   title: string;
@@ -75,6 +91,11 @@ export function WorkspaceContextBar() {
   });
   const { airline, isViewingOther } = useActiveAirline();
   const identityStatus = useAirlineStore((state) => state.identityStatus);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    setDismissed(getDismissedUntil() > Date.now());
+  }, []);
 
   const workspace = useMemo(() => getWorkspaceCopy(pathname, t), [pathname, t]);
   const mode = useMemo(() => {
@@ -118,29 +139,43 @@ export function WorkspaceContextBar() {
 
   const ModeIcon = mode.icon;
 
+  if (dismissed) return null;
+
   return (
-    <div className="pointer-events-auto border-b border-border/60 bg-background/72 px-4 py-2 backdrop-blur-xl sm:px-6 sm:py-2.5">
-      <div className="flex flex-col gap-2 sm:gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/80">
+    <div className="pointer-events-auto border-b border-border/50 bg-background/66 px-4 py-1.5 backdrop-blur-xl sm:px-6 sm:py-2">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-primary/80">
               {workspace.title}
             </span>
-          </div>
-          <p className="mt-1 hidden text-xs leading-relaxed text-muted-foreground sm:block">
-            {workspace.description}
-          </p>
-        </div>
-
-        <div className={`inline-flex items-start gap-2 rounded-2xl border px-3 py-2 ${mode.tone}`}>
-          <ModeIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em]">{mode.title}</p>
-            <p className="mt-0.5 hidden text-[11px] leading-relaxed text-current/80 sm:block">
-              {mode.detail}
+            <span className="hidden text-border sm:inline">/</span>
+            <p className="hidden truncate text-xs text-muted-foreground sm:block">
+              {workspace.description}
             </p>
           </div>
         </div>
+
+        <div
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 ${mode.tone}`}
+          title={mode.detail}
+        >
+          <ModeIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em]">{mode.title}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            persistDismissal();
+            setDismissed(true);
+          }}
+          aria-label={t("actions.close")}
+          title={t("actions.close")}
+          className="shrink-0 rounded-full p-1 text-muted-foreground/70 transition hover:bg-background/60 hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
