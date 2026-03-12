@@ -5,6 +5,11 @@ import MapView from "./-index.lazy";
 
 const mockUseSearch = vi.fn();
 const mockNavigate = vi.fn();
+const mockUseActiveAirline = vi.fn();
+
+vi.mock("@acars/store", () => ({
+  useActiveAirline: () => mockUseActiveAirline(),
+}));
 
 vi.mock("@tanstack/react-router", () => ({
   useSearch: () => mockUseSearch(),
@@ -34,6 +39,7 @@ vi.mock("@/features/cockpit/components/OperationsCockpit", () => ({
 
 describe("MapView", () => {
   it("renders the map-first home card by default", () => {
+    mockUseActiveAirline.mockReturnValue({ airline: null });
     mockUseSearch.mockReturnValue({ panel: undefined });
     render(<MapView />);
     expect(screen.getByText("Start from the map")).toBeInTheDocument();
@@ -44,14 +50,30 @@ describe("MapView", () => {
   });
 
   it("renders the operations cockpit when requested", () => {
+    mockUseActiveAirline.mockReturnValue({ airline: null });
     mockUseSearch.mockReturnValue({ panel: "cockpit" });
     render(<MapView />);
     expect(screen.getByText("Operations Cockpit")).toBeInTheDocument();
   });
 
   it("renders nothing when map panel is requested", () => {
+    mockUseActiveAirline.mockReturnValue({ airline: null });
     mockUseSearch.mockReturnValue({ panel: "map" });
     const { container } = render(<MapView />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("renders the airline map card when an airline is active", () => {
+    mockUseActiveAirline.mockReturnValue({
+      airline: {
+        name: "Avianca",
+        icaoCode: "AVA",
+        callsign: "AVIANCA",
+      },
+    });
+    mockUseSearch.mockReturnValue({ panel: undefined });
+    render(<MapView />);
+    expect(screen.getByText("Avianca")).toBeInTheDocument();
+    expect(screen.getByText("AVA / AVIANCA")).toBeInTheDocument();
   });
 });
