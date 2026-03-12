@@ -1,5 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* ——— mocks ——— */
@@ -25,11 +24,6 @@ vi.mock("@acars/store", () => ({
 vi.mock("@tanstack/react-router", () => ({
   useParams: () => ({ iata: mockIataParam }),
   useNavigate: () => mockNavigate,
-  Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
-    <a href={to} {...props}>
-      {children}
-    </a>
-  ),
 }));
 
 vi.mock("@acars/data", () => ({
@@ -105,12 +99,12 @@ describe("Airport permalink route", () => {
     expect(mockSetPermalinkAirport).not.toHaveBeenCalled();
   });
 
-  it("renders a drill-down frame for valid IATA", () => {
+  it("renders no redundant drill-down frame for valid IATA", () => {
     mockIataParam = "LAX";
-    render(<AirportPermalinkPage />);
+    const { container } = render(<AirportPermalinkPage />);
 
-    expect(screen.getByText("Airport desk")).toBeInTheDocument();
-    expect(screen.getByText("LAX - Los Angeles")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+    expect(mockSetPermalinkAirport).toHaveBeenCalledWith("LAX");
   });
 
   it("clears permalink airport on unmount", () => {

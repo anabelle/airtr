@@ -1,5 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* ——— mocks ——— */
@@ -21,11 +20,6 @@ let mockIdParam = "abc-123";
 vi.mock("@tanstack/react-router", () => ({
   useParams: () => ({ id: mockIdParam }),
   useNavigate: () => mockNavigate,
-  Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
-    <a href={to} {...props}>
-      {children}
-    </a>
-  ),
 }));
 
 import AircraftPermalinkPage from "./-aircraft.$id.lazy";
@@ -55,11 +49,11 @@ describe("Aircraft permalink route", () => {
     expect(mockSetPermalinkAircraft).not.toHaveBeenCalled();
   });
 
-  it("renders a drill-down frame", () => {
-    render(<AircraftPermalinkPage />);
+  it("renders no redundant drill-down frame", () => {
+    const { container } = render(<AircraftPermalinkPage />);
 
-    expect(screen.getByText("Aircraft desk")).toBeInTheDocument();
-    expect(screen.getByText("abc-123")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+    expect(mockSetPermalinkAircraft).toHaveBeenCalledWith("abc-123");
   });
 
   it("clears permalink aircraft on unmount", () => {
