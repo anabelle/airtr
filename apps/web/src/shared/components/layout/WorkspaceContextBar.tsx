@@ -1,7 +1,7 @@
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useRouterState } from "@tanstack/react-router";
 import { Compass, Radar, ShieldAlert, Target, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const DISMISSED_UNTIL_KEY = "acars:workspace-context:dismissed-until";
@@ -91,11 +91,7 @@ export function WorkspaceContextBar() {
   });
   const { airline, isViewingOther } = useActiveAirline();
   const identityStatus = useAirlineStore((state) => state.identityStatus);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    setDismissed(getDismissedUntil() > Date.now());
-  }, []);
+  const [dismissed, setDismissed] = useState(() => getDismissedUntil() > Date.now());
 
   const workspace = useMemo(() => getWorkspaceCopy(pathname, t), [pathname, t]);
   const mode = useMemo(() => {
