@@ -33,6 +33,8 @@ export interface Airport {
   longitude: number;
   /** Feet above sea level */
   altitude: number;
+  /** Longest runway length in feet, or null when unavailable */
+  runwayLengthFt: number | null;
   /** IANA timezone (e.g. "America/New_York") */
   timezone: string;
   /** ISO 3166-1 alpha-2 country code */
