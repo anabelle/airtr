@@ -21,7 +21,7 @@ export default function HomeRoute() {
   if (airline) {
     return (
       <div className="pointer-events-none flex h-full w-full items-end justify-center px-3 pb-24 sm:justify-start sm:px-6 sm:pb-6">
-        <div className="pointer-events-auto flex w-full max-w-[22rem] flex-col gap-3 rounded-[24px] border border-border/70 bg-background/74 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:max-w-sm sm:p-5">
+        <div className="pointer-events-auto flex w-full max-w-[22rem] flex-col gap-3 overflow-y-auto rounded-[24px] border border-border/70 bg-background/74 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl max-h-[calc(100dvh-10.75rem-env(safe-area-inset-bottom))] sm:max-h-none sm:max-w-sm sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
@@ -82,7 +82,7 @@ export default function HomeRoute() {
 
   return (
     <div className="pointer-events-none flex h-full w-full items-end justify-center px-3 pb-24 sm:items-end sm:justify-start sm:px-6 sm:pb-6">
-      <div className="pointer-events-auto flex w-full max-w-[23rem] flex-col gap-3 rounded-[24px] border border-border/70 bg-background/76 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:max-w-sm sm:p-5">
+      <div className="pointer-events-auto flex w-full max-w-[23rem] flex-col gap-3 overflow-y-auto rounded-[24px] border border-border/70 bg-background/76 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl max-h-[calc(100dvh-10.75rem-env(safe-area-inset-bottom))] sm:max-h-none sm:max-w-sm sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
