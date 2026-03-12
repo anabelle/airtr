@@ -1,5 +1,5 @@
+import { buildPushHTTPRequest } from "@pushforge/builder";
 import { verifyEvent } from "nostr-tools";
-import webpush from "web-push";
 
 interface Env {
   NOTIFICATIONS_DB?: D1Database;
@@ -88,7 +88,15 @@ const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_REQUESTS = 30;
 const AUTH_MAX_AGE_SECONDS = 60;
 const CRITICAL_CATEGORIES = new Set<NotificationCategory>(["bankruptcy", "financial_warning"]);
+const MAX_VAPID_JWT_TTL_SECONDS = 24 * 60 * 60;
 let fcmAccessTokenCache: { token: string; expiresAt: number } | null = null;
+let webPushVapidJwkCache:
+  | {
+      publicKey: string;
+      privateKey: string;
+      jwk: JsonWebKey;
+    }
+  | null = null;
 const FCM_ACCESS_TOKEN_CACHE_KEY = "fcm-access-token";
 const NATIVE_ALLOWED_ORIGINS = new Set(["capacitor://localhost", "http://localhost"]);
 const SAFE_NOTIFICATION_PATH_PREFIXES = [
@@ -705,6 +713,62 @@ function base64UrlEncodeText(value: string): string {
   return base64UrlEncodeBytes(new TextEncoder().encode(value));
 }
 
+function base64UrlDecodeBytes(value: string): Uint8Array {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(
+    normalized.length + ((4 - (normalized.length % 4 || 4)) % 4),
+    "=",
+  );
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function createWebPushVapidJwk(publicKey: string, privateKey: string): JsonWebKey {
+  const publicKeyBytes = base64UrlDecodeBytes(publicKey);
+  if (publicKeyBytes.byteLength !== 65 || publicKeyBytes[0] !== 0x04) {
+    throw new Error("WEB_PUSH_VAPID_PUBLIC_KEY must be a P-256 uncompressed point.");
+  }
+
+  const privateKeyBytes = base64UrlDecodeBytes(privateKey);
+  if (privateKeyBytes.byteLength !== 32) {
+    throw new Error("WEB_PUSH_VAPID_PRIVATE_KEY must be a 32-byte base64url private key.");
+  }
+
+  return {
+    kty: "EC",
+    crv: "P-256",
+    x: base64UrlEncodeBytes(publicKeyBytes.subarray(1, 33)),
+    y: base64UrlEncodeBytes(publicKeyBytes.subarray(33, 65)),
+    d: base64UrlEncodeBytes(privateKeyBytes),
+    ext: true,
+  };
+}
+
+function getWebPushVapidJwk(env: Env): JsonWebKey {
+  const publicKey = requireString(env.WEB_PUSH_VAPID_PUBLIC_KEY, "WEB_PUSH_VAPID_PUBLIC_KEY");
+  const privateKey = requireString(env.WEB_PUSH_VAPID_PRIVATE_KEY, "WEB_PUSH_VAPID_PRIVATE_KEY");
+
+  if (
+    webPushVapidJwkCache &&
+    webPushVapidJwkCache.publicKey === publicKey &&
+    webPushVapidJwkCache.privateKey === privateKey
+  ) {
+    return webPushVapidJwkCache.jwk;
+  }
+
+  const jwk = createWebPushVapidJwk(publicKey, privateKey);
+  webPushVapidJwkCache = {
+    publicKey,
+    privateKey,
+    jwk,
+  };
+  return jwk;
+}
+
 function pemToArrayBuffer(pem: string): ArrayBuffer {
   const normalized = pem.replace(/\\n/g, "\n");
   const cleaned = normalized
@@ -834,36 +898,50 @@ async function sendWebPush(
     throw new Error("Missing web push subscription keys.");
   }
 
-  const publicKey = requireString(env.WEB_PUSH_VAPID_PUBLIC_KEY, "WEB_PUSH_VAPID_PUBLIC_KEY");
-  const privateKey = requireString(env.WEB_PUSH_VAPID_PRIVATE_KEY, "WEB_PUSH_VAPID_PRIVATE_KEY");
-  webpush.setVapidDetails(
-    `mailto:${env.PUSH_CONTACT_EMAIL ?? "support@acars.pub"}`,
-    publicKey,
-    privateKey,
-  );
-
-  await webpush.sendNotification(
-    {
+  const ttl = ttlSecondsForPolicy(payload.ttlPolicy);
+  const request = await buildPushHTTPRequest({
+    privateJWK: getWebPushVapidJwk(env),
+    subscription: {
       endpoint: registration.endpoint,
       keys: {
         p256dh: registration.p256dh,
         auth: registration.auth,
       },
     },
-    JSON.stringify({
-      id: payload.id,
-      title: payload.title,
-      body: payload.body,
-      category: payload.category,
-      tag: payload.collapseKey,
-      url: payload.url ?? "/corporate#notifications",
-    }),
-    {
-      TTL: ttlSecondsForPolicy(payload.ttlPolicy),
-      urgency: payload.urgency,
-      topic: payload.collapseKey,
+    message: {
+      payload: {
+        id: payload.id,
+        title: payload.title,
+        body: payload.body,
+        category: payload.category,
+        tag: payload.collapseKey,
+        url: payload.url ?? "/corporate#notifications",
+      },
+      adminContact: `mailto:${env.PUSH_CONTACT_EMAIL ?? "support@acars.pub"}`,
+      options: {
+        ttl: Math.min(ttl, MAX_VAPID_JWT_TTL_SECONDS),
+        urgency: payload.urgency,
+        topic: payload.collapseKey,
+      },
     },
-  );
+  });
+
+  if (request.headers instanceof Headers) {
+    request.headers.set("TTL", String(ttl));
+  } else {
+    request.headers.TTL = String(ttl);
+  }
+
+  const response = await fetch(request.endpoint, {
+    method: "POST",
+    headers: request.headers,
+    body: request.body,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Web push send failed (${response.status}).`);
+  }
 }
 
 async function sendAndroidPush(

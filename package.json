@@ -56,6 +56,7 @@
     ]
   },
   "dependencies": {
-    "web-push": "3.6.7"
+    "@pushforge/builder": "^2.0.1",
+    "nostr-tools": "^2.23.3"
   }
 }
