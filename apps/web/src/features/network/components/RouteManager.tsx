@@ -1685,9 +1685,9 @@ export function RouteManager() {
               aria-label="Close fare editor"
             />
             <div
-              className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[90vh] sm:max-w-xl sm:rounded-2xl`}
+              className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[85vh] sm:max-w-xl sm:rounded-2xl`}
             >
-              <div className="flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
+              <div className="shrink-0 flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     Route Pricing
@@ -1728,7 +1728,7 @@ export function RouteManager() {
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 pb-28 space-y-4 sm:px-6 sm:pb-32 sm:space-y-5">
+              <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 pb-36 space-y-4 sm:px-6 sm:pb-40 sm:space-y-5">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-xl border border-border/50 bg-background/60 p-4">
                     <label

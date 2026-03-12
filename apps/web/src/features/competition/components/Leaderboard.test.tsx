@@ -92,6 +92,7 @@ describe("Leaderboard", () => {
         icaoCode: "TST",
         ceoPubkey: "pubkey",
         liveryPrimary: "#ff3333",
+        hubs: ["JFK", "LAX"],
         balance: 0,
         fleet: 1,
         routes: 2,

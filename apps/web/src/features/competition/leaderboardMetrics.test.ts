@@ -74,7 +74,10 @@ describe("leaderboardMetrics", () => {
 
   it("excludes leased aircraft from fleet value", () => {
     const ownedAircraft = makeAircraft({ id: "ac-owned", purchaseType: "buy" });
-    const leasedAircraft = makeAircraft({ id: "ac-leased", purchaseType: "lease" });
+    const leasedAircraft = makeAircraft({
+      id: "ac-leased",
+      purchaseType: "lease",
+    });
     const aircraftById = new Map([
       [ownedAircraft.id, ownedAircraft],
       [leasedAircraft.id, leasedAircraft],
@@ -89,8 +92,16 @@ describe("leaderboardMetrics", () => {
   });
 
   it("computes network distance from routes", () => {
-    const routeA = makeRoute({ id: "route-a", distanceKm: 1200, assignedAircraftIds: ["ac-1"] });
-    const routeB = makeRoute({ id: "route-b", distanceKm: 2500, assignedAircraftIds: ["ac-2"] });
+    const routeA = makeRoute({
+      id: "route-a",
+      distanceKm: 1200,
+      assignedAircraftIds: ["ac-1"],
+    });
+    const routeB = makeRoute({
+      id: "route-b",
+      distanceKm: 2500,
+      assignedAircraftIds: ["ac-2"],
+    });
     const routeById = new Map([
       [routeA.id, routeA],
       [routeB.id, routeB],
@@ -127,7 +138,11 @@ describe("leaderboardMetrics", () => {
       routeIds: ["route-1"],
     });
     const aircraft = makeAircraft({ id: "ac-1" });
-    const route = makeRoute({ id: "route-1", distanceKm: 987, assignedAircraftIds: ["ac-1"] });
+    const route = makeRoute({
+      id: "route-1",
+      distanceKm: 987,
+      assignedAircraftIds: ["ac-1"],
+    });
 
     const rows = buildLeaderboardRows(
       [airline],
@@ -172,6 +187,7 @@ describe("leaderboardMetrics", () => {
         icaoCode: "AAA",
         ceoPubkey: "pubkey-a",
         liveryPrimary: "#111111",
+        hubs: [],
         balance: fp(100),
         fleet: 1,
         routes: 1,
@@ -185,6 +201,7 @@ describe("leaderboardMetrics", () => {
         icaoCode: "BBB",
         ceoPubkey: "pubkey-b",
         liveryPrimary: "#222222",
+        hubs: [],
         balance: fp(100),
         fleet: 1,
         routes: 1,
