@@ -63,7 +63,7 @@ export function Topbar() {
 
   const openNotificationSettings = () => {
     setMobileMenuOpen(false);
-    navigate({ to: "/corporate" });
+    navigate({ to: "/corporate", search: { section: "overview" } });
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         document

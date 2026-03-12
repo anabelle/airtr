@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { AircraftInfoPanel } from "@/features/network/components/AircraftInfoPanel";
 import { AirportInfoPanel } from "@/features/network/components/AirportInfoPanel";
-import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { buildGroundPresenceByAirport } from "@/features/network/utils/groundTraffic";
 import {
   getDetailReturnTo,
