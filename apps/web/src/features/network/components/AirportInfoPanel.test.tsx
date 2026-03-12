@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { AirportInfoPanel } from "./AirportInfoPanel";
@@ -59,6 +59,7 @@ vi.mock("@/features/network/components/FlightBoard", () => {
 
 describe("AirportInfoPanel", () => {
   afterEach(async () => {
+    cleanup();
     await i18n.changeLanguage("en");
   });
 
@@ -100,6 +101,43 @@ describe("AirportInfoPanel", () => {
     expect(screen.getByText("John F Kennedy")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Close airport panel"));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("renders the action well with a full-width guest CTA", () => {
+    mockUseAirlineStore.mockReturnValue({
+      airline: null,
+      routes: [],
+      fleet: [],
+      fleetByOwner: new Map(),
+      competitors: new Map(),
+      modifyHubs: vi.fn(),
+      openRoute: vi.fn(),
+    });
+    mockUseEngineStore.mockReturnValue({ setHub: vi.fn() });
+
+    render(
+      <AirportInfoPanel
+        airport={{
+          iata: "JFK",
+          icao: "KJFK",
+          name: "John F Kennedy",
+          city: "New York",
+          country: "US",
+          latitude: 0,
+          longitude: 0,
+          population: 1000,
+          gdpPerCapita: 1000,
+          altitude: 0,
+          runwayLengthFt: 12000,
+          timezone: "UTC",
+          tags: [],
+          id: "1",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: "Set as Home" })[0]).toHaveClass("w-full");
   });
 
   it("renders translated airport actions in Spanish", async () => {

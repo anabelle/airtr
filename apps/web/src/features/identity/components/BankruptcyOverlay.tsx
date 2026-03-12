@@ -3,6 +3,7 @@ import { useAirlineStore } from "@acars/store";
 import { AlertTriangle, Skull, X } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { ModalPortal } from "@/shared/components/ModalPortal";
 
 export function BankruptcyOverlay() {
   const { t } = useTranslation("common");
@@ -79,109 +80,111 @@ export function BankruptcyOverlay() {
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-    >
+    <ModalPortal>
       <div
-        ref={dialogRef}
-        className="relative mx-4 max-w-md w-full rounded-2xl border border-rose-500/30 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       >
-        <button
-          ref={closeButtonRef}
-          type="button"
-          onClick={() => setDismissed(true)}
-          className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
-          aria-label={t("bankruptcy.dismiss")}
+        <div
+          ref={dialogRef}
+          className="relative mx-4 max-w-md w-full rounded-2xl border border-rose-500/30 bg-background/95 p-6 shadow-2xl backdrop-blur-xl"
         >
-          <X className="h-4 w-4" />
-        </button>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+            aria-label={t("bankruptcy.dismiss")}
+          >
+            <X className="h-4 w-4" />
+          </button>
 
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20">
-            {isLiquidated ? (
-              <Skull className="h-8 w-8 text-rose-500" />
-            ) : (
-              <AlertTriangle className="h-8 w-8 text-rose-500" />
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <h2 id={titleId} className="text-lg font-bold text-rose-400">
-              {isLiquidated ? t("bankruptcy.liquidatedTitle") : t("bankruptcy.chapter11Title")}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {airline.icaoCode} — {airline.name}
-            </p>
-          </div>
-
-          <div className="w-full rounded-lg border border-rose-500/10 bg-rose-950/30 p-4 text-left space-y-2">
-            <p className="text-xs text-rose-300/80">
-              {isLiquidated ? t("bankruptcy.liquidatedDesc") : t("bankruptcy.chapter11Desc")}
-            </p>
-            <div className="flex items-center justify-between border-t border-rose-500/10 pt-2">
-              <span className="text-[10px] font-semibold uppercase text-rose-300/60">
-                Corporate Balance
-              </span>
-              <span className="font-mono text-sm font-bold text-rose-400">
-                {fpFormat(airline.corporateBalance)}
-              </span>
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10 border border-rose-500/20">
+              {isLiquidated ? (
+                <Skull className="h-8 w-8 text-rose-500" />
+              ) : (
+                <AlertTriangle className="h-8 w-8 text-rose-500" />
+              )}
             </div>
-          </div>
 
-          {!isLiquidated && !confirmDissolve && (
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              {t("bankruptcy.dissolveExplain")}
-            </p>
-          )}
-
-          {confirmDissolve && !isLiquidated && (
-            <div className="w-full rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
-              <p className="text-xs text-rose-300 font-semibold">
-                {t("bankruptcy.dissolveConfirm", { name: airline.name })}
+            <div className="space-y-1">
+              <h2 id={titleId} className="text-lg font-bold text-rose-400">
+                {isLiquidated ? t("bankruptcy.liquidatedTitle") : t("bankruptcy.chapter11Title")}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {airline.icaoCode} — {airline.name}
               </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDissolve(false)}
-                  className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
-                >
-                  {t("bankruptcy.cancel")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDissolve}
-                  disabled={isLoading}
-                  className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
-                >
-                  {isLoading ? t("bankruptcy.dissolving") : t("bankruptcy.confirmDissolution")}
-                </button>
+            </div>
+
+            <div className="w-full rounded-lg border border-rose-500/10 bg-rose-950/30 p-4 text-left space-y-2">
+              <p className="text-xs text-rose-300/80">
+                {isLiquidated ? t("bankruptcy.liquidatedDesc") : t("bankruptcy.chapter11Desc")}
+              </p>
+              <div className="flex items-center justify-between border-t border-rose-500/10 pt-2">
+                <span className="text-[10px] font-semibold uppercase text-rose-300/60">
+                  Corporate Balance
+                </span>
+                <span className="font-mono text-sm font-bold text-rose-400">
+                  {fpFormat(airline.corporateBalance)}
+                </span>
               </div>
             </div>
-          )}
 
-          <div className="w-full flex flex-col gap-2">
             {!isLiquidated && !confirmDissolve && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {t("bankruptcy.dissolveExplain")}
+              </p>
+            )}
+
+            {confirmDissolve && !isLiquidated && (
+              <div className="w-full rounded-lg border border-rose-500/20 bg-rose-950/40 p-3 space-y-3">
+                <p className="text-xs text-rose-300 font-semibold">
+                  {t("bankruptcy.dissolveConfirm", { name: airline.name })}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDissolve(false)}
+                    className="flex-1 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted/30"
+                  >
+                    {t("bankruptcy.cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDissolve}
+                    disabled={isLoading}
+                    className="flex-1 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-bold text-rose-300 transition hover:bg-rose-500/30 disabled:opacity-50"
+                  >
+                    {isLoading ? t("bankruptcy.dissolving") : t("bankruptcy.confirmDissolution")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="w-full flex flex-col gap-2">
+              {!isLiquidated && !confirmDissolve && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDissolve(true)}
+                  className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
+                >
+                  {t("bankruptcy.dissolveStartFresh")}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setConfirmDissolve(true)}
-                className="w-full rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
+                onClick={() => setDismissed(true)}
+                className="w-full rounded-lg border border-border/40 bg-background/50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition hover:bg-muted/30"
               >
-                {t("bankruptcy.dissolveStartFresh")}
+                {isLiquidated ? t("bankruptcy.acknowledged") : t("bankruptcy.dismiss")}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDismissed(true)}
-              className="w-full rounded-lg border border-border/40 bg-background/50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition hover:bg-muted/30"
-            >
-              {isLiquidated ? t("bankruptcy.acknowledged") : t("bankruptcy.dismiss")}
-            </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

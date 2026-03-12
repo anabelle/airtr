@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import i18n from "@/i18n";
 import { describe, expect, it, vi } from "vitest";
+import i18n from "@/i18n";
 import { PanelHeader, PanelLayout } from "./PanelLayout";
 
 const mockNavigate = vi.fn();
@@ -23,7 +23,7 @@ describe("PanelLayout", () => {
     expect(screen.getByText("Panel content")).toBeInTheDocument();
 
     const button = screen.getByRole("button", {
-      name: /close panel and view map/i,
+      name: /close panel and return to cockpit/i,
     });
     fireEvent.click(button);
     expect(mockNavigate).toHaveBeenCalledWith({ to: "/" });
@@ -37,7 +37,9 @@ describe("PanelLayout", () => {
       </PanelLayout>,
     );
 
-    expect(screen.getAllByRole("button", { name: /cerrar panel y ver mapa/i }).length).toBe(2);
+    expect(screen.getAllByRole("button", { name: /cerrar panel y volver a cabina/i }).length).toBe(
+      2,
+    );
     await i18n.changeLanguage("en");
   });
 });

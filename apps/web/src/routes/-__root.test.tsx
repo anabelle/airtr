@@ -32,6 +32,10 @@ vi.mock("@/shared/components/layout/Topbar", () => ({
   Topbar: () => <div data-testid="topbar" />,
 }));
 
+vi.mock("@/shared/components/layout/WorkspaceContextBar", () => ({
+  WorkspaceContextBar: () => <div data-testid="workspace-context" />,
+}));
+
 import { Route } from "./__root";
 
 afterEach(cleanup);

@@ -1,8 +1,9 @@
 import type { AircraftInstance, FixedPoint, Route } from "@acars/core";
 import { fpFormat } from "@acars/core";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDownRight, ArrowUpRight, ChevronDown, Trophy } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, MapPin, Trophy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -26,9 +27,18 @@ const metricMeta: Record<
     description: "leaderboard.liquidityDesc",
     isMoney: true,
   },
-  fleet: { label: "leaderboard.fleetSize", description: "leaderboard.fleetSizeDesc" },
-  routes: { label: "leaderboard.routeCount", description: "leaderboard.routeCountDesc" },
-  brand: { label: "leaderboard.brandScore", description: "leaderboard.brandScoreDesc" },
+  fleet: {
+    label: "leaderboard.fleetSize",
+    description: "leaderboard.fleetSizeDesc",
+  },
+  routes: {
+    label: "leaderboard.routeCount",
+    description: "leaderboard.routeCountDesc",
+  },
+  brand: {
+    label: "leaderboard.brandScore",
+    description: "leaderboard.brandScoreDesc",
+  },
   fleetValue: {
     label: "leaderboard.fleetValue",
     description: "leaderboard.fleetValueDesc",
@@ -124,6 +134,26 @@ function LeaderboardRow({
             <span className="truncate">
               {row.icaoCode} · {displayName}
             </span>
+            {row.hubs.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 truncate">
+                <MapPin className="h-3 w-3 shrink-0" />
+                {row.hubs.slice(0, 3).map((hub, i) => (
+                  <span key={hub} className="inline-flex items-center gap-1">
+                    {i > 0 && <span className="text-muted-foreground/60">,</span>}
+                    <Link
+                      to="/airport/$iata"
+                      params={{ iata: hub }}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {hub}
+                    </Link>
+                  </span>
+                ))}
+                {row.hubs.length > 3 && (
+                  <span className="text-muted-foreground/60">+{row.hubs.length - 3}</span>
+                )}
+              </span>
+            )}
             {profile.nip05 && (
               <span className="rounded-full border border-border/50 bg-muted/40 px-2 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">
                 {profile.nip05}

@@ -7,8 +7,8 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { HubPicker } from "../../network/components/HubPicker";
-import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 import { findAirlineConflicts } from "../utils/airlineConflicts";
+import { EphemeralKeyBackupActions } from "./EphemeralKeyBackupActions";
 
 export function AirlineCreator() {
   const { t } = useTranslation(["identity", "common"]);
@@ -21,7 +21,7 @@ export function AirlineCreator() {
   const [icao, setIcao] = useState("");
   const [callsign, setCallsign] = useState("");
   const [primary, setPrimary] = useState("#1a1a2e");
-  const [secondary, setSecondary] = useState("#10b981"); // neon greenish accent
+  const [secondary, setSecondary] = useState("#10b981");
   const [showKeyTools, setShowKeyTools] = useState(false);
 
   const { nameConflict, icaoConflict } = useMemo(
@@ -41,7 +41,11 @@ export function AirlineCreator() {
     if (!airport) return;
     setHub(
       airport,
-      { latitude: airport.latitude, longitude: airport.longitude, source: "manual" },
+      {
+        latitude: airport.latitude,
+        longitude: airport.longitude,
+        source: "manual",
+      },
       "manual selection",
     );
   };
@@ -63,7 +67,8 @@ export function AirlineCreator() {
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("creator.unknownError", { ns: "identity" });
+      const message =
+        err instanceof Error ? err.message : t("creator.unknownError", { ns: "identity" });
       toast.error(t("creator.creationFailed"), { description: message });
     }
   };
@@ -78,7 +83,7 @@ export function AirlineCreator() {
   }
 
   return (
-    <div className="mx-auto my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/80 shadow-2xl backdrop-blur-md">
+    <div className="mx-auto my-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card/84 shadow-2xl backdrop-blur-md">
       <div className="border-b border-border bg-muted px-4 py-4 sm:px-8 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -121,7 +126,7 @@ export function AirlineCreator() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 p-4 sm:space-y-6 sm:p-8">
+      <form onSubmit={handleSubmit} className="space-y-5 p-4 pb-6 sm:space-y-6 sm:p-8">
         {error && (
           <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start">
             <ShieldAlert className="h-5 w-5 text-destructive mr-3 mt-0.5 shrink-0" />
@@ -201,7 +206,7 @@ export function AirlineCreator() {
             <h3 className="text-lg font-semibold tracking-tight">{t("creator.airlineIdentity")}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{t("creator.identityDesc")}</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
             <div className="space-y-2">
               <label
                 htmlFor="airline-name"
@@ -295,8 +300,8 @@ export function AirlineCreator() {
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center space-x-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6">
+            <div className="flex items-center space-x-3 rounded-xl border border-border/60 bg-background/40 px-3 py-3">
               <input
                 type="color"
                 value={primary}
@@ -305,7 +310,7 @@ export function AirlineCreator() {
               />
               <span className="text-sm font-medium">{t("creator.primary")}</span>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 rounded-xl border border-border/60 bg-background/40 px-3 py-3">
               <input
                 type="color"
                 value={secondary}

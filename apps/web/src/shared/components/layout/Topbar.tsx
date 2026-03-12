@@ -5,8 +5,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EphemeralKeyBackupActions } from "@/features/identity/components/EphemeralKeyBackupActions";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
+import { EphemeralKeyBackupActions } from "@/features/identity/components/EphemeralKeyBackupActions";
 import { useRelayHealth } from "@/shared/hooks/useRelayHealth";
 
 export function Topbar() {
@@ -102,7 +102,7 @@ export function Topbar() {
         </span>
         <button
           type="button"
-          onClick={() => navigate({ to: "/corporate" })}
+          onClick={() => navigate({ to: "/corporate", search: { section: "overview" } })}
           className="ml-2 shrink-0 rounded border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition hover:bg-rose-500/20"
         >
           {t("bankruptcy.details")}
@@ -455,9 +455,14 @@ export function Topbar() {
                 <h1 className="text-sm leading-none font-bold tracking-tight text-foreground">
                   {activeAirline.name}
                 </h1>
-                <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {activeAirline.callsign}
-                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <p>{activeAirline.callsign}</p>
+                  {isViewingOther ? (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-bold tracking-[0.16em] text-amber-200">
+                      {t("topbar.competitorMode")}
+                    </span>
+                  ) : null}
+                </div>
               </div>
               {isViewingOther && (
                 <button
@@ -575,9 +580,14 @@ export function Topbar() {
                 <h1 className="text-sm leading-none font-bold tracking-tight text-foreground">
                   {activeAirline.name}
                 </h1>
-                <p className="mt-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {activeAirline.callsign}
-                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+                  <p>{activeAirline.callsign}</p>
+                  {isViewingOther ? (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-bold tracking-[0.16em] text-amber-200">
+                      {t("topbar.competitorMode")}
+                    </span>
+                  ) : null}
+                </div>
               </div>
               {isViewingOther && (
                 <button

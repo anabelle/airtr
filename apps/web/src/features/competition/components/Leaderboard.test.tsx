@@ -6,6 +6,21 @@ vi.mock("@/shared/components/layout/panelScrollContext", () => ({
   usePanelScrollRef: () => ({ current: null }),
 }));
 
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode;
+    to: string;
+    params?: Record<string, string>;
+  }) => {
+    const href = params ? `${to.replace("$iata", params.iata)}` : to;
+    return <a href={href}>{children}</a>;
+  },
+}));
+
 type Selector<T> = (state: T) => unknown;
 type AirlineStoreState = {
   competitors: Map<string, unknown>;
@@ -92,6 +107,7 @@ describe("Leaderboard", () => {
         icaoCode: "TST",
         ceoPubkey: "pubkey",
         liveryPrimary: "#ff3333",
+        hubs: ["JFK", "LAX"],
         balance: 0,
         fleet: 1,
         routes: 2,

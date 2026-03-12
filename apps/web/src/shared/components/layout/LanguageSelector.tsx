@@ -1,6 +1,28 @@
-import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { supportedLanguages } from "@/i18n";
+
+function safeGetStoredLanguage(): string | null {
+  if (typeof window === "undefined") return null;
+  const storage = window.localStorage;
+  if (!storage || typeof storage.getItem !== "function") return null;
+  try {
+    return storage.getItem("acars-language");
+  } catch {
+    return null;
+  }
+}
+
+function safeClearStoredLanguage() {
+  if (typeof window === "undefined") return;
+  const storage = window.localStorage;
+  if (!storage || typeof storage.removeItem !== "function") return;
+  try {
+    storage.removeItem("acars-language");
+  } catch {
+    // Ignore storage access failures and fall back to runtime detection only.
+  }
+}
 
 export function LanguageSelector() {
   const { t, i18n } = useTranslation("common");
@@ -9,7 +31,7 @@ export function LanguageSelector() {
     const value = e.target.value;
     if (value === "auto") {
       // Remove manual override so the detector falls back to browser prefs
-      localStorage.removeItem("acars-language");
+      safeClearStoredLanguage();
       // Detect from browser settings (navigator.language)
       const detected = navigator.language.split("-")[0];
       const supported = Object.keys(supportedLanguages);
@@ -20,7 +42,7 @@ export function LanguageSelector() {
   };
 
   // Check if a manual override is stored
-  const storedLang = localStorage.getItem("acars-language");
+  const storedLang = safeGetStoredLanguage();
   const currentValue = storedLang ?? "auto";
 
   return (

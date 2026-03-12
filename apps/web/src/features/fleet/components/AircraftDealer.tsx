@@ -20,8 +20,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { MOBILE_OVERLAY_HEIGHT_CLASS } from "@/shared/components/layout/mobileLayout";
 import { usePanelScrollRef } from "@/shared/components/layout/panelScrollContext";
+import { ModalPortal } from "@/shared/components/ModalPortal";
 import { useConfirm } from "@/shared/lib/useConfirm";
 import { CatalogImage } from "./CatalogImage";
 
@@ -743,328 +743,333 @@ function PurchaseModal({
   const leadTimeMinutes = Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
-      <div
-        className={`relative flex ${MOBILE_OVERLAY_HEIGHT_CLASS} w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl`}
-      >
-        {/* Header Graphic */}
-        <div
-          className={`relative flex min-h-40 w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:min-h-44 sm:p-6`}
-        >
-          <div className="z-10 min-w-0 flex-1">
-            <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
-              {aircraft.manufacturer}
-            </span>
-            <h2 className="truncate pr-10 text-2xl font-bold text-foreground drop-shadow-sm sm:text-3xl">
-              {aircraft.name}
-            </h2>
-          </div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-44 overflow-hidden border-l border-border/10 sm:block md:w-48">
-            <CatalogImage
-              model={aircraft}
-              className="h-full w-full object-cover opacity-80"
-              fallback={
-                <div className="flex h-full w-full items-center justify-center">
-                  <Plane className="h-24 w-24 rotate-[-15deg] text-foreground/10" />
-                </div>
-              }
-            />
-            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-background/20 to-background/75" />
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-4 top-4 z-20 rounded-full bg-background/20 p-2 backdrop-blur-md transition-colors hover:bg-background/40"
-            aria-label={t("fleet.closePurchaseModal", { ns: "game" })}
+    <ModalPortal>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
+        <div className="relative flex w-full max-h-[100dvh] min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:max-h-[85vh] sm:max-w-2xl sm:rounded-2xl">
+          {/* Header Graphic */}
+          <div
+            className={`relative flex min-h-40 w-full shrink-0 items-center justify-between border-b border-border/30 bg-gradient-to-br ${bgGradient} p-4 sm:min-h-44 sm:p-6`}
           >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
-        </div>
+            <div className="z-10 min-w-0 flex-1">
+              <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground block mb-1">
+                {aircraft.manufacturer}
+              </span>
+              <h2 className="truncate pr-10 text-2xl font-bold text-foreground drop-shadow-sm sm:text-3xl">
+                {aircraft.name}
+              </h2>
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-44 overflow-hidden border-l border-border/10 sm:block md:w-48">
+              <CatalogImage
+                model={aircraft}
+                className="h-full w-full object-cover opacity-80"
+                fallback={
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Plane className="h-24 w-24 rotate-[-15deg] text-foreground/10" />
+                  </div>
+                }
+              />
+              <div className="absolute inset-0 bg-gradient-to-l from-transparent via-background/20 to-background/75" />
+            </div>
 
-        <div className="custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pb-24 space-y-6 sm:p-6 sm:pb-28 sm:space-y-8">
-          {/* Identification */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold flex items-center gap-2">
-              <Tag className="h-4 w-4 text-primary" />
-              {t("fleet.aircraftIdentity", { ns: "game" })}
-            </h4>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
-                <label
-                  htmlFor={nameInputId}
-                  className="text-[10px] font-semibold text-muted-foreground uppercase block"
-                >
-                  {t("fleet.registrationNameOptional", { ns: "game" })}
-                </label>
-                <input
-                  id={nameInputId}
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder={t("fleet.registrationPlaceholder", {
-                    ns: "game",
-                    name: aircraft.name,
-                  })}
-                  className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
-                />
-              </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute right-4 top-4 z-20 rounded-full bg-background/20 p-2 backdrop-blur-md transition-colors hover:bg-background/40"
+              aria-label={t("fleet.closePurchaseModal", { ns: "game" })}
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
 
-              {hubs.length > 0 && (
+          <div className="custom-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 pb-10 space-y-6 sm:p-6 sm:pb-12 sm:space-y-8">
+            {/* Identification */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <Tag className="h-4 w-4 text-primary" />
+                {t("fleet.aircraftIdentity", { ns: "game" })}
+              </h4>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
                   <label
-                    htmlFor={hubSelectId}
-                    className="text-[10px] font-semibold text-muted-foreground uppercase block flex items-center gap-1"
+                    htmlFor={nameInputId}
+                    className="text-[10px] font-semibold text-muted-foreground uppercase block"
                   >
-                    <MapPin className="h-3 w-3" /> {t("fleet.deliveryHub", { ns: "game" })}
+                    {t("fleet.registrationNameOptional", { ns: "game" })}
                   </label>
-                  <select
-                    id={hubSelectId}
-                    value={selectedHub}
-                    onChange={(e) => setSelectedHub(e.target.value)}
-                    className="w-full bg-transparent text-sm font-medium outline-none cursor-pointer"
-                  >
-                    {hubs.map((hub) => (
-                      <option key={hub} value={hub} className="bg-background text-foreground">
-                        {hub}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border/50 bg-background/40 p-4 sm:p-5">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <AircraftSpecTile
-                label={t("aircraft.range", { ns: "game" })}
-                value={`${aircraft.rangeKm.toLocaleString()} km`}
-              />
-              <AircraftSpecTile
-                label={t("aircraft.speed", { ns: "game" })}
-                value={`${aircraft.speedKmh.toLocaleString()} km/h`}
-              />
-              <AircraftSpecTile
-                label={t("fleet.baseSeats", { ns: "game" })}
-                value={baseCapacity.toLocaleString()}
-              />
-              <AircraftSpecTile
-                label={t("fleet.cargoCapacity", { ns: "game" })}
-                value={`${aircraft.capacity.cargoKg.toLocaleString()} kg`}
-              />
-              <AircraftSpecTile
-                label={t("aircraft.fuelBurn", { ns: "game" })}
-                value={`${aircraft.fuelBurnKgPerHour.toLocaleString()} kg/h`}
-              />
-              <AircraftSpecTile
-                label={t("fleet.leadTime", { ns: "game" })}
-                value={t("fleet.minutesEstimate", { ns: "game", count: leadTimeMinutes })}
-              />
-            </div>
-          </div>
-
-          {/* Acquisition Type */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              {t("fleet.acquisitionMethod", { ns: "game" })}
-            </h4>
-            <div className="grid w-full grid-cols-2 gap-0 rounded-xl border border-border/50 bg-background/50 p-1">
-              <button
-                type="button"
-                onClick={() => setPurchaseType("buy")}
-                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-                  purchaseType === "buy"
-                    ? "bg-primary text-primary-foreground shadow-lg"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                }`}
-              >
-                {t("fleet.cashPurchase", { ns: "game" })}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPurchaseType("lease")}
-                className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
-                  purchaseType === "lease"
-                    ? "bg-orange-500 text-white shadow-lg"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                }`}
-              >
-                {t("fleet.leaseAgreement", { ns: "game" })}
-              </button>
-            </div>
-            {purchaseType === "lease" && (
-              <p className="px-2 text-[10px] italic text-muted-foreground">
-                {t("fleet.leaseTerms", {
-                  ns: "game",
-                  amount: fpFormat(aircraft.monthlyLease, 0),
-                })}
-              </p>
-            )}
-          </div>
-
-          <div className="h-px w-full bg-border/50" />
-
-          {/* Seat Configuration */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-primary" />
-              {t("fleet.cabinConfiguration", { ns: "game" })}
-            </h4>
-
-            <div className="space-y-6 rounded-xl border border-border/50 bg-background/50 p-4 sm:p-5">
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor={firstSliderId}
-                  className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
-                >
-                  <span>{t("fleet.firstClassSpace", { ns: "game" })}</span>
-                  <span className={firstSeats > 0 ? "text-primary" : ""}>{firstSeats} seats</span>
-                </label>
-                <input
-                  id={firstSliderId}
-                  type="range"
-                  min="0"
-                  max={maxFirstClass}
-                  step="1"
-                  value={firstSeats}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (baseEconSpace - busSeats * 2.5 - val * 4 >= 0) {
-                      setFirstSeats(val);
-                    } else {
-                      setBusSeats(Math.floor((baseEconSpace - val * 4) / 2.5));
-                      setFirstSeats(val);
-                    }
-                  }}
-                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor={businessSliderId}
-                  className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
-                >
-                  <span>{t("fleet.businessClassSpace", { ns: "game" })}</span>
-                  <span className={busSeats > 0 ? "text-primary" : ""}>{busSeats} seats</span>
-                </label>
-                <input
-                  id={businessSliderId}
-                  type="range"
-                  min="0"
-                  max={maxBusinessClass}
-                  step="1"
-                  value={busSeats}
-                  onChange={(e) => setBusSeats(parseInt(e.target.value))}
-                  className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
-                />
-              </div>
-
-              <div className="flex flex-col mt-4 pt-4 border-t border-border/50">
-                <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-                  <div className="min-w-0 flex-1 overflow-hidden text-center">
-                    <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      {t("timeline.first", { ns: "game" })}
-                    </span>
-                    <span className="font-mono text-lg font-bold truncate block">{firstSeats}</span>
-                  </div>
-                  <div className="min-w-0 flex-1 overflow-hidden border-x border-border/50 text-center">
-                    <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      {t("timeline.business", { ns: "game" })}
-                    </span>
-                    <span className="font-mono text-lg font-bold truncate block">{busSeats}</span>
-                  </div>
-                  <div className="min-w-0 flex-1 overflow-hidden text-center">
-                    <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
-                      {t("timeline.economy", { ns: "game" })}
-                    </span>
-                    <span className="font-mono text-lg font-bold text-primary truncate block">
-                      {econSeats}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex min-w-0 justify-between items-center text-xs mt-4 px-4 py-2 bg-accent/20 rounded-lg border border-accent/20">
-                  <span className="truncate text-accent-foreground font-semibold uppercase text-[10px]">
-                    {t("fleet.totalPassengers", { ns: "game" })}
-                  </span>
-                  <span className="shrink-0 font-mono font-bold text-accent-foreground">
-                    {totalCapacity}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/50 bg-background/40 p-4 overflow-hidden">
-            <div className="flex min-w-0 items-center justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {purchaseType === "buy"
-                    ? t("fleet.fullPurchasePrice", { ns: "game" })
-                    : t("fleet.securityDeposit", { ns: "game" })}
-                </p>
-                <p
-                  className={`mt-1 truncate text-3xl font-black ${canAfford ? "text-primary" : "text-red-500"}`}
-                >
-                  {fpFormat(upfrontCost, 0)}
-                </p>
-                {purchaseType === "lease" ? (
-                  <p className="mt-1 truncate text-xs font-bold uppercase text-orange-400">
-                    {t("fleet.monthlyLeaseAmount", {
+                  <input
+                    id={nameInputId}
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    placeholder={t("fleet.registrationPlaceholder", {
                       ns: "game",
-                      amount: fpFormat(aircraft.monthlyLease, 0),
+                      name: aircraft.name,
                     })}
-                  </p>
-                ) : null}
+                    className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50"
+                  />
+                </div>
+
+                {hubs.length > 0 && (
+                  <div className="space-y-1.5 border border-border/50 rounded-xl p-3 bg-background/50 focus-within:border-primary/50 transition-colors">
+                    <label
+                      htmlFor={hubSelectId}
+                      className="text-[10px] font-semibold text-muted-foreground uppercase block flex items-center gap-1"
+                    >
+                      <MapPin className="h-3 w-3" /> {t("fleet.deliveryHub", { ns: "game" })}
+                    </label>
+                    <select
+                      id={hubSelectId}
+                      value={selectedHub}
+                      onChange={(e) => setSelectedHub(e.target.value)}
+                      className="w-full bg-transparent text-sm font-medium outline-none cursor-pointer"
+                    >
+                      {hubs.map((hub) => (
+                        <option key={hub} value={hub} className="bg-background text-foreground">
+                          {hub}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-              <div className="shrink-0 text-right text-xs text-yellow-500">
-                <p className="font-semibold">{t("fleet.readyIn", { ns: "game" })}</p>
-                <p className="font-mono font-bold">
-                  ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
-                  :00
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-background/40 p-4 sm:p-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <AircraftSpecTile
+                  label={t("aircraft.range", { ns: "game" })}
+                  value={`${aircraft.rangeKm.toLocaleString()} km`}
+                />
+                <AircraftSpecTile
+                  label={t("aircraft.speed", { ns: "game" })}
+                  value={`${aircraft.speedKmh.toLocaleString()} km/h`}
+                />
+                <AircraftSpecTile
+                  label={t("fleet.baseSeats", { ns: "game" })}
+                  value={baseCapacity.toLocaleString()}
+                />
+                <AircraftSpecTile
+                  label={t("fleet.cargoCapacity", { ns: "game" })}
+                  value={`${aircraft.capacity.cargoKg.toLocaleString()} kg`}
+                />
+                <AircraftSpecTile
+                  label={t("aircraft.fuelBurn", { ns: "game" })}
+                  value={`${aircraft.fuelBurnKgPerHour.toLocaleString()} kg/h`}
+                />
+                <AircraftSpecTile
+                  label={t("fleet.leadTime", { ns: "game" })}
+                  value={t("fleet.minutesEstimate", {
+                    ns: "game",
+                    count: leadTimeMinutes,
+                  })}
+                />
+              </div>
+            </div>
+
+            {/* Acquisition Type */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-primary" />
+                {t("fleet.acquisitionMethod", { ns: "game" })}
+              </h4>
+              <div className="grid w-full grid-cols-2 gap-0 rounded-xl border border-border/50 bg-background/50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseType("buy")}
+                  className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                    purchaseType === "buy"
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  {t("fleet.cashPurchase", { ns: "game" })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPurchaseType("lease")}
+                  className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                    purchaseType === "lease"
+                      ? "bg-orange-500 text-white shadow-lg"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                >
+                  {t("fleet.leaseAgreement", { ns: "game" })}
+                </button>
+              </div>
+              {purchaseType === "lease" && (
+                <p className="px-2 text-[10px] italic text-muted-foreground">
+                  {t("fleet.leaseTerms", {
+                    ns: "game",
+                    amount: fpFormat(aircraft.monthlyLease, 0),
+                  })}
                 </p>
+              )}
+            </div>
+
+            <div className="h-px w-full bg-border/50" />
+
+            {/* Seat Configuration */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
+                <Users className="h-4 w-4 text-primary" />
+                {t("fleet.cabinConfiguration", { ns: "game" })}
+              </h4>
+
+              <div className="space-y-6 rounded-xl border border-border/50 bg-background/50 p-4 sm:p-5">
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor={firstSliderId}
+                    className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
+                  >
+                    <span>{t("fleet.firstClassSpace", { ns: "game" })}</span>
+                    <span className={firstSeats > 0 ? "text-primary" : ""}>{firstSeats} seats</span>
+                  </label>
+                  <input
+                    id={firstSliderId}
+                    type="range"
+                    min="0"
+                    max={maxFirstClass}
+                    step="1"
+                    value={firstSeats}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (baseEconSpace - busSeats * 2.5 - val * 4 >= 0) {
+                        setFirstSeats(val);
+                      } else {
+                        setBusSeats(Math.floor((baseEconSpace - val * 4) / 2.5));
+                        setFirstSeats(val);
+                      }
+                    }}
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor={businessSliderId}
+                    className="flex justify-between text-[10px] font-semibold uppercase text-muted-foreground"
+                  >
+                    <span>{t("fleet.businessClassSpace", { ns: "game" })}</span>
+                    <span className={busSeats > 0 ? "text-primary" : ""}>{busSeats} seats</span>
+                  </label>
+                  <input
+                    id={businessSliderId}
+                    type="range"
+                    min="0"
+                    max={maxBusinessClass}
+                    step="1"
+                    value={busSeats}
+                    onChange={(e) => setBusSeats(parseInt(e.target.value))}
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-border/50 accent-primary transition-colors hover:bg-border"
+                  />
+                </div>
+
+                <div className="flex flex-col mt-4 pt-4 border-t border-border/50">
+                  <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+                    <div className="min-w-0 flex-1 overflow-hidden text-center">
+                      <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
+                        {t("timeline.first", { ns: "game" })}
+                      </span>
+                      <span className="font-mono text-lg font-bold truncate block">
+                        {firstSeats}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1 overflow-hidden border-x border-border/50 text-center">
+                      <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
+                        {t("timeline.business", { ns: "game" })}
+                      </span>
+                      <span className="font-mono text-lg font-bold truncate block">{busSeats}</span>
+                    </div>
+                    <div className="min-w-0 flex-1 overflow-hidden text-center">
+                      <span className="text-muted-foreground text-[10px] block uppercase font-bold mb-1">
+                        {t("timeline.economy", { ns: "game" })}
+                      </span>
+                      <span className="font-mono text-lg font-bold text-primary truncate block">
+                        {econSeats}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 justify-between items-center text-xs mt-4 px-4 py-2 bg-accent/20 rounded-lg border border-accent/20">
+                    <span className="truncate text-accent-foreground font-semibold uppercase text-[10px]">
+                      {t("fleet.totalPassengers", { ns: "game" })}
+                    </span>
+                    <span className="shrink-0 font-mono font-bold text-accent-foreground">
+                      {totalCapacity}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/50 bg-background/40 p-4 overflow-hidden">
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {purchaseType === "buy"
+                      ? t("fleet.fullPurchasePrice", { ns: "game" })
+                      : t("fleet.securityDeposit", { ns: "game" })}
+                  </p>
+                  <p
+                    className={`mt-1 truncate text-3xl font-black ${canAfford ? "text-primary" : "text-red-500"}`}
+                  >
+                    {fpFormat(upfrontCost, 0)}
+                  </p>
+                  {purchaseType === "lease" ? (
+                    <p className="mt-1 truncate text-xs font-bold uppercase text-orange-400">
+                      {t("fleet.monthlyLeaseAmount", {
+                        ns: "game",
+                        amount: fpFormat(aircraft.monthlyLease, 0),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="shrink-0 text-right text-xs text-yellow-500">
+                  <p className="font-semibold">{t("fleet.readyIn", { ns: "game" })}</p>
+                  <p className="font-mono font-bold">
+                    ~{Math.floor((aircraft.deliveryTimeTicks * TICK_DURATION) / 1000 / 60)}
+                    :00
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer Action */}
-        <div className="flex shrink-0 min-w-0 flex-col gap-3 overflow-hidden border-t border-border/50 bg-background/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:p-6">
-          <p className="truncate text-center text-xs text-muted-foreground sm:mr-auto sm:text-left">
-            {t("fleet.reviewConfiguration", { ns: "game" })}
-          </p>
-          <button
-            type="button"
-            onClick={handlePurchase}
-            disabled={isPurchasing || !canAfford || (hubs.length > 0 && !selectedHub)}
-            className={`relative w-full shrink-0 overflow-hidden rounded-xl px-8 py-3 text-base font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background sm:w-auto ${
-              isPurchasing
-                ? "bg-primary text-primary-foreground opacity-90 scale-95"
-                : !canAfford
-                  ? "bg-red-500/10 text-red-500 cursor-not-allowed border border-red-500/20"
-                  : "bg-primary text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:opacity-90"
-            }`}
-          >
-            <span className="relative flex items-center justify-center gap-2 truncate">
-              {isPurchasing ? (
-                <>
-                  <Check className="h-5 w-5 shrink-0 animate-pulse" />
-                  {t("fleet.purchasing", { ns: "game" })}
-                </>
-              ) : !canAfford ? (
-                <>{t("fleet.insufficientFunds", { ns: "game" })}</>
-              ) : (
-                <>
-                  <Coins className="h-5 w-5 shrink-0" />
-                  {t("fleet.confirmOrder", { ns: "game" })}
-                </>
-              )}
-            </span>
-          </button>
+          {/* Footer Action */}
+          <div className="flex shrink-0 min-w-0 flex-col gap-3 overflow-hidden border-t border-border/50 bg-background/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:flex-row sm:items-center sm:justify-end sm:p-6">
+            <p className="truncate text-center text-xs text-muted-foreground sm:mr-auto sm:text-left">
+              {t("fleet.reviewConfiguration", { ns: "game" })}
+            </p>
+            <button
+              type="button"
+              onClick={handlePurchase}
+              disabled={isPurchasing || !canAfford || (hubs.length > 0 && !selectedHub)}
+              className={`relative w-full shrink-0 overflow-hidden rounded-xl px-8 py-3 text-base font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background sm:w-auto ${
+                isPurchasing
+                  ? "bg-primary text-primary-foreground opacity-90 scale-95"
+                  : !canAfford
+                    ? "bg-red-500/10 text-red-500 cursor-not-allowed border border-red-500/20"
+                    : "bg-primary text-primary-foreground hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:opacity-90"
+              }`}
+            >
+              <span className="relative flex items-center justify-center gap-2 truncate">
+                {isPurchasing ? (
+                  <>
+                    <Check className="h-5 w-5 shrink-0 animate-pulse" />
+                    {t("fleet.purchasing", { ns: "game" })}
+                  </>
+                ) : !canAfford ? (
+                  <>{t("fleet.insufficientFunds", { ns: "game" })}</>
+                ) : (
+                  <>
+                    <Coins className="h-5 w-5 shrink-0" />
+                    {t("fleet.confirmOrder", { ns: "game" })}
+                  </>
+                )}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

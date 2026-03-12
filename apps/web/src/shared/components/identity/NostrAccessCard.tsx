@@ -27,7 +27,7 @@ export function NostrAccessCard({
   const [nsecError, setNsecError] = useState<string | null>(null);
 
   return (
-    <div className="max-w-md space-y-4 rounded-2xl border border-border/60 bg-background/70 p-6 text-center shadow-2xl backdrop-blur-xl">
+    <div className="w-full max-w-sm space-y-4 rounded-[24px] border border-border/60 bg-background/74 p-5 text-center shadow-2xl backdrop-blur-xl sm:p-6">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
         <Icon className="h-6 w-6 text-primary" />
       </div>

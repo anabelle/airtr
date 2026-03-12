@@ -5,10 +5,11 @@ import type { CSSProperties } from "react";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  buildAirlineFlightBoardRows,
   type AirlineFlightRow,
+  buildAirlineFlightBoardRows,
+  countAirlineFlightBoardRows,
 } from "@/features/network/utils/airlineFlightBoard";
-import { navigateToAirport, navigateToAircraft } from "@/shared/lib/permalinkNavigation";
+import { navigateToAircraft, navigateToAirport } from "@/shared/lib/permalinkNavigation";
 
 const STATUS_CLASS: Record<AirlineFlightRow["statusTone"], string> = {
   emerald: "text-emerald-400",
@@ -69,21 +70,31 @@ export function AirlineFlightBoard() {
   const { airline, fleet } = useActiveAirline();
   const tick = useEngineStore((s) => s.tick);
   const scrollParentRef = useRef<HTMLDivElement | null>(null);
+  const flightCount = useMemo(() => countAirlineFlightBoardRows(fleet), [fleet]);
 
-  const flights = useMemo(
-    () => buildAirlineFlightBoardRows(fleet, airline, tick),
-    [fleet, airline, tick],
-  );
   const flightBoardVirtualizer = useVirtualizer({
-    count: flights.length,
+    count: flightCount,
     getScrollElement: () => scrollParentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    initialRect: { width: 1024, height: ROW_HEIGHT * Math.min(flights.length, 8) },
+    initialRect: { width: 1024, height: ROW_HEIGHT * Math.min(flightCount, 8) },
     overscan: 8,
   });
   const virtualRows = flightBoardVirtualizer.getVirtualItems();
 
-  if (flights.length === 0) return null;
+  const flights = useMemo(() => {
+    if (flightCount === 0) return [];
+    if (virtualRows.length === 0)
+      return buildAirlineFlightBoardRows(fleet, airline, tick, {
+        start: 0,
+        end: 0,
+      });
+
+    const start = virtualRows[0]?.index ?? 0;
+    const end = virtualRows[virtualRows.length - 1]?.index ?? start;
+    return buildAirlineFlightBoardRows(fleet, airline, tick, { start, end });
+  }, [fleet, airline, flightCount, tick, virtualRows]);
+
+  if (flightCount === 0) return null;
 
   return (
     <div className="rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] mb-4">
@@ -93,7 +104,10 @@ export function AirlineFlightBoard() {
           {airline?.icaoCode ?? "---"} — {t("airlineFlightBoard.title", { ns: "game" })}
         </span>
         <span className="text-[10px] font-mono tabular-nums text-slate-500">
-          {t("airlineFlightBoard.activeCount", { ns: "game", count: flights.length })}
+          {t("airlineFlightBoard.activeCount", {
+            ns: "game",
+            count: flights.length,
+          })}
         </span>
       </div>
 
@@ -124,7 +138,8 @@ export function AirlineFlightBoard() {
       >
         <div className="relative" style={{ height: `${flightBoardVirtualizer.getTotalSize()}px` }}>
           {virtualRows.map((virtualRow) => {
-            const flight = flights[virtualRow.index];
+            const relativeIndex = virtualRow.index - (virtualRows[0]?.index ?? 0);
+            const flight = flights[relativeIndex];
             if (!flight) return null;
             return (
               <AirlineFidsRow
@@ -135,6 +150,8 @@ export function AirlineFlightBoard() {
                   top: 0,
                   left: 0,
                   width: "100%",
+                  height: `${virtualRow.size}px`,
+                  minHeight: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               />

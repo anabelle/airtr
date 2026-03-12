@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import i18n from "./index";
 
 describe("i18n", () => {
@@ -12,7 +12,7 @@ describe("i18n", () => {
   });
 
   it("loads English common namespace", () => {
-    expect(i18n.t("nav.map", { ns: "common" })).toBe("Map");
+    expect(i18n.t("nav.map", { ns: "common" })).toBe("Cockpit");
     expect(i18n.t("nav.fleet", { ns: "common" })).toBe("Fleet");
     expect(i18n.t("topbar.signIn", { ns: "common" })).toBe("Sign in");
   });
@@ -39,7 +39,7 @@ describe("i18n", () => {
   it("switches to Spanish", async () => {
     await i18n.changeLanguage("es");
     expect(i18n.language).toBe("es");
-    expect(i18n.t("nav.map", { ns: "common" })).toBe("Mapa");
+    expect(i18n.t("nav.map", { ns: "common" })).toBe("Cabina");
     expect(i18n.t("nav.fleet", { ns: "common" })).toBe("Flota");
     expect(i18n.t("topbar.signIn", { ns: "common" })).toBe("Iniciar sesión");
   });
@@ -57,7 +57,7 @@ describe("i18n", () => {
 
   it("loads Spanish common and game additions for interface flows", async () => {
     await i18n.changeLanguage("es");
-    expect(i18n.t("panel.closeAria", { ns: "common" })).toBe("Cerrar panel y ver mapa");
+    expect(i18n.t("panel.closeAria", { ns: "common" })).toBe("Cerrar panel y volver a cabina");
     expect(i18n.t("actions.cancel", { ns: "common" })).toBe("Cancelar");
     expect(i18n.t("topbar.openPanel", { ns: "common", panel: "cabina de vuelo" })).toBe(
       "Abrir cabina de vuelo",
@@ -80,7 +80,7 @@ describe("i18n", () => {
 
   it("falls back to English for unsupported language", async () => {
     await i18n.changeLanguage("xx");
-    expect(i18n.t("nav.map", { ns: "common" })).toBe("Map");
+    expect(i18n.t("nav.map", { ns: "common" })).toBe("Cockpit");
   });
 
   it("handles interpolation", () => {

@@ -1,26 +1,26 @@
 import type { AircraftInstance, Route, TimelineEvent } from "@acars/core";
 import {
-  FP_ZERO,
-  TICKS_PER_HOUR,
   calculateBookValue,
   computeRouteFrequency,
+  FP_ZERO,
   fp,
   fpDiv,
   fpFormat,
   fpMul,
   fpSub,
+  TICKS_PER_HOUR,
 } from "@acars/core";
 import { airports as AIRPORTS, getAircraftById } from "@acars/data";
 import { FAMILY_ICONS } from "@acars/map";
 import { useAirlineStore, useEngineStore } from "@acars/store";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plane, Route as RouteIcon, Users, Wrench, X } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { AircraftLiveryImage } from "@/features/fleet/components/AircraftLiveryImage";
 import { getAircraftTimer } from "@/features/fleet/utils/aircraftTimers";
 import {
-  MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
+  MOBILE_OVERLAY_MAX_HEIGHT_CLASS,
   MOBILE_TOPBAR_TOP_CLASS,
 } from "@/shared/components/layout/mobileLayout";
 import { navigateToAircraft, navigateToAirport } from "@/shared/lib/permalinkNavigation";
@@ -38,12 +38,18 @@ const numberFormat = new Intl.NumberFormat("en-US");
 const airportIndex = new Map(AIRPORTS.map((a) => [a.iata, a]));
 
 const statusConfig = {
-  enroute: { labelKey: "aircraftPanel.status.enroute", className: "bg-sky-500/20 text-sky-200" },
+  enroute: {
+    labelKey: "aircraftPanel.status.enroute",
+    className: "bg-sky-500/20 text-sky-200",
+  },
   turnaround: {
     labelKey: "aircraftPanel.status.turnaround",
     className: "bg-amber-400/20 text-amber-200",
   },
-  idle: { labelKey: "aircraftPanel.status.idle", className: "bg-emerald-500/20 text-emerald-200" },
+  idle: {
+    labelKey: "aircraftPanel.status.idle",
+    className: "bg-emerald-500/20 text-emerald-200",
+  },
   maintenance: {
     labelKey: "aircraftPanel.status.maintenance",
     className: "bg-rose-500/20 text-rose-200",
@@ -321,7 +327,8 @@ function RecentPerformanceSection({
               Y:<span className="font-bold text-foreground">{pax.economy}</span>
             </span>
             <span className="text-muted-foreground">
-              J:<span className="font-bold text-foreground">{pax.business}</span>
+              J:
+              <span className="font-bold text-foreground">{pax.business}</span>
             </span>
             <span className="text-muted-foreground">
               F:<span className="font-bold text-foreground">{pax.first}</span>
@@ -352,23 +359,25 @@ function FlightStrip({
     <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span
+          <button
+            type="button"
             className="text-sm font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
             onClick={() => navigateToAirport(flight.originIata)}
           >
             {flight.originIata}
-          </span>
+          </button>
           <div className="flex-1 flex items-center gap-1 text-muted-foreground">
             <div className="h-px flex-1 bg-sky-500/40" />
             <Plane className="h-3 w-3 text-sky-300" />
             <div className="h-px flex-1 bg-sky-500/40" />
           </div>
-          <span
+          <button
+            type="button"
             className="text-sm font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
             onClick={() => navigateToAirport(flight.destinationIata)}
           >
             {flight.destinationIata}
-          </span>
+          </button>
         </div>
         {isFerry ? (
           <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] uppercase tracking-widest font-semibold text-amber-200">
@@ -406,15 +415,18 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   const activeTab = search.aircraftTab === "route" ? "route" : "info";
 
-  const setActiveTab = (newTab: "info" | "route") => {
-    navigate({
-      to: window.location.pathname,
-      search: (prev: AircraftSearchParams) => ({
-        ...prev,
-        aircraftTab: newTab === "info" ? undefined : newTab,
-      }),
-    });
-  };
+  const setActiveTab = useCallback(
+    (newTab: "info" | "route") => {
+      navigate({
+        to: window.location.pathname,
+        search: (prev: AircraftSearchParams) => ({
+          ...prev,
+          aircraftTab: newTab === "info" ? undefined : newTab,
+        }),
+      });
+    },
+    [navigate],
+  );
 
   useEffect(() => {
     let armed = false;
@@ -432,9 +444,10 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
   }, [onClose]);
 
   useEffect(() => {
-    setActiveTab("info");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aircraft.id]);
+    if (!search.aircraftTab) {
+      setActiveTab("info");
+    }
+  }, [search.aircraftTab, setActiveTab]);
 
   const model = getAircraftById(aircraft.modelId);
   const timer = getAircraftTimer(aircraft, tick, tickProgress);
@@ -495,11 +508,11 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   return (
     <aside
-      className={`pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[22px] border border-border bg-background/90 shadow-[0_30px_90px_rgba(0,0,0,0.65)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-2xl`}
+      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/88 shadow-[0_26px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
       aria-live="polite"
     >
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
+      <div className="flex items-start justify-between border-b border-border/60 px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-start gap-3">
           <AircraftSilhouette
             familyId={familyId}
@@ -509,7 +522,9 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
               {t("aircraftPanel.title", { ns: "game" })}
             </p>
-            <h3 className="text-lg font-bold text-foreground truncate">{aircraft.name}</h3>
+            <h3 className="text-lg font-bold text-foreground truncate sm:text-[1.35rem]">
+              {aircraft.name}
+            </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {model ? (
                 <span>
@@ -546,7 +561,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
       {/* Livery hero image */}
       {model ? (
-        <div className="relative h-40 w-full overflow-hidden bg-zinc-900/40 sm:h-56">
+        <div className="relative h-32 w-full overflow-hidden border-b border-border/50 bg-zinc-900/30 sm:h-52">
           <AircraftLiveryImage
             aircraft={aircraft}
             airline={ownerAirline}
@@ -588,7 +603,10 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
           {(
             [
               { key: "info", label: t("nav.info", { ns: "common" }) },
-              { key: "route", label: t("aircraftPanel.routeTab", { ns: "game" }) },
+              {
+                key: "route",
+                label: t("aircraftPanel.routeTab", { ns: "game" }),
+              },
             ] as const
           ).map((tab) => (
             <button
@@ -721,7 +739,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 <Plane className="h-4 w-4" />
                 {t("aircraftPanel.economics", { ns: "game" })}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 rounded-[22px] border border-border/60 bg-background/55 p-4 sm:p-5">
                 <div className="rounded-xl border border-border/60 bg-background/70 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraftPanel.purchasePrice", { ns: "game" })}
@@ -928,12 +946,13 @@ export function RouteTab({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="text-center min-w-0">
-              <span
+              <button
+                type="button"
                 className="text-lg font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
                 onClick={() => navigateToAirport(route.originIata)}
               >
                 {route.originIata}
-              </span>
+              </button>
               {originAirport ? (
                 <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
                   {originAirport.city}, {getCountryName(originAirport.country)}
@@ -951,12 +970,13 @@ export function RouteTab({
               <div className="h-px w-4 bg-border" />
             </div>
             <div className="text-center min-w-0">
-              <span
+              <button
+                type="button"
                 className="text-lg font-mono font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
                 onClick={() => navigateToAirport(route.destinationIata)}
               >
                 {route.destinationIata}
-              </span>
+              </button>
               {destAirport ? (
                 <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
                   {destAirport.city}, {getCountryName(destAirport.country)}
@@ -1049,7 +1069,8 @@ export function RouteTab({
             {siblings.slice(0, 5).map((ac) => {
               const acModel = getAircraftById(ac.modelId);
               return (
-                <div
+                <button
+                  type="button"
                   key={ac.id}
                   className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-xs hover:border-primary/40 transition-colors cursor-pointer"
                   onClick={() => navigateToAircraft(ac.id)}
@@ -1058,12 +1079,15 @@ export function RouteTab({
                   <span className="text-muted-foreground">
                     {acModel ? `${acModel.manufacturer} ${acModel.name}` : ac.modelId}
                   </span>
-                </div>
+                </button>
               );
             })}
             {siblings.length > 5 ? (
               <p className="text-[11px] text-muted-foreground px-1">
-                {t("aircraftPanel.more", { ns: "game", count: siblings.length - 5 })}
+                {t("aircraftPanel.more", {
+                  ns: "game",
+                  count: siblings.length - 5,
+                })}
               </p>
             ) : null}
           </div>
