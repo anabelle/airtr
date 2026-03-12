@@ -745,7 +745,7 @@ function PurchaseModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4">
       <div
-        className={`relative flex ${MOBILE_OVERLAY_HEIGHT_CLASS} w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:h-[75vh] sm:max-h-[75vh] sm:max-w-2xl sm:rounded-2xl`}
+        className={`relative flex ${MOBILE_OVERLAY_HEIGHT_CLASS} w-full min-w-0 flex-col overflow-hidden rounded-t-[24px] border border-border/80 bg-card shadow-2xl sm:max-h-[85vh] sm:max-w-2xl sm:rounded-2xl`}
       >
         {/* Header Graphic */}
         <div
@@ -782,7 +782,7 @@ function PurchaseModal({
           </button>
         </div>
 
-        <div className="custom-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-6 sm:p-6 sm:pb-8 sm:space-y-8">
+        <div className="custom-scrollbar flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 pb-10 space-y-6 sm:p-6 sm:pb-12 sm:space-y-8">
           {/* Identification */}
           <div className="space-y-4">
             <h4 className="text-sm font-bold flex items-center gap-2">

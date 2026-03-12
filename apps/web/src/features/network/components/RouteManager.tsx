@@ -1685,7 +1685,7 @@ export function RouteManager() {
               aria-label="Close fare editor"
             />
             <div
-              className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:h-[75vh] sm:max-h-[75vh] sm:max-w-xl sm:rounded-2xl`}
+              className={`relative z-10 flex w-full ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} flex-col overflow-hidden rounded-t-[24px] border border-border bg-background/95 shadow-[0_20px_80px_rgba(0,0,0,0.6)] backdrop-blur-2xl sm:max-h-[85vh] sm:max-w-xl sm:rounded-2xl`}
             >
               <div className="shrink-0 flex items-start justify-between border-b border-border/50 px-4 py-4 sm:px-6 sm:py-5">
                 <div>
@@ -1728,7 +1728,7 @@ export function RouteManager() {
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <div className="custom-scrollbar flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-8 space-y-4 sm:px-6 sm:py-5 sm:pb-10 sm:space-y-5">
+              <div className="custom-scrollbar flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-10 space-y-4 sm:px-6 sm:py-5 sm:pb-12 sm:space-y-5">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="rounded-xl border border-border/50 bg-background/60 p-4">
                     <label
