@@ -107,8 +107,9 @@ function getAirportFeesMultiplier({
   const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(DEFAULT_LANDING_FEE);
   const originFee = calculateHubLandingFee(originBaseFee, originCapacity, originTraffic);
   const destFee = calculateHubLandingFee(destBaseFee, destCapacity, destTraffic);
-  const avgFee = (fpToNumber(originFee) + fpToNumber(destFee)) / 2;
-  return avgFee / DEFAULT_LANDING_FEE;
+  const avgFee = fpDiv(fpAdd(originFee, destFee), fp(2));
+  const normalized = fpDiv(avgFee, fp(DEFAULT_LANDING_FEE));
+  return fpToNumber(normalized);
 }
 
 /**
