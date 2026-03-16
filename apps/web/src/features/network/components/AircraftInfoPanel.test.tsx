@@ -3,6 +3,7 @@ import { getAircraftById } from "@acars/data";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
+import { MOBILE_BOTTOM_NAV_BOTTOM_CLASS } from "@/shared/components/layout/mobileLayout";
 import { AircraftInfoPanel, RouteTab } from "./AircraftInfoPanel";
 
 type Selector<T> = (state: T) => unknown;
@@ -198,5 +199,13 @@ describe("AircraftInfoPanel", () => {
 
     expect(screen.queryByText("Recent Performance")).not.toBeInTheDocument();
     expect(screen.queryByText("Last Flight Outcome")).not.toBeInTheDocument();
+  });
+
+  it("reserves space above the mobile bottom navigation", () => {
+    render(<AircraftInfoPanel aircraft={aircraft} onClose={vi.fn()} />);
+
+    expect(screen.getByLabelText("Close aircraft panel").closest("aside")).toHaveClass(
+      MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
+    );
   });
 });
