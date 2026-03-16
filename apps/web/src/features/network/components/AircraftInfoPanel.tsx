@@ -149,7 +149,7 @@ function SeatLayoutSection({ aircraft }: { aircraft: AircraftInstance }) {
         <Users className="h-4 w-4" />
         {t("aircraftPanel.seatLayout", { ns: "game" })}
       </div>
-      <div className="rounded-xl border border-border/60 bg-background/70 p-4 space-y-3">
+      <div className="rounded-xl border border-border/60 bg-background/90 p-4 space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
@@ -233,7 +233,7 @@ function RecentPerformanceSection({
   const lf = lastLanding.details?.loadFactor;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+    <div className="rounded-xl border border-border/60 bg-background/90 p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
         <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">
           {t("fleet.lastFlightOutcome", { ns: "game" })}
@@ -509,11 +509,11 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
   return (
     <aside
-      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/88 shadow-[0_26px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
+      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/96 shadow-[0_26px_80px_rgba(0,0,0,0.68)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
       aria-live="polite"
     >
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border/60 px-4 py-4 sm:px-5">
+      <div className="flex items-start justify-between border-b border-border/60 bg-background/94 px-4 py-4 backdrop-blur-xl sm:px-5">
         <div className="flex min-w-0 items-start gap-3">
           <AircraftSilhouette
             familyId={familyId}
@@ -553,7 +553,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
         <button
           type="button"
           onClick={onClose}
-          className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation shrink-0"
+          className="h-9 w-9 rounded-full bg-background/85 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation shrink-0"
           aria-label={t("aircraftPanel.closeAria", { ns: "game" })}
         >
           <X className="mx-auto h-4 w-4" />
@@ -588,11 +588,11 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             {t(status.labelKey, { ns: "game" })}
           </span>
           {model ? (
-            <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+            <span className="rounded-full border border-border/60 bg-background/90 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
               {model.type}
             </span>
           ) : null}
-          <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+          <span className="rounded-full border border-border/60 bg-background/90 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
             {aircraft.purchaseType === "lease"
               ? t("aircraftPanel.leased", { ns: "game" })
               : t("aircraftPanel.owned", { ns: "game" })}
@@ -600,7 +600,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+        <div className="flex gap-2 rounded-full border border-border/60 bg-background/90 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
           {(
             [
               { key: "info", label: t("nav.info", { ns: "common" }) },
@@ -634,7 +634,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
 
             {/* Timer for non-enroute states */}
             {timer && aircraft.status !== "enroute" ? (
-              <div className="rounded-xl border border-border/60 bg-background/70 p-3 flex items-center justify-between">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-3 flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{timer.label}</span>
                 <span className="font-mono text-sm font-semibold text-foreground">
                   {timer.time}
@@ -645,7 +645,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
             {/* Specs grid */}
             {model ? (
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraft.range", { ns: "game" })}
                   </p>
@@ -653,7 +653,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     {numberFormat.format(model.rangeKm)} km
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraft.speed", { ns: "game" })}
                   </p>
@@ -661,7 +661,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     {numberFormat.format(model.speedKmh)} km/h
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraft.capacity", { ns: "game" })}
                   </p>
@@ -673,7 +673,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     {aircraft.configuration.first > 0 ? ` F${aircraft.configuration.first}` : ""}
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraft.fuelBurn", { ns: "game" })}
                   </p>
@@ -681,7 +681,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     {numberFormat.format(model.fuelBurnKgPerHour)} kg/h
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraftPanel.mtow", { ns: "game" })}
                   </p>
@@ -689,7 +689,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     {numberFormat.format(model.maxTakeoffWeight)} kg
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraftPanel.wingspan", { ns: "game" })}
                   </p>
@@ -706,7 +706,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 <Wrench className="h-4 w-4" />
                 {t("aircraftPanel.conditionAndMaintenance", { ns: "game" })}
               </div>
-              <div className="rounded-xl border border-border/60 bg-background/70 p-4 space-y-3">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-4 space-y-3">
                 <div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                     <span>{t("aircraftPanel.airframeCondition", { ns: "game" })}</span>
@@ -740,8 +740,8 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 <Plane className="h-4 w-4" />
                 {t("aircraftPanel.economics", { ns: "game" })}
               </div>
-              <div className="grid grid-cols-2 gap-3 rounded-[22px] border border-border/60 bg-background/55 p-4 sm:p-5">
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="grid grid-cols-2 gap-3 rounded-[22px] border border-border/60 bg-background/88 p-4 sm:p-5">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraftPanel.purchasePrice", { ns: "game" })}
                   </p>
@@ -750,7 +750,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </p>
                 </div>
                 {bookValue !== null ? (
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("fleet.appraisal", { ns: "game" })}
                     </p>
@@ -758,7 +758,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </div>
                 ) : null}
                 {model ? (
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("aircraftPanel.casm", { ns: "game" })}
                     </p>
@@ -768,7 +768,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </div>
                 ) : null}
                 {model ? (
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("aircraftPanel.maintPerHour", { ns: "game" })}
                     </p>
@@ -778,7 +778,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </div>
                 ) : null}
                 {aircraft.purchaseType === "lease" && model ? (
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("aircraftPanel.monthlyLease", { ns: "game" })}
                     </p>
@@ -788,7 +788,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                   </div>
                 ) : null}
                 {aircraft.lastKnownLoadFactor !== undefined ? (
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("aircraftPanel.lastLoadFactor", { ns: "game" })}
                     </p>
@@ -807,7 +807,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                 {t("aircraftPanel.assignment", { ns: "game" })}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("aircraftPanel.base", { ns: "game" })}
                   </p>
@@ -825,7 +825,7 @@ export function AircraftInfoPanel({ aircraft, onClose }: AircraftInfoPanelProps)
                     )}
                   </p>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {t("fleet.route", { ns: "game" })}
                   </p>
@@ -943,7 +943,7 @@ export function RouteTab({
   return (
     <div className="space-y-5">
       {/* Route header */}
-      <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+      <div className="rounded-xl border border-border/60 bg-background/90 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="text-center min-w-0">
@@ -1037,13 +1037,13 @@ export function RouteTab({
           {t("aircraftPanel.fares", { ns: "game" })}
         </p>
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
+          <div className="rounded-xl border border-border/60 bg-background/90 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
               {t("timeline.economy", { ns: "game" })}
             </p>
             <p className="mt-1 text-sm font-mono font-semibold">{fpFormat(route.fareEconomy, 0)}</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
+          <div className="rounded-xl border border-border/60 bg-background/90 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
               {t("timeline.business", { ns: "game" })}
             </p>
@@ -1051,7 +1051,7 @@ export function RouteTab({
               {fpFormat(route.fareBusiness, 0)}
             </p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background/70 p-3 text-center">
+          <div className="rounded-xl border border-border/60 bg-background/90 p-3 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
               {t("timeline.first", { ns: "game" })}
             </p>
