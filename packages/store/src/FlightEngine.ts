@@ -6,6 +6,7 @@ import type {
   Route,
   TimelineEvent,
 } from "@acars/core";
+import type { HubClassification } from "@acars/data";
 import {
   allocatePassengers,
   calculateDemand,
@@ -21,6 +22,7 @@ import {
   enumerateFlightEvents,
   fp,
   fpAdd,
+  fpDiv,
   fpSub,
   fpToNumber,
   GENESIS_TIME,
@@ -44,6 +46,72 @@ import { airports, getAircraftById, HUB_CLASSIFICATIONS } from "@acars/data";
 
 /** Module-level O(1) airport lookup — avoids O(N) airports.find() on every landing. */
 const airportMap = new Map(airports.map((a) => [a.iata, a]));
+const DEFAULT_HUB_CAPACITY_PER_HOUR = 80;
+const DEFAULT_LANDING_FEE = 250;
+
+type FlightEngineHubState = {
+  hubIata: string;
+  spokeCount: number;
+  weeklyFrequency: number;
+  avgFrequency: number;
+};
+
+type RouteEndpointContext = {
+  originHub: HubClassification | null;
+  destHub: HubClassification | null;
+  originState: FlightEngineHubState | null;
+  destState: FlightEngineHubState | null;
+  originTraffic: number;
+  destTraffic: number;
+  originCapacity: number;
+  destCapacity: number;
+};
+
+function getRouteEndpointContext(
+  originIata: string | null | undefined,
+  destinationIata: string | null | undefined,
+  airportTraffic?: ReadonlyMap<string, number>,
+  hubStates?: ReadonlyMap<string, FlightEngineHubState>,
+): RouteEndpointContext {
+  const originHub: HubClassification | null = originIata
+    ? (HUB_CLASSIFICATIONS[originIata] ?? null)
+    : null;
+  const destHub: HubClassification | null = destinationIata
+    ? (HUB_CLASSIFICATIONS[destinationIata] ?? null)
+    : null;
+
+  return {
+    originHub,
+    destHub,
+    originState: originHub && originIata && hubStates ? (hubStates.get(originIata) ?? null) : null,
+    destState:
+      destHub && destinationIata && hubStates ? (hubStates.get(destinationIata) ?? null) : null,
+    originTraffic: originIata && airportTraffic ? (airportTraffic.get(originIata) ?? 0) : 0,
+    destTraffic: destinationIata && airportTraffic ? (airportTraffic.get(destinationIata) ?? 0) : 0,
+    originCapacity: originHub?.baseCapacityPerHour ?? DEFAULT_HUB_CAPACITY_PER_HOUR,
+    destCapacity: destHub?.baseCapacityPerHour ?? DEFAULT_HUB_CAPACITY_PER_HOUR,
+  };
+}
+
+function getAirportFeesMultiplier({
+  originHub,
+  destHub,
+  originTraffic,
+  destTraffic,
+  originCapacity,
+  destCapacity,
+}: Pick<
+  RouteEndpointContext,
+  "originHub" | "destHub" | "originTraffic" | "destTraffic" | "originCapacity" | "destCapacity"
+>): number {
+  const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(DEFAULT_LANDING_FEE);
+  const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(DEFAULT_LANDING_FEE);
+  const originFee = calculateHubLandingFee(originBaseFee, originCapacity, originTraffic);
+  const destFee = calculateHubLandingFee(destBaseFee, destCapacity, destTraffic);
+  const avgFee = fpDiv(fpAdd(originFee, destFee), fp(2));
+  const normalized = fpDiv(avgFee, fp(DEFAULT_LANDING_FEE));
+  return fpToNumber(normalized);
+}
 
 /**
  * Result of the engine processing a single tick.
@@ -108,15 +176,7 @@ export function processFlightEngine(
     }
   }
 
-  const hubStates = new Map<
-    string,
-    {
-      hubIata: string;
-      spokeCount: number;
-      weeklyFrequency: number;
-      avgFrequency: number;
-    }
-  >();
+  const hubStates = new Map<string, FlightEngineHubState>();
   for (const [hubIata, stats] of hubStats.entries()) {
     hubStates.set(hubIata, {
       hubIata,
@@ -285,21 +345,22 @@ export function processFlightEngine(
           const season = getSeason(destination.latitude, now);
           const prosperity = getProsperityIndex(tick);
 
-          const originHub = originIata ? (HUB_CLASSIFICATIONS[originIata] ?? null) : null;
-          const destHub = destinationIata ? (HUB_CLASSIFICATIONS[destinationIata] ?? null) : null;
-          const originState = originHub && originIata ? (hubStates.get(originIata) ?? null) : null;
-          const destState =
-            destHub && destinationIata ? (hubStates.get(destinationIata) ?? null) : null;
+          const {
+            originHub,
+            destHub,
+            originState,
+            destState,
+            originTraffic,
+            destTraffic,
+            originCapacity,
+            destCapacity,
+          } = getRouteEndpointContext(originIata, destinationIata, airportTraffic, hubStates);
           const hubModifier = getHubDemandModifier(
             originHub?.tier ?? null,
             destHub?.tier ?? null,
             originState,
             destState,
           );
-          const originTraffic = originIata ? (airportTraffic.get(originIata) ?? 0) : 0;
-          const destTraffic = destinationIata ? (airportTraffic.get(destinationIata) ?? 0) : 0;
-          const originCapacity = originHub?.baseCapacityPerHour ?? 80;
-          const destCapacity = destHub?.baseCapacityPerHour ?? 80;
           const originCongestion = getHubCongestionModifier(originCapacity, originTraffic);
           const destCongestion = getHubCongestionModifier(destCapacity, destTraffic);
           const congestionModifier = (originCongestion + destCongestion) / 2;
@@ -502,18 +563,12 @@ export function processFlightEngine(
           ac.lastKnownLoadFactor = rev.loadFactor;
         }
 
-        const originHub = originIata ? HUB_CLASSIFICATIONS[originIata] : undefined;
-        const destHub = destinationIata ? HUB_CLASSIFICATIONS[destinationIata] : undefined;
-        const originTraffic = originIata ? (airportTraffic.get(originIata) ?? 0) : 0;
-        const destTraffic = destinationIata ? (airportTraffic.get(destinationIata) ?? 0) : 0;
-        const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(250);
-        const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(250);
-        const originCapacity = originHub?.baseCapacityPerHour ?? 80;
-        const destCapacity = destHub?.baseCapacityPerHour ?? 80;
-        const originFee = calculateHubLandingFee(originBaseFee, originCapacity, originTraffic);
-        const destFee = calculateHubLandingFee(destBaseFee, destCapacity, destTraffic);
-        const avgFee = (fpToNumber(originFee) + fpToNumber(destFee)) / 2;
-        const airportFeesMultiplier = avgFee / 250;
+        const endpointContext = getRouteEndpointContext(
+          originIata,
+          destinationIata,
+          airportTraffic,
+        );
+        const airportFeesMultiplier = getAirportFeesMultiplier(endpointContext);
 
         const distanceKm = route ? route.distanceKm : (ac.flight?.distanceKm ?? 0);
         const fuelPricePerKg = getFuelPriceAtTick(tick);
@@ -914,15 +969,8 @@ export function estimateLandingFinancials(
   // Hub-aware airport fees (fall back to route IATA when ac.flight is null during recovery/backfill)
   const originIata = ac.flight?.originIata ?? route.originIata;
   const destinationIata = ac.flight?.destinationIata ?? route.destinationIata;
-  const originHub = originIata ? HUB_CLASSIFICATIONS[originIata] : undefined;
-  const destHub = destinationIata ? HUB_CLASSIFICATIONS[destinationIata] : undefined;
-  const originBaseFee = originHub ? fp(originHub.baseLandingFee) : fp(250);
-  const destBaseFee = destHub ? fp(destHub.baseLandingFee) : fp(250);
-  // No live traffic data available; use 0 for baseline fees
-  const originFee = calculateHubLandingFee(originBaseFee, originHub?.baseCapacityPerHour ?? 80, 0);
-  const destFee = calculateHubLandingFee(destBaseFee, destHub?.baseCapacityPerHour ?? 80, 0);
-  const avgFee = (fpToNumber(originFee) + fpToNumber(destFee)) / 2;
-  const airportFeesMultiplier = avgFee / 250;
+  const endpointContext = getRouteEndpointContext(originIata, destinationIata);
+  const airportFeesMultiplier = getAirportFeesMultiplier(endpointContext);
 
   const cost = calculateFlightCost({
     distanceKm: route.distanceKm,

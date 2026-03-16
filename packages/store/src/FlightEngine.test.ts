@@ -9,7 +9,11 @@ import {
 } from "@acars/core";
 import { airports, getAircraftById } from "@acars/data";
 import { describe, expect, it } from "vitest";
-import { processFlightEngine, reconcileFleetToTick } from "./FlightEngine.js";
+import {
+  estimateLandingFinancials,
+  processFlightEngine,
+  reconcileFleetToTick,
+} from "./FlightEngine.js";
 
 const PLAYER_PUBKEY = "player-airline";
 
@@ -776,6 +780,46 @@ describe("FlightEngine — Economic variation", () => {
     const saturatedLoadFactor = totalSeats > 0 ? saturatedDemand / totalSeats : 0;
 
     expect(saturatedLoadFactor).toBeLessThanOrEqual(normalLoadFactor);
+  });
+
+  it("estimateLandingFinancials uses active flight IATAs for hub fee calculation", () => {
+    const route = makeRoute({
+      originIata: "GKA",
+      destinationIata: "POM",
+      distanceKm: 800,
+    });
+    const model = getAircraftById("a320neo");
+    if (!model) {
+      throw new Error("Expected aircraft model");
+    }
+
+    const baseline = estimateLandingFinancials(
+      makeAircraft({ modelId: "a320neo", flight: null }),
+      route,
+      model,
+      route.distanceKm / model.speedKmh,
+      0.75,
+      0,
+    );
+    const rerouted = estimateLandingFinancials(
+      makeAircraft({
+        id: "ac-hub-fees",
+        modelId: "a320neo",
+        flight: makeFlight({
+          originIata: "LHR",
+          destinationIata: "PEK",
+        }),
+      }),
+      route,
+      model,
+      route.distanceKm / model.speedKmh,
+      0.75,
+      0,
+    );
+
+    expect(fpToNumber(rerouted.cost.costAirport)).toBeGreaterThan(
+      fpToNumber(baseline.cost.costAirport),
+    );
   });
 });
 
