@@ -203,7 +203,7 @@ export function WorldMap() {
   const selectedAirport = focusedAirport ?? homeAirport;
 
   return (
-    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black">
+    <div className="absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#dceffa]">
       <CoreGlobe
         airports={AIRPORTS}
         selectedAirport={selectedAirport}
@@ -246,7 +246,7 @@ export function WorldMap() {
         </div>
       ) : null}
       {/* Map vignette overlay */}
-      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] z-10" />
+      <div className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_140px_rgba(7,52,84,0.22)]" />
     </div>
   );
 }

@@ -21,16 +21,54 @@ const NIGHT_CANVAS_H = 512;
 const MERCATOR_MAX_LAT = 85.051129;
 const DEG2RAD = Math.PI / 180;
 
-/** Night tint colour (RGBA components) — very dark blue-black */
-const NIGHT_R = 8;
-const NIGHT_G = 10;
-const NIGHT_B = 28;
+export const EARTH_MAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+/**
+ * Centralized overlay palette for the lighter "earth" basemap treatment.
+ *
+ * Keep all shared route, airport, flight, and night-overlay colors here so
+ * the map continues to read as a single coherent theme when the basemap or
+ * overlay treatments are adjusted in the future.
+ */
+export const EARTH_MAP_PALETTE = {
+  nightTint: {
+    r: 10,
+    g: 28,
+    b: 43,
+    maxAlpha: 0.24,
+  },
+  routes: {
+    global: "#4f7894",
+    active: "#0ea5e9",
+  },
+  airports: {
+    playerHub: "#4ade80",
+    routeDestination: "#38bdf8",
+    competitorHub: "#f97316",
+    major: "#7dd3fc",
+    default: "#5d88a1",
+    activeStroke: "#f8fafc",
+    playerStroke: "#e0f2fe",
+    routeStroke: "#f8fafc",
+    competitorStroke: "#ffedd5",
+    majorStroke: "#e0f2fe",
+    defaultStroke: "#dbeafe",
+  },
+  flights: {
+    fallbackAccent: "#7dd3fc",
+  },
+} as const;
+
+/** Night tint components derived from EARTH_MAP_PALETTE for the existing canvas renderer. */
+const NIGHT_R = EARTH_MAP_PALETTE.nightTint.r;
+const NIGHT_G = EARTH_MAP_PALETTE.nightTint.g;
+const NIGHT_B = EARTH_MAP_PALETTE.nightTint.b;
 
 /**
  * Max alpha for the deepest night. Keep below 1.0 so the basemap
  * (CARTO Dark Matter city lights, labels, borders) stays visible.
  */
-const NIGHT_MAX_ALPHA = 0.38;
+const NIGHT_MAX_ALPHA = EARTH_MAP_PALETTE.nightTint.maxAlpha;
 
 /**
  * Pre-computed latitude (radians) for each canvas row — computed once at
@@ -414,7 +452,7 @@ export function Globe({
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: EARTH_MAP_STYLE_URL,
       center: initialCenter,
       zoom: initialZoom,
       pitch: 0,
@@ -527,7 +565,7 @@ export function Globe({
         source: "global-arcs",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#475569",
+          "line-color": EARTH_MAP_PALETTE.routes.global,
           "line-width": 0.5,
           "line-opacity": 0.2,
         },
@@ -540,7 +578,7 @@ export function Globe({
         source: "arcs",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#e94560",
+          "line-color": EARTH_MAP_PALETTE.routes.active,
           "line-width": 1,
           "line-opacity": 0.3,
           "line-dasharray": [2, 2],
@@ -555,7 +593,11 @@ export function Globe({
         filter: ["==", ["get", "airportClass"], "active-hub"],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 6, 14, 10, 22],
-          "circle-color": ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+          "circle-color": [
+            "coalesce",
+            ["get", "playerHubColor"],
+            EARTH_MAP_PALETTE.airports.playerHub,
+          ],
           "circle-opacity": 0.4,
           "circle-blur": 0.8,
         },
@@ -624,16 +666,16 @@ export function Globe({
             "match",
             ["get", "airportClass"],
             "active-hub",
-            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+            ["coalesce", ["get", "playerHubColor"], EARTH_MAP_PALETTE.airports.playerHub],
             "player-hub",
-            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+            ["coalesce", ["get", "playerHubColor"], EARTH_MAP_PALETTE.airports.playerHub],
             "route-dest",
-            "#e2e8f0",
+            EARTH_MAP_PALETTE.airports.routeDestination,
             "competitor-hub",
-            ["coalesce", ["get", "competitorHubColor"], "#f97316"],
+            ["coalesce", ["get", "competitorHubColor"], EARTH_MAP_PALETTE.airports.competitorHub],
             "major",
-            "#c6d6e8",
-            "#8aa6c5",
+            EARTH_MAP_PALETTE.airports.major,
+            EARTH_MAP_PALETTE.airports.default,
           ],
           "circle-opacity": [
             "match",
@@ -669,16 +711,16 @@ export function Globe({
             "match",
             ["get", "airportClass"],
             "active-hub",
-            "#ffffff",
+            EARTH_MAP_PALETTE.airports.activeStroke,
             "player-hub",
-            "#e2e8f0",
+            EARTH_MAP_PALETTE.airports.playerStroke,
             "route-dest",
-            "#ffffff",
+            EARTH_MAP_PALETTE.airports.routeStroke,
             "competitor-hub",
-            "#ffe0bf",
+            EARTH_MAP_PALETTE.airports.competitorStroke,
             "major",
-            "#dde7f3",
-            "#6f88a8",
+            EARTH_MAP_PALETTE.airports.majorStroke,
+            EARTH_MAP_PALETTE.airports.defaultStroke,
           ],
         },
       });
@@ -947,7 +989,11 @@ export function Globe({
           source: "flights",
           paint: {
             "circle-radius": 14,
-            "circle-color": ["coalesce", ["get", "secondaryColor"], "#94a3b8"],
+            "circle-color": [
+              "coalesce",
+              ["get", "secondaryColor"],
+              EARTH_MAP_PALETTE.flights.fallbackAccent,
+            ],
             "circle-opacity": 0.25,
             "circle-blur": 1.5,
           },

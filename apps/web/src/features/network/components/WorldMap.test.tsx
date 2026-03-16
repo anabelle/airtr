@@ -218,6 +218,27 @@ describe("WorldMap", () => {
     expect(window.location.pathname).toBe(`/airport/${homeAirport.iata}`);
   });
 
+  it("uses the lighter outdoor map shell styling", () => {
+    const homeAirport = AIRPORTS[0];
+    mockUseEngineStore.mockReturnValue(buildEngineState({ homeAirport }));
+    mockUseAirlineStore.mockReturnValue({
+      airline: {
+        hubs: [homeAirport.iata],
+        livery: { primary: "#111", secondary: "#222" },
+      },
+      fleet: [],
+      fleetByOwner: new Map(),
+      routesByOwner: new Map(),
+      pubkey: "test-pubkey",
+      competitors: new Map(),
+      routes: [],
+    });
+
+    const { container } = render(<WorldMap />);
+
+    expect(container.firstChild).toHaveClass("bg-[#dceffa]");
+  });
+
   it("returns to the previous workspace when closing a detail route", () => {
     const homeAirport = AIRPORTS[0];
     window.history.replaceState(null, "", "/network?tab=active");
