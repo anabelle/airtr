@@ -221,4 +221,43 @@ describe("AirportInfoPanel", () => {
       MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
     );
   });
+
+  it("uses a more opaque shell background for readability over the light map", () => {
+    mockUseAirlineStore.mockReturnValue({
+      airline: null,
+      routes: [],
+      fleet: [],
+      fleetByOwner: new Map(),
+      competitors: new Map(),
+      modifyHubs: vi.fn(),
+      openRoute: vi.fn(),
+    });
+    mockUseEngineStore.mockReturnValue({ setHub: vi.fn() });
+
+    render(
+      <AirportInfoPanel
+        airport={{
+          iata: "JFK",
+          icao: "KJFK",
+          name: "John F Kennedy",
+          city: "New York",
+          country: "US",
+          latitude: 0,
+          longitude: 0,
+          population: 1000,
+          gdpPerCapita: 1000,
+          altitude: 0,
+          runwayLengthFt: 12000,
+          timezone: "UTC",
+          tags: [],
+          id: "1",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Close airport panel").closest("aside")).toHaveClass(
+      "bg-background/96",
+    );
+  });
 });
