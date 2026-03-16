@@ -253,6 +253,7 @@ export interface GlobeProps {
   playerRouteDestinations?: Set<string>;
   tick?: number;
   tickProgress?: number;
+  /** Map palette mode. Use "dark" for the original night-focused treatment or "light" for the earth-toned style. */
   theme?: MapTheme;
   className?: string;
   style?: React.CSSProperties;

@@ -223,7 +223,7 @@ describe("WorldMap", () => {
     expect(window.location.pathname).toBe(`/airport/${homeAirport.iata}`);
   });
 
-  it("defaults to the dark map theme and keeps the original shell styling", () => {
+  it("defaults to dark theme with black background", () => {
     const homeAirport = AIRPORTS[0];
     mockUseEngineStore.mockReturnValue(buildEngineState({ homeAirport }));
     mockUseAirlineStore.mockReturnValue({

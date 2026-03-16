@@ -225,7 +225,7 @@ export function WorldMap() {
     mapTheme === "dark" ? "Switch to light map theme" : "Switch to dark map theme";
 
   return (
-    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black">
+    <div className="absolute inset-0 z-0 h-full w-full overflow-hidden bg-black">
       <CoreGlobe
         key={mapTheme}
         airports={AIRPORTS}
@@ -283,7 +283,7 @@ export function WorldMap() {
         )}
       </button>
       {/* Map vignette overlay */}
-      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] z-10" />
+      <div className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)]" />
     </div>
   );
 }
