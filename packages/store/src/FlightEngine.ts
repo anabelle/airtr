@@ -22,6 +22,7 @@ import {
   enumerateFlightEvents,
   fp,
   fpAdd,
+  fpDiv,
   fpSub,
   fpToNumber,
   GENESIS_TIME,
