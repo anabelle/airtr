@@ -208,4 +208,12 @@ describe("AircraftInfoPanel", () => {
       MOBILE_BOTTOM_NAV_BOTTOM_CLASS,
     );
   });
+
+  it("uses a more opaque shell background for readability over the light map", () => {
+    render(<AircraftInfoPanel aircraft={aircraft} onClose={vi.fn()} />);
+
+    expect(screen.getByLabelText("Close aircraft panel").closest("aside")).toHaveClass(
+      "bg-background/96",
+    );
+  });
 });

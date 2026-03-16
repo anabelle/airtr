@@ -8,3 +8,5 @@ dist/
 coverage/
 packages/data/scripts/data-cache/
 apps/web/android/**/build/
+
+__pycache__/

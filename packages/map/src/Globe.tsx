@@ -21,16 +21,115 @@ const NIGHT_CANVAS_H = 512;
 const MERCATOR_MAX_LAT = 85.051129;
 const DEG2RAD = Math.PI / 180;
 
-/** Night tint colour (RGBA components) — very dark blue-black */
-const NIGHT_R = 8;
-const NIGHT_G = 10;
-const NIGHT_B = 28;
+export type MapTheme = "dark" | "light";
+export const DEFAULT_MAP_THEME: MapTheme = "dark";
+export const DARK_MAP_STYLE_URL =
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+export const EARTH_MAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+type NightTint = {
+  r: number;
+  g: number;
+  b: number;
+  maxAlpha: number;
+};
+
+type MapPalette = {
+  nightTint: NightTint;
+  routes: {
+    global: string;
+    active: string;
+  };
+  airports: {
+    playerHub: string;
+    routeDestination: string;
+    competitorHub: string;
+    major: string;
+    default: string;
+    activeStroke: string;
+    playerStroke: string;
+    routeStroke: string;
+    competitorStroke: string;
+    majorStroke: string;
+    defaultStroke: string;
+  };
+  flights: {
+    fallbackAccent: string;
+  };
+};
 
 /**
- * Max alpha for the deepest night. Keep below 1.0 so the basemap
- * (CARTO Dark Matter city lights, labels, borders) stays visible.
+ * Centralized overlay palette for the lighter "earth" basemap treatment.
+ *
+ * Keep all shared route, airport, flight, and night-overlay colors here so
+ * the map continues to read as a single coherent theme when the basemap or
+ * overlay treatments are adjusted in the future.
  */
-const NIGHT_MAX_ALPHA = 0.38;
+export const DARK_MAP_PALETTE: MapPalette = {
+  nightTint: {
+    r: 8,
+    g: 10,
+    b: 28,
+    maxAlpha: 0.38,
+  },
+  routes: {
+    global: "#475569",
+    active: "#e94560",
+  },
+  airports: {
+    playerHub: "#4ade80",
+    routeDestination: "#e2e8f0",
+    competitorHub: "#f97316",
+    major: "#c6d6e8",
+    default: "#8aa6c5",
+    activeStroke: "#ffffff",
+    playerStroke: "#e2e8f0",
+    routeStroke: "#ffffff",
+    competitorStroke: "#ffe0bf",
+    majorStroke: "#dde7f3",
+    defaultStroke: "#6f88a8",
+  },
+  flights: {
+    fallbackAccent: "#94a3b8",
+  },
+};
+
+export const EARTH_MAP_PALETTE: MapPalette = {
+  nightTint: {
+    r: 10,
+    g: 28,
+    b: 43,
+    maxAlpha: 0.24,
+  },
+  routes: {
+    global: "#4f7894",
+    active: "#0ea5e9",
+  },
+  airports: {
+    playerHub: "#4ade80",
+    routeDestination: "#38bdf8",
+    competitorHub: "#f97316",
+    major: "#7dd3fc",
+    default: "#5d88a1",
+    activeStroke: "#f8fafc",
+    playerStroke: "#e0f2fe",
+    routeStroke: "#f8fafc",
+    competitorStroke: "#ffedd5",
+    majorStroke: "#e0f2fe",
+    defaultStroke: "#dbeafe",
+  },
+  flights: {
+    fallbackAccent: "#7dd3fc",
+  },
+};
+
+export function getMapStyleUrl(theme: MapTheme): string {
+  return theme === "light" ? EARTH_MAP_STYLE_URL : DARK_MAP_STYLE_URL;
+}
+
+export function getMapPalette(theme: MapTheme): MapPalette {
+  return theme === "light" ? EARTH_MAP_PALETTE : DARK_MAP_PALETTE;
+}
 
 /**
  * Pre-computed latitude (radians) for each canvas row — computed once at
@@ -74,6 +173,7 @@ function paintNightCanvas(
   canvas: HTMLCanvasElement,
   subsolarLat: number,
   subsolarLng: number,
+  nightTint: NightTint,
 ): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -91,7 +191,7 @@ function paintNightCanvas(
   const TWILIGHT_END = (96 * Math.PI) / 180; // 96°
   const TWILIGHT_RANGE = TWILIGHT_END - TERMINATOR;
 
-  const maxAlpha255 = Math.round(NIGHT_MAX_ALPHA * 255);
+  const maxAlpha255 = Math.round(nightTint.maxAlpha * 255);
 
   // Sun trig — constant for all pixels
   const sinSunLat = Math.sin(sunLatRad);
@@ -122,9 +222,9 @@ function paintNightCanvas(
       }
 
       const idx = rowBase + x * 4;
-      data[idx] = NIGHT_R;
-      data[idx + 1] = NIGHT_G;
-      data[idx + 2] = NIGHT_B;
+      data[idx] = nightTint.r;
+      data[idx + 1] = nightTint.g;
+      data[idx + 2] = nightTint.b;
       data[idx + 3] = alpha;
     }
   }
@@ -153,6 +253,8 @@ export interface GlobeProps {
   playerRouteDestinations?: Set<string>;
   tick?: number;
   tickProgress?: number;
+  /** Map palette mode. Use "dark" for the original night-focused treatment or "light" for the earth-toned style. */
+  theme?: MapTheme;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -254,6 +356,7 @@ export function Globe({
   playerRouteDestinations = new Set(),
   tick = 0,
   tickProgress = 0,
+  theme = DEFAULT_MAP_THEME,
   className = "",
   style,
   onMapClick,
@@ -367,6 +470,7 @@ export function Globe({
   // StrictMode's immediate re-mount can cancel the pending removal.
   // =========================================================================
   const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapThemePalette = useMemo(() => getMapPalette(theme), [theme]);
 
   useEffect(() => {
     // If a deferred cleanup is pending from a previous unmount, cancel it —
@@ -414,7 +518,7 @@ export function Globe({
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: getMapStyleUrl(theme),
       center: initialCenter,
       zoom: initialZoom,
       pitch: 0,
@@ -475,7 +579,7 @@ export function Globe({
 
       // Paint immediately
       const sun = getSubsolarPoint(new Date());
-      paintNightCanvas(nightCanvas, sun.lat, sun.lng);
+      paintNightCanvas(nightCanvas, sun.lat, sun.lng, mapThemePalette.nightTint);
 
       map.addSource(NIGHT_CANVAS_SOURCE, {
         type: "canvas",
@@ -527,7 +631,7 @@ export function Globe({
         source: "global-arcs",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#475569",
+          "line-color": mapThemePalette.routes.global,
           "line-width": 0.5,
           "line-opacity": 0.2,
         },
@@ -540,7 +644,7 @@ export function Globe({
         source: "arcs",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#e94560",
+          "line-color": mapThemePalette.routes.active,
           "line-width": 1,
           "line-opacity": 0.3,
           "line-dasharray": [2, 2],
@@ -555,7 +659,11 @@ export function Globe({
         filter: ["==", ["get", "airportClass"], "active-hub"],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 6, 14, 10, 22],
-          "circle-color": ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+          "circle-color": [
+            "coalesce",
+            ["get", "playerHubColor"],
+            mapThemePalette.airports.playerHub,
+          ],
           "circle-opacity": 0.4,
           "circle-blur": 0.8,
         },
@@ -624,16 +732,16 @@ export function Globe({
             "match",
             ["get", "airportClass"],
             "active-hub",
-            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+            ["coalesce", ["get", "playerHubColor"], mapThemePalette.airports.playerHub],
             "player-hub",
-            ["coalesce", ["get", "playerHubColor"], "#4ade80"],
+            ["coalesce", ["get", "playerHubColor"], mapThemePalette.airports.playerHub],
             "route-dest",
-            "#e2e8f0",
+            mapThemePalette.airports.routeDestination,
             "competitor-hub",
-            ["coalesce", ["get", "competitorHubColor"], "#f97316"],
+            ["coalesce", ["get", "competitorHubColor"], mapThemePalette.airports.competitorHub],
             "major",
-            "#c6d6e8",
-            "#8aa6c5",
+            mapThemePalette.airports.major,
+            mapThemePalette.airports.default,
           ],
           "circle-opacity": [
             "match",
@@ -669,16 +777,16 @@ export function Globe({
             "match",
             ["get", "airportClass"],
             "active-hub",
-            "#ffffff",
+            mapThemePalette.airports.activeStroke,
             "player-hub",
-            "#e2e8f0",
+            mapThemePalette.airports.playerStroke,
             "route-dest",
-            "#ffffff",
+            mapThemePalette.airports.routeStroke,
             "competitor-hub",
-            "#ffe0bf",
+            mapThemePalette.airports.competitorStroke,
             "major",
-            "#dde7f3",
-            "#6f88a8",
+            mapThemePalette.airports.majorStroke,
+            mapThemePalette.airports.defaultStroke,
           ],
         },
       });
@@ -947,7 +1055,11 @@ export function Globe({
           source: "flights",
           paint: {
             "circle-radius": 14,
-            "circle-color": ["coalesce", ["get", "secondaryColor"], "#94a3b8"],
+            "circle-color": [
+              "coalesce",
+              ["get", "secondaryColor"],
+              mapThemePalette.flights.fallbackAccent,
+            ],
             "circle-opacity": 0.25,
             "circle-blur": 1.5,
           },
@@ -1145,7 +1257,7 @@ export function Globe({
         mapRef.current = null;
       }, 100);
     };
-  }, []);
+  }, [theme, mapThemePalette]);
 
   // =========================================================================
   // Sync airports & arcs (reactive to fleet/routes state changes)
@@ -1412,9 +1524,14 @@ export function Globe({
       // Use requestIdleCallback when available so the ~2ms pixel-fill doesn't
       // land on a busy animation frame.  Falls back to a simple timeout.
       if (typeof requestIdleCallback !== "undefined") {
-        requestIdleCallback(() => paintNightCanvas(canvas, sun.lat, sun.lng), { timeout: 2000 });
+        requestIdleCallback(
+          () => paintNightCanvas(canvas, sun.lat, sun.lng, mapThemePalette.nightTint),
+          {
+            timeout: 2000,
+          },
+        );
       } else {
-        setTimeout(() => paintNightCanvas(canvas, sun.lat, sun.lng), 0);
+        setTimeout(() => paintNightCanvas(canvas, sun.lat, sun.lng, mapThemePalette.nightTint), 0);
       }
     };
 
@@ -1546,7 +1663,7 @@ export function Globe({
       }
       cancelAnimationFrame(rafId.current);
     };
-  }, [mapLoaded, airportIndex]);
+  }, [mapLoaded, airportIndex, mapThemePalette]);
 
   // =========================================================================
   // Initial fly-to on first airport selection or focus change

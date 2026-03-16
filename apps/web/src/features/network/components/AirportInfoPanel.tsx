@@ -301,10 +301,10 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
 
   return (
     <aside
-      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/88 shadow-[0_26px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
+      className={`pointer-events-auto fixed z-30 flex max-h-none flex-col overflow-hidden rounded-[24px] border border-border/80 bg-background/96 shadow-[0_26px_80px_rgba(0,0,0,0.68)] backdrop-blur-2xl left-3 right-3 ${MOBILE_TOPBAR_TOP_CLASS} ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} ${MOBILE_OVERLAY_MAX_HEIGHT_CLASS} sm:left-auto sm:right-4 sm:top-1/2 sm:bottom-auto sm:w-[min(480px,calc(100vw-2rem))] sm:max-h-[80vh] sm:-translate-y-1/2 sm:rounded-[26px]`}
       aria-live="polite"
     >
-      <div className="flex items-start justify-between border-b border-border/60 px-4 py-4 sm:px-5">
+      <div className="flex items-start justify-between border-b border-border/60 bg-background/94 px-4 py-4 backdrop-blur-xl sm:px-5">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
             {t("airportPanel.title", { ns: "game" })}
@@ -323,7 +323,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         <button
           type="button"
           onClick={onClose}
-          className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation"
+          className="h-9 w-9 rounded-full bg-background/85 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors touch-manipulation"
           aria-label={t("airportPanel.closeAria", { ns: "game" })}
         >
           <X className="mx-auto h-4 w-4" />
@@ -331,7 +331,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-5 sm:px-5">
-        <div className="flex gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+        <div className="flex gap-2 rounded-full border border-border/60 bg-background/90 p-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
           {(
             [
               { key: "info", label: t("nav.info", { ns: "common" }) },
@@ -359,7 +359,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
         {activeTab === "info" ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
+              <span className="rounded-full border border-border/60 bg-background/90 px-2.5 py-1 text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
                 {t("airportPanel.hubBadge", {
                   ns: "game",
                   tier: hubInfo?.tier ?? t("airportPanel.regional", { ns: "game" }),
@@ -378,7 +378,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                   {t("airportPanel.population", { ns: "game" })}
                 </p>
@@ -386,7 +386,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   {formatPopulation(airport.population)}
                 </p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                   {t("airportPanel.gdpPerCapita", { ns: "game" })}
                 </p>
@@ -394,7 +394,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   {currencyFormat.format(airport.gdpPerCapita)}
                 </p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                   {t("airportPanel.altitude", { ns: "game" })}
                 </p>
@@ -402,7 +402,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   {numberFormat.format(airport.altitude)} ft
                 </p>
               </div>
-              <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+              <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                   {t("airportPanel.timezone", { ns: "game" })}
                 </p>
@@ -410,7 +410,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
               {hubInfo ? (
                 <>
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("airportPanel.capacityPerHour", { ns: "game" })}
                     </p>
@@ -418,7 +418,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                       {hubInfo.baseCapacityPerHour}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("airportPanel.slotControl", { ns: "game" })}
                     </p>
@@ -439,13 +439,13 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   {t("airportPanel.yourOperations", { ns: "game" })}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("airportPanel.fleetHere", { ns: "game" })}
                     </p>
                     <p className="mt-1 text-sm font-mono font-semibold">{stationedFleet.length}</p>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/90 p-3">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                       {t("airportPanel.routesTouching", { ns: "game" })}
                     </p>
@@ -464,14 +464,14 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                           key={route.id}
                           type="button"
                           onClick={() => navigateToAirport(otherIata)}
-                          className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors cursor-pointer"
+                          className="rounded-full border border-border/50 bg-background/80 px-2 py-1 text-[11px] font-mono text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors cursor-pointer"
                         >
                           {routeLabel(route)}
                         </button>
                       );
                     })}
                     {routesTouching.length > 5 ? (
-                      <span className="rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[11px] font-mono text-muted-foreground">
+                      <span className="rounded-full border border-border/50 bg-background/80 px-2 py-1 text-[11px] font-mono text-muted-foreground">
                         {t("airportPanel.more", {
                           ns: "game",
                           count: routesTouching.length - 5,
@@ -493,14 +493,14 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   {competitorHubNames.slice(0, 4).map((entry) => (
                     <span
                       key={entry.ceoPubkey}
-                      className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground"
+                      className="rounded-full border border-border/50 bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground"
                     >
                       {entry.name}
                       {entry.icaoCode ? ` (${entry.icaoCode})` : ""}
                     </span>
                   ))}
                   {competitorHubNames.length > 4 ? (
-                    <span className="rounded-full border border-border/50 bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground">
+                    <span className="rounded-full border border-border/50 bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground">
                       {t("airportPanel.more", {
                         ns: "game",
                         count: competitorHubNames.length - 4,
@@ -517,7 +517,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   <Plane className="h-4 w-4" />
                   {t("airportPanel.groundTraffic", { ns: "game" })}
                 </div>
-                <div className="rounded-xl border border-border/60 bg-background/70 px-4 py-3">
+                <div className="rounded-xl border border-border/60 bg-background/90 px-4 py-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{t("airportPanel.totalOnGround", { ns: "game" })}</span>
                     <span className="font-mono font-semibold text-foreground">
@@ -556,7 +556,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
               </div>
             ) : null}
 
-            <div className="space-y-3 rounded-[22px] border border-border/60 bg-background/55 p-4 sm:p-5">
+            <div className="space-y-3 rounded-[22px] border border-border/60 bg-background/88 p-4 sm:p-5">
               <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                 <Building2 className="h-4 w-4" />
                 {t("airportPanel.actions", { ns: "game" })}
@@ -573,7 +573,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                     id="airport-route-origin"
                     value={originHubIata ?? ""}
                     onChange={(event) => setOriginHubIata(event.target.value || null)}
-                    className="h-10 rounded-xl border border-border/60 bg-background/70 px-3 text-xs font-bold text-foreground"
+                    className="h-10 rounded-xl border border-border/60 bg-background/90 px-3 text-xs font-bold text-foreground"
                   >
                     {playerHubs.map((hub) => (
                       <option key={hub} value={hub}>
@@ -603,7 +603,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   <button
                     type="button"
                     onClick={handleSwitchHub}
-                    className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
+                    className="flex-1 rounded-xl border border-border/60 bg-background/90 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
                   >
                     {t("airportPanel.relocateHqButton", { ns: "game" })}
                   </button>
@@ -643,7 +643,7 @@ export function AirportInfoPanel({ airport, onClose }: AirportInfoPanelProps) {
                   <button
                     type="button"
                     onClick={() => navigate({ to: "/network", search: { tab: "active" } })}
-                    className="flex-1 rounded-xl border border-border/60 bg-background/70 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
+                    className="flex-1 rounded-xl border border-border/60 bg-background/90 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent touch-manipulation"
                   >
                     {t("airportPanel.viewRoute", { ns: "game" })}
                   </button>
