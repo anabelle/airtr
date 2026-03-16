@@ -1,13 +1,20 @@
 import type { AircraftInstance, Airport, Route } from "@acars/core";
 import { TICK_DURATION } from "@acars/core";
 import { airports as AIRPORTS } from "@acars/data";
-import { Globe as CoreGlobe, getGreatCircleInterpolation } from "@acars/map";
+import {
+  DEFAULT_MAP_THEME,
+  Globe as CoreGlobe,
+  getGreatCircleInterpolation,
+  type MapTheme,
+} from "@acars/map";
 import { useAirlineStore, useEngineStore } from "@acars/store";
+import { Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { hasLeaderboardActivity } from "@/features/competition/leaderboardMetrics";
 import { AircraftInfoPanel } from "@/features/network/components/AircraftInfoPanel";
 import { AirportInfoPanel } from "@/features/network/components/AirportInfoPanel";
 import { buildGroundPresenceByAirport } from "@/features/network/utils/groundTraffic";
+import { MOBILE_BOTTOM_NAV_BOTTOM_CLASS } from "@/shared/components/layout/mobileLayout";
 import {
   getDetailReturnTo,
   navigateToAircraft,
@@ -16,6 +23,13 @@ import {
 } from "@/shared/lib/permalinkNavigation";
 
 const airportByIata = new Map<string, Airport>(AIRPORTS.map((a) => [a.iata, a]));
+const MAP_THEME_STORAGE_KEY = "acars:map:theme";
+
+function getSavedMapTheme(): MapTheme {
+  if (typeof window === "undefined") return DEFAULT_MAP_THEME;
+  const raw = window.localStorage.getItem(MAP_THEME_STORAGE_KEY);
+  return raw === "light" || raw === "dark" ? raw : DEFAULT_MAP_THEME;
+}
 
 /**
  * Compute the best airport (or virtual focus point) for centering the map
@@ -58,6 +72,12 @@ export function WorldMap() {
   const [inspectedAirport, setInspectedAirport] = useState<Airport | null>(null);
   const [inspectedAircraft, setInspectedAircraft] = useState<AircraftInstance | null>(null);
   const [focusedAirport, setFocusedAirport] = useState<Airport | null>(null);
+  const [mapTheme, setMapTheme] = useState<MapTheme>(() => getSavedMapTheme());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(MAP_THEME_STORAGE_KEY, mapTheme);
+  }, [mapTheme]);
 
   // Permalink deep-link: when permalinkAirportIata is set (e.g. /airport/JFK),
   // automatically focus and inspect that airport on the map.
@@ -201,10 +221,13 @@ export function WorldMap() {
   if (!homeAirport) return null;
 
   const selectedAirport = focusedAirport ?? homeAirport;
+  const toggleThemeLabel =
+    mapTheme === "dark" ? "Switch to light map theme" : "Switch to dark map theme";
 
   return (
-    <div className="absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#dceffa]">
+    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black">
       <CoreGlobe
+        key={mapTheme}
         airports={AIRPORTS}
         selectedAirport={selectedAirport}
         onAirportSelect={handleAirportSelect}
@@ -233,6 +256,7 @@ export function WorldMap() {
         playerRouteDestinations={playerRouteDestinations}
         tick={tick}
         tickProgress={tickProgress}
+        theme={mapTheme}
       />
       {inspectedAirport ? (
         <AirportInfoPanel airport={inspectedAirport} onClose={clearAirportFocus} />
@@ -245,8 +269,21 @@ export function WorldMap() {
           Focus: {focusedAirport.iata}
         </div>
       ) : null}
+      <button
+        type="button"
+        onClick={() => setMapTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"))}
+        className={`pointer-events-auto absolute right-4 z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-[0_14px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${MOBILE_BOTTOM_NAV_BOTTOM_CLASS} sm:bottom-14`}
+        title={toggleThemeLabel}
+        aria-label={toggleThemeLabel}
+      >
+        {mapTheme === "dark" ? (
+          <Sun className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Moon className="h-4 w-4" aria-hidden="true" />
+        )}
+      </button>
       {/* Map vignette overlay */}
-      <div className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_140px_rgba(7,52,84,0.22)]" />
+      <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] z-10" />
     </div>
   );
 }
