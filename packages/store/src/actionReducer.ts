@@ -1062,6 +1062,7 @@ export async function replayActionLog(params: {
         if (!instanceId) break;
         const aircraft = fleetById.get(instanceId);
         if (!aircraft) break;
+        if (aircraft.purchaseType !== "lease") break;
         const model = getAircraftById(aircraft.modelId);
         if (!model) break;
         const buyoutPrice = calculateBookValue(

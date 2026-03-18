@@ -1,4 +1,4 @@
-import { fp, fpAdd, fpScale, getMaintenanceDowntimeTicks } from "@acars/core";
+import { calculateBookValue, fp, fpAdd, fpScale, getMaintenanceDowntimeTicks } from "@acars/core";
 import { getAircraftById } from "@acars/data";
 import { describe, expect, it } from "vitest";
 import { replayActionLog } from "./actionReducer";
@@ -402,6 +402,82 @@ describe("replayActionLog", () => {
     const ac2 = result.fleet.find((ac) => ac.id === "ac-2");
     expect(ac1?.assignedRouteId).toBe("rt-1");
     expect(ac2?.assignedRouteId).toBe("rt-1");
+  });
+
+  it("does not charge a lease buyout twice when replaying against an optimistic checkpoint", async () => {
+    const pubkey = "pubkey-buyout";
+    const model = getAircraftById("atr72-600");
+    expect(model).toBeTruthy();
+
+    const buyoutTick = 250;
+    const buyoutPrice = calculateBookValue(model!, 0, 1, 10, buyoutTick);
+    const initialBalance = fp(40000000);
+    const checkpoint = {
+      schemaVersion: 1,
+      tick: buyoutTick,
+      createdAt: buyoutTick,
+      actionChainHash: "abc",
+      stateHash: "def",
+      airline: {
+        name: "Buyout Air",
+        callsign: "BUY",
+        iata: "BY",
+        icao: "BUY",
+        liveryColor: "#000",
+        hubs: ["BOG"],
+        corporateBalance: fpAdd(initialBalance, -buyoutPrice),
+        routeIds: [],
+        fleetIds: ["ac-lease"],
+        lastTick: buyoutTick,
+      },
+      fleet: [
+        {
+          id: "ac-lease",
+          ownerPubkey: pubkey,
+          modelId: "atr72-600",
+          name: "Lease Bird",
+          status: "idle",
+          assignedRouteId: null,
+          baseAirportIata: "BOG",
+          purchasedAtTick: 10,
+          purchasePrice: fpScale(model!.price, 0.1),
+          birthTick: 10,
+          flight: null,
+          configuration: { economy: 70, business: 0, first: 0, cargoKg: 0 },
+          flightHoursTotal: 0,
+          flightHoursSinceCheck: 0,
+          condition: 1,
+          purchaseType: "buy",
+          leaseStartedAtTick: 10,
+        },
+      ],
+      routes: [],
+      timeline: [],
+    };
+
+    const result = await replayActionLog({
+      pubkey,
+      checkpoint: checkpoint as any,
+      actions: [
+        {
+          eventId: "evt-buyout",
+          authorPubkey: pubkey,
+          createdAt: buyoutTick,
+          action: {
+            schemaVersion: 2,
+            action: "AIRCRAFT_BUYOUT",
+            payload: {
+              instanceId: "ac-lease",
+              price: buyoutPrice,
+              tick: buyoutTick,
+            },
+          },
+        },
+      ],
+    });
+
+    expect(result.airline?.corporateBalance).toBe(fpAdd(initialBalance, -buyoutPrice));
+    expect(result.fleet[0]?.purchaseType).toBe("buy");
   });
 
   it("cleans up old route assignedAircraftIds on aircraft reassignment", async () => {
