@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { Suspense, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 const useSearchMock = vi.fn();
@@ -21,6 +21,10 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("./-corporate.lazy", () => ({
   CorporateWorkspace: ({ section }: { section: string }) => <div>{`corporate:${section}`}</div>,
+}));
+
+vi.mock("@/shared/components/layout/PanelLoadingState", () => ({
+  PanelLoadingState: () => <div>loading workspace</div>,
 }));
 
 import { Route } from "./corporate";
@@ -46,11 +50,15 @@ describe("corporate route", () => {
     });
   });
 
-  it("renders the selected workspace section", () => {
+  it("renders the selected workspace section", async () => {
     useSearchMock.mockReturnValue({ section: "network" });
     const Component = (Route as unknown as { options: { component: () => ReactElement } }).options
       .component;
-    render(<Component />);
-    expect(screen.getByText("corporate:network")).toBeInTheDocument();
+    render(
+      <Suspense fallback={<div>loading workspace</div>}>
+        <Component />
+      </Suspense>,
+    );
+    expect(await screen.findByText("corporate:network")).toBeInTheDocument();
   });
 });

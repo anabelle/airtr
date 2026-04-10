@@ -92,6 +92,10 @@
     "auto": "Auto-detect"
   },
   "panel": {
+    "loadingTitle": "Opening workspace…",
+    "loadingSubtitle": "The panel is on its way.",
+    "loadingMessage": "Loading your live panel",
+    "loadingDescription": "We are preparing the workspace and syncing the latest view so you can act as soon as it appears.",
     "closeTitle": "Close Panel (Return to Cockpit)",
     "closeAria": "Close panel and return to cockpit"
   },
