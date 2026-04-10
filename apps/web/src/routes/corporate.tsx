@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type CorporateSection, CorporateWorkspace } from "./-corporate.lazy";
+import { lazy } from "react";
+import { type CorporateSection } from "./-corporate.lazy";
+import { PanelLoadingState } from "@/shared/components/layout/PanelLoadingState";
+
+const LazyCorporateWorkspace = lazy(async () => {
+  const module = await import("./-corporate.lazy");
+  return { default: module.CorporateWorkspace };
+});
 
 type CorporateSearch = {
   section: CorporateSection;
@@ -7,7 +14,7 @@ type CorporateSearch = {
 
 function CorporateRouteComponent() {
   const search = Route.useSearch();
-  return <CorporateWorkspace section={search.section} />;
+  return <LazyCorporateWorkspace section={search.section} />;
 }
 
 export const Route = createFileRoute("/corporate")({
@@ -21,4 +28,5 @@ export const Route = createFileRoute("/corporate")({
         : "overview",
   }),
   component: CorporateRouteComponent,
+  pendingComponent: PanelLoadingState,
 });

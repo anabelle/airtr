@@ -92,6 +92,10 @@
     "auto": "Detectar automáticamente"
   },
   "panel": {
+    "loadingTitle": "Abriendo espacio de trabajo…",
+    "loadingSubtitle": "El panel ya viene en camino.",
+    "loadingMessage": "Cargando tu panel en vivo",
+    "loadingDescription": "Estamos preparando el espacio y sincronizando la vista más reciente para que puedas actuar apenas aparezca.",
     "closeTitle": "Cerrar panel (volver a cabina)",
     "closeAria": "Cerrar panel y volver a cabina"
   },
