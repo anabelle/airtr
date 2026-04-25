@@ -110,11 +110,13 @@ async function getOrCreateEncryptionKey(): Promise<CryptoKey | null> {
   return encryptionKeyPromise;
 }
 
-function warnSecureStorageFallback(error: unknown) {
-  console.warn(
-    "[Nostr] Secure ephemeral key storage unavailable, falling back to plain localStorage.",
-    error,
-  );
+function createSecureStorageUnavailableError(error?: unknown): Error {
+  const message =
+    "Secure browser key storage is unavailable; ephemeral account keys cannot be stored safely.";
+  if (error instanceof Error) {
+    return new Error(`${message} ${error.message}`);
+  }
+  return new Error(message);
 }
 
 /**
@@ -130,24 +132,21 @@ export function generateNewKeypair(): { nsec: string; pubkey: string } {
 
 /**
  * Persist an ephemeral nsec locally so it survives page reload.
- * We prefer AES-GCM ciphertext in localStorage with a non-extractable
- * origin-bound CryptoKey stored in IndexedDB. If that stack is unavailable,
- * we fall back to plain localStorage so recovery still works.
+ * We store AES-GCM ciphertext in localStorage with a non-extractable
+ * origin-bound CryptoKey stored in IndexedDB. Plaintext nsec storage is
+ * intentionally not used for new writes.
  */
 export async function saveEphemeralKey(nsec: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   if (!canUseSecureEphemeralStorage()) {
-    localStorage.setItem(LEGACY_EPHEMERAL_KEY_STORAGE, nsec);
-    localStorage.removeItem(SECURE_EPHEMERAL_KEY_STORAGE);
-    return;
+    throw createSecureStorageUnavailableError();
   }
 
   try {
     const encryptionKey = await getOrCreateEncryptionKey();
     if (!encryptionKey) {
-      localStorage.setItem(LEGACY_EPHEMERAL_KEY_STORAGE, nsec);
-      return;
+      throw createSecureStorageUnavailableError();
     }
 
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -166,9 +165,7 @@ export async function saveEphemeralKey(nsec: string): Promise<void> {
     localStorage.setItem(SECURE_EPHEMERAL_KEY_STORAGE, JSON.stringify(payload));
     localStorage.removeItem(LEGACY_EPHEMERAL_KEY_STORAGE);
   } catch (error) {
-    warnSecureStorageFallback(error);
-    localStorage.setItem(LEGACY_EPHEMERAL_KEY_STORAGE, nsec);
-    localStorage.removeItem(SECURE_EPHEMERAL_KEY_STORAGE);
+    throw createSecureStorageUnavailableError(error);
   }
 }
 

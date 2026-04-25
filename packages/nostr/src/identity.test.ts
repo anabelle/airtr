@@ -10,6 +10,7 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
 };
+const indexedDbStore = new Map<string, unknown>();
 
 vi.mock("@nostr-dev-kit/ndk", () => {
   return {
@@ -62,6 +63,8 @@ describe("identity", () => {
     ndk.signer = null;
     delete (globalThis as any).window;
     delete (globalThis as any).localStorage;
+    delete (globalThis as any).indexedDB;
+    indexedDbStore.clear();
   });
 
   afterEach(() => {
@@ -166,21 +169,83 @@ describe("identity", () => {
     expect(ndk.signer).toBeNull();
   });
 
-  it("persists and clears ephemeral keys from localStorage when secure storage is unavailable", async () => {
+  it("does not fall back to plaintext localStorage when secure storage is unavailable", async () => {
     (globalThis as any).window = {};
     (globalThis as any).localStorage = localStorageMock;
 
-    await saveEphemeralKey("nsec1saved");
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("acars:ephemeral:nsec", "nsec1saved");
+    await expect(saveEphemeralKey("nsec1saved")).rejects.toThrow(
+      "Secure browser key storage is unavailable",
+    );
+    expect(localStorageMock.setItem).not.toHaveBeenCalled();
 
     localStorageMock.getItem.mockImplementation((key) =>
       key === "acars:ephemeral:nsec" ? "nsec1saved" : null,
     );
     expect(hasStoredEphemeralKey()).toBe(true);
-    await expect(loadEphemeralKey()).resolves.toBe("nsec1saved");
+    await expect(loadEphemeralKey()).rejects.toThrow("Secure browser key storage is unavailable");
 
     await clearEphemeralKey();
     expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec:secure");
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec");
+  });
+
+  it("migrates legacy plaintext keys to secure storage when available", async () => {
+    const securePayload = '{"version":1,"iv":"iv","ciphertext":"ciphertext"}';
+    const encodedLegacyKey = new TextEncoder().encode("nsec1saved");
+    (globalThis as any).window = {};
+    (globalThis as any).localStorage = localStorageMock;
+    (globalThis as any).indexedDB = {
+      open: vi.fn(() => {
+        const db = {
+          objectStoreNames: { contains: () => true },
+          close: vi.fn(),
+          transaction: vi.fn(() => {
+            const tx = {
+              objectStore: () => ({
+                get: (key: string) => {
+                  const request = {} as IDBRequest<unknown>;
+                  queueMicrotask(() => {
+                    Object.defineProperty(request, "result", {
+                      value: indexedDbStore.get(key) ?? null,
+                      configurable: true,
+                    });
+                    request.onsuccess?.({} as Event);
+                  });
+                  return request;
+                },
+                put: (value: unknown, key: string) => {
+                  indexedDbStore.set(key, value);
+                },
+              }),
+            } as IDBTransaction;
+            queueMicrotask(() => tx.oncomplete?.({} as Event));
+            return tx;
+          }),
+        };
+        const request = { result: db } as unknown as IDBOpenDBRequest;
+        queueMicrotask(() => request.onsuccess?.({} as Event));
+        return request;
+      }),
+    };
+    vi.spyOn(globalThis.crypto.subtle, "generateKey").mockResolvedValue({} as CryptoKey);
+    vi.spyOn(globalThis.crypto.subtle, "encrypt").mockResolvedValue(encodedLegacyKey);
+
+    localStorageMock.getItem.mockImplementation((key) =>
+      key === "acars:ephemeral:nsec" ? "nsec1saved" : null,
+    );
+    localStorageMock.setItem.mockImplementation((key, value) => {
+      if (key !== "acars:ephemeral:nsec:secure") return;
+      expect(JSON.parse(value as string)).toMatchObject({ version: 1 });
+      localStorageMock.getItem.mockImplementation((nextKey) =>
+        nextKey === "acars:ephemeral:nsec:secure" ? securePayload : null,
+      );
+    });
+
+    await expect(loadEphemeralKey()).resolves.toBe("nsec1saved");
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      "acars:ephemeral:nsec:secure",
+      expect.any(String),
+    );
     expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec");
   });
 
