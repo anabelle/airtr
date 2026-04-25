@@ -42,6 +42,8 @@ const PAX_FACILITY_CHARGE = fp(12); // $12 per passenger
 
 const ANCILLARY_PER_PAX = fp(20);
 export const ROUTE_SLOT_FEE = fp(100000);
+const MAX_HUB_LANDING_FEE_MULTIPLIER = 10;
+const HUB_CONGESTION_THRESHOLD = 0.8;
 
 export interface FlightRevenueParams {
   passengersEconomy: number;
@@ -69,12 +71,15 @@ export function calculateHubLandingFee(
 ): FixedPoint {
   const ratio = baseCapacityPerHour > 0 ? hourlyFlights / baseCapacityPerHour : 0;
 
-  if (ratio <= 0.8) {
+  if (ratio <= HUB_CONGESTION_THRESHOLD) {
     return fpScale(baseLandingFee, 1 + ratio);
   }
 
-  const excess = ratio - 0.8;
-  const multiplier = 1 + 0.8 + (Math.exp(excess * 4) - 1);
+  const excess = ratio - HUB_CONGESTION_THRESHOLD;
+  const multiplier = Math.min(
+    MAX_HUB_LANDING_FEE_MULTIPLIER,
+    1 + HUB_CONGESTION_THRESHOLD + (Math.exp(excess * 4) - 1),
+  );
   return fpScale(baseLandingFee, multiplier);
 }
 

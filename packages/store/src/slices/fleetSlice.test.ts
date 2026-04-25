@@ -160,6 +160,24 @@ describe("ferryAircraft", () => {
   });
 });
 
+describe("purchaseAircraft", () => {
+  it("uses deterministic tick/action-derived aircraft ids", async () => {
+    const airline = makeAirline(["BOG"]);
+    const { state } = createSliceState({
+      airline,
+      fleet: [],
+      timeline: [],
+      actionSeq: 7,
+    });
+    const model = getAircraftById("atr72-600");
+    expect(model).toBeTruthy();
+
+    await state.purchaseAircraft(model!, "BOG");
+
+    expect(state.fleet[0]?.id).toBe("ac-test-pub-2s-7-0");
+  });
+});
+
 describe("sellAircraft", () => {
   it("blocks scrapping when aircraft is not idle", async () => {
     const airline = makeAirline(["BOG"]);

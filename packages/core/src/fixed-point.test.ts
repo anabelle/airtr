@@ -14,6 +14,7 @@ import {
   fpNeg,
   fpFormat,
   fpSum,
+  fpRaw,
   FP_ZERO,
 } from "./fixed-point.js";
 
@@ -143,6 +144,23 @@ describe("fixed-point arithmetic", () => {
       const result = fpMul(fpAdd(a, b), fpDiv(fp(100), fp(3)));
       // Store the expected result — if this ever changes, determinism is broken
       expect(result).toBe(70_852_529);
+    });
+
+    it("keeps large intermediate multiplication deterministic", () => {
+      expect(fpMul(fp(900_000_000), fp(0.5))).toBe(fp(450_000_000));
+    });
+
+    it("keeps large intermediate division deterministic", () => {
+      expect(fpDiv(fp(900_000_000), fp(0.5))).toBe(fp(1_800_000_000));
+    });
+
+    it("rejects unsafe fixed-point values", () => {
+      expect(() => fpRaw(Number.MAX_SAFE_INTEGER + 1)).toThrow(RangeError);
+      expect(() => fpMul(fp(900_000_000), fp(2_000))).toThrow(RangeError);
+    });
+
+    it("sums with a large intermediate safely", () => {
+      expect(fpSum([fp(900_000_000), fp(900_000_000), fp(-900_000_000)])).toBe(fp(900_000_000));
     });
   });
 });

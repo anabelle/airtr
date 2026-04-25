@@ -10,10 +10,52 @@ import type { FixedPoint } from "./types.js";
 
 /** Decimal places of precision */
 export const FP_SCALE = 10_000;
+const FP_SCALE_BIGINT = BigInt(FP_SCALE);
+
+function assertSafeInteger(value: number, operation: string): FixedPoint {
+  if (!Number.isSafeInteger(value)) {
+    throw new RangeError(`${operation} produced an unsafe fixed-point value`);
+  }
+  return value as FixedPoint;
+}
+
+function assertFiniteInput(value: number, operation: string): void {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${operation} requires a finite number`);
+  }
+}
+
+function toSafeBigInt(value: FixedPoint, operation: string): bigint {
+  assertSafeInteger(value, operation);
+  return BigInt(value);
+}
+
+function roundDiv(numerator: bigint, denominator: bigint): bigint {
+  if (denominator < 0n) {
+    return roundDiv(-numerator, -denominator);
+  }
+  const quotient = numerator / denominator;
+  const remainder = numerator % denominator;
+  const absRemainder = remainder < 0n ? -remainder : remainder;
+  const doubleRemainder = absRemainder * 2n;
+
+  if (numerator >= 0n) {
+    return doubleRemainder >= denominator ? quotient + 1n : quotient;
+  }
+
+  // Preserve Math.round compatibility: negative .5 ties round toward +∞.
+  return doubleRemainder > denominator ? quotient - 1n : quotient;
+}
+
+function bigintToSafeFixedPoint(value: bigint, operation: string): FixedPoint {
+  const result = Number(value);
+  return assertSafeInteger(result, operation);
+}
 
 /** Create a FixedPoint from a regular number (e.g. dollars) */
 export function fp(value: number): FixedPoint {
-  return Math.round(value * FP_SCALE) as FixedPoint;
+  assertFiniteInput(value, "fp");
+  return assertSafeInteger(Math.round(value * FP_SCALE), "fp");
 }
 
 /**
@@ -24,7 +66,7 @@ export function fp(value: number): FixedPoint {
  */
 export function fpRaw(value: unknown): FixedPoint {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.round(value) as FixedPoint;
+    return assertSafeInteger(Math.round(value), "fpRaw");
   }
   return 0 as FixedPoint;
 }
@@ -36,31 +78,40 @@ export function fpToNumber(value: FixedPoint): number {
 
 /** Add two FixedPoint values */
 export function fpAdd(a: FixedPoint, b: FixedPoint): FixedPoint {
-  return (a + b) as FixedPoint;
+  return assertSafeInteger(a + b, "fpAdd");
 }
 
 /** Subtract: a - b */
 export function fpSub(a: FixedPoint, b: FixedPoint): FixedPoint {
-  return (a - b) as FixedPoint;
+  return assertSafeInteger(a - b, "fpSub");
 }
 
 /** Multiply two FixedPoint values */
 export function fpMul(a: FixedPoint, b: FixedPoint): FixedPoint {
   // a and b are both scaled by FP_SCALE, so product is scaled by FP_SCALE^2.
-  // We divide by FP_SCALE once to get the result in FP_SCALE.
-  return Math.round((a * b) / FP_SCALE) as FixedPoint;
+  // Use BigInt for the intermediate product to avoid IEEE-754 precision loss.
+  return bigintToSafeFixedPoint(
+    roundDiv(toSafeBigInt(a, "fpMul") * toSafeBigInt(b, "fpMul"), FP_SCALE_BIGINT),
+    "fpMul",
+  );
 }
 
 /** Divide: a / b */
 export function fpDiv(a: FixedPoint, b: FixedPoint): FixedPoint {
   if (b === 0) throw new Error("Division by zero");
-  // Scale numerator up before dividing to maintain precision
-  return Math.round((a * FP_SCALE) / b) as FixedPoint;
+  // Scale numerator up before dividing to maintain precision.
+  // Use BigInt for the intermediate product to avoid IEEE-754 precision loss.
+  const denominator = toSafeBigInt(b, "fpDiv");
+  return bigintToSafeFixedPoint(
+    roundDiv(toSafeBigInt(a, "fpDiv") * FP_SCALE_BIGINT, denominator),
+    "fpDiv",
+  );
 }
 
 /** Multiply FixedPoint by a plain scalar (not FixedPoint) */
 export function fpScale(a: FixedPoint, scalar: number): FixedPoint {
-  return Math.round(a * scalar) as FixedPoint;
+  assertFiniteInput(scalar, "fpScale");
+  return assertSafeInteger(Math.round(a * scalar), "fpScale");
 }
 
 /** Negate a FixedPoint value */
@@ -84,9 +135,9 @@ export function fpFormat(value: FixedPoint, decimals = 2): string {
 
 /** Sum an array of FixedPoint values */
 export function fpSum(values: FixedPoint[]): FixedPoint {
-  let total = 0;
+  let total = 0n;
   for (const v of values) {
-    total += v;
+    total += toSafeBigInt(v, "fpSum");
   }
-  return total as FixedPoint;
+  return bigintToSafeFixedPoint(total, "fpSum");
 }
