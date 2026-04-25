@@ -166,18 +166,20 @@ describe("identity", () => {
     expect(ndk.signer).toBeNull();
   });
 
-  it("persists and clears ephemeral keys from localStorage when secure storage is unavailable", async () => {
+  it("does not fall back to plaintext localStorage when secure storage is unavailable", async () => {
     (globalThis as any).window = {};
     (globalThis as any).localStorage = localStorageMock;
 
-    await saveEphemeralKey("nsec1saved");
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("acars:ephemeral:nsec", "nsec1saved");
+    await expect(saveEphemeralKey("nsec1saved")).rejects.toThrow(
+      "Secure browser key storage is unavailable",
+    );
+    expect(localStorageMock.setItem).not.toHaveBeenCalled();
 
     localStorageMock.getItem.mockImplementation((key) =>
       key === "acars:ephemeral:nsec" ? "nsec1saved" : null,
     );
     expect(hasStoredEphemeralKey()).toBe(true);
-    await expect(loadEphemeralKey()).resolves.toBe("nsec1saved");
+    await expect(loadEphemeralKey()).rejects.toThrow("Secure browser key storage is unavailable");
 
     await clearEphemeralKey();
     expect(localStorageMock.removeItem).toHaveBeenCalledWith("acars:ephemeral:nsec:secure");
