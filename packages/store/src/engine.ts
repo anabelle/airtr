@@ -32,7 +32,7 @@ let cachedHomeIata: string | null = null;
 let cachedSortedOthers: { airport: Airport; distance: number }[] = [];
 
 function generateRoutes(home: Airport, tick: number): RouteData[] {
-  const now = new Date();
+  const simulatedDate = new Date(GENESIS_TIME + tick * TICK_DURATION);
   const prosperity = getProsperityIndex(tick);
 
   if (cachedHomeIata !== home.iata) {
@@ -57,7 +57,7 @@ function generateRoutes(home: Airport, tick: number): RouteData[] {
     picks.push(others[others.length - 2].airport, others[others.length - 1].airport);
 
   return picks.map((dest) => {
-    const season = getSeason(dest.latitude, now);
+    const season = getSeason(dest.latitude, simulatedDate);
     const distance = haversineDistance(
       home.latitude,
       home.longitude,

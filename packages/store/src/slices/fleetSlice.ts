@@ -84,7 +84,7 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
     customName?: string,
     purchaseType: "buy" | "lease" = "buy",
   ) => {
-    const { airline, pubkey, fleet } = get();
+    const { airline, pubkey, fleet, actionSeq } = get();
     if (!airline || !pubkey) throw new Error("No active identity or airline loaded.");
 
     const purchaseKey = `${model.id}:${purchaseType}`;
@@ -113,7 +113,13 @@ export const createFleetSlice: StateCreator<AirlineState, [], [], FleetSlice> = 
       throw new Error("You must establish a Hub airport before purchasing aircraft.");
     }
 
-    const newInstanceId = `ac-${pubkey.slice(0, 8)}-${Date.now().toString(36)}`;
+    const newInstanceId = [
+      "ac",
+      pubkey.slice(0, 8),
+      engineStore.tick.toString(36),
+      actionSeq.toString(36),
+      fleet.length.toString(36),
+    ].join("-");
 
     const newInstance: AircraftInstance = {
       id: newInstanceId,

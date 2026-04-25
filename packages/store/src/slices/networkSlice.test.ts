@@ -238,6 +238,21 @@ describe("openRoute", () => {
     expect(updatedRoutes[0].originIata).toBe("BOG");
   });
 
+  it("uses deterministic tick/action-derived route ids", async () => {
+    const airline = makeAirline(["BOG"]);
+    const { state } = createSliceState({
+      airline,
+      routes: [],
+      fleet: [],
+      timeline: [] as TimelineEvent[],
+      actionSeq: 5,
+    });
+
+    await state.openRoute("BOG", "MDE", 300);
+
+    expect((state.routes as Route[])[0]?.id).toBe("rt-test-pub-BOG-MDE-2s-5-0");
+  });
+
   it("blocks opening a duplicate origin-destination route", async () => {
     const airline = makeAirline(["BOG"]);
     const routes = [makeRoute("rt-1", "BOG", "MDE", "active")];

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateFlightCost,
   calculateFlightRevenue,
+  calculateHubLandingFee,
   detectPriceWar,
   getSuggestedFares,
 } from "./finance.js";
@@ -132,6 +133,12 @@ describe("calculateFlightCost()", () => {
 
     // Total: base + overhead
     expect(fpToNumber(result.costTotal)).toBeCloseTo(totalBase + overhead, 1);
+  });
+});
+
+describe("calculateHubLandingFee()", () => {
+  it("caps extreme congestion multipliers to keep fees safe", () => {
+    expect(fpToNumber(calculateHubLandingFee(fp(1_000), 1, 1_000_000))).toBe(10_000);
   });
 });
 

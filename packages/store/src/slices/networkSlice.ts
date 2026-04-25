@@ -610,7 +610,7 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
   },
 
   openRoute: async (originIata: string, destinationIata: string, distanceKm: number) => {
-    const { airline, routes, pubkey } = get();
+    const { airline, routes, pubkey, actionSeq } = get();
     if (!airline || !pubkey) throw new Error("No airline loaded.");
 
     if (!airline.hubs.includes(originIata)) {
@@ -659,9 +659,18 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     }
 
     const suggested = getSuggestedFares(distanceKm);
+    const currentTick = useEngineStore.getState().tick;
 
     const newRoute: Route = {
-      id: `rt-${Date.now().toString(36)}`,
+      id: [
+        "rt",
+        pubkey.slice(0, 8),
+        originIata,
+        destinationIata,
+        currentTick.toString(36),
+        actionSeq.toString(36),
+        routes.length.toString(36),
+      ].join("-"),
       originIata,
       destinationIata,
       airlinePubkey: pubkey,
@@ -676,7 +685,6 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
 
     const updatedRoutes = [...routes, newRoute];
     const currentTimeline = [...get().timeline];
-    const currentTick = useEngineStore.getState().tick;
     const simulatedTimestamp = GENESIS_TIME + currentTick * TICK_DURATION;
 
     const newEvent: TimelineEvent = {
