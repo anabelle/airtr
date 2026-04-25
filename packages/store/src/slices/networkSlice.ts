@@ -659,6 +659,7 @@ export const createNetworkSlice: StateCreator<AirlineState, [], [], NetworkSlice
     }
 
     const suggested = getSuggestedFares(distanceKm);
+    // Capture the engine tick once; it anchors both deterministic route ID generation and timeline time.
     const currentTick = useEngineStore.getState().tick;
 
     const newRoute: Route = {

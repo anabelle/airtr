@@ -43,6 +43,7 @@ function roundDiv(numerator: bigint, denominator: bigint): bigint {
     return doubleRemainder >= denominator ? quotient + 1n : quotient;
   }
 
+  // Preserve Math.round compatibility: negative .5 ties round toward +∞.
   return doubleRemainder > denominator ? quotient - 1n : quotient;
 }
 
