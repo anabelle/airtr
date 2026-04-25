@@ -134,10 +134,9 @@ export function fpFormat(value: FixedPoint, decimals = 2): string {
 
 /** Sum an array of FixedPoint values */
 export function fpSum(values: FixedPoint[]): FixedPoint {
-  let total = 0;
+  let total = 0n;
   for (const v of values) {
-    total += v;
-    assertSafeInteger(total, "fpSum");
+    total += toSafeBigInt(v, "fpSum");
   }
-  return total as FixedPoint;
+  return bigintToSafeFixedPoint(total, "fpSum");
 }

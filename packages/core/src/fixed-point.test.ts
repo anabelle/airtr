@@ -158,5 +158,9 @@ describe("fixed-point arithmetic", () => {
       expect(() => fpRaw(Number.MAX_SAFE_INTEGER + 1)).toThrow(RangeError);
       expect(() => fpMul(fp(900_000_000), fp(2_000))).toThrow(RangeError);
     });
+
+    it("sums with a large intermediate safely", () => {
+      expect(fpSum([fp(900_000_000), fp(900_000_000), fp(-900_000_000)])).toBe(fp(900_000_000));
+    });
   });
 });
