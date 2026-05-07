@@ -51,6 +51,7 @@ import {
 import { WorkspaceLockedState } from "@/shared/components/identity/WorkspaceLockedState";
 import { PanelBody, PanelHeader, PanelLayout } from "@/shared/components/layout/PanelLayout";
 import { useNostrProfile } from "@/shared/hooks/useNostrProfile";
+import { NotificationSettingsCard } from "@/features/notifications/components/NotificationSettingsCard";
 
 export type CorporateSection = "overview" | "company" | "network" | "hubs" | "activity";
 
@@ -121,7 +122,7 @@ function FinancialPulse({
         : "bg-muted-foreground/30";
 
   return (
-    <section className="space-y-3">
+    <section id="financials" className="space-y-3">
       <div className="rounded-xl border border-border/50 bg-background/50 p-5">
         {/* Main balance + rate */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -1132,7 +1133,7 @@ function ActivityLog({
   }
 
   return (
-    <section className="rounded-xl border border-border/50 bg-background/50">
+    <section id="activity" className="rounded-xl border border-border/50 bg-background/50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -1515,14 +1516,17 @@ export function CorporateWorkspace({ section = "overview" }: { section?: Corpora
           )}
 
           {section === "overview" && (
-            <FinancialPulse
-              corporateBalance={airline.corporateBalance}
-              pulse={pulse}
-              hubOpex={currentMonthlyOpex}
-              fleetLease={totalMonthlyLease}
-              leasedCount={leasedCount}
-              tick={tick}
-            />
+            <>
+              <FinancialPulse
+                corporateBalance={airline.corporateBalance}
+                pulse={pulse}
+                hubOpex={currentMonthlyOpex}
+                fleetLease={totalMonthlyLease}
+                leasedCount={leasedCount}
+                tick={tick}
+              />
+              {!isViewingOther && <NotificationSettingsCard />}
+            </>
           )}
 
           {(section === "overview" || section === "network") && routePerformance.length > 0 && (

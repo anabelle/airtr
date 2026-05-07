@@ -2,7 +2,7 @@ import { FP_ZERO, fp, fpAdd, fpDiv, fpFormat, fpSub, fpSum } from "@acars/core";
 import { getAircraftById, getHubPricingForIata } from "@acars/data";
 import { useActiveAirline, useAirlineStore } from "@acars/store";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
+import { AlertTriangle, Bell, CircleHelp, KeyRound, Menu, Sparkles, Wallet, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFinancialPulse } from "@/features/corporate/hooks/useFinancialPulse";
@@ -33,15 +33,14 @@ export function Topbar() {
   /* Net cash flow ticker — flight revenue minus fixed costs (hub opex + fleet leases) */
   const netCashFlow = useMemo(() => {
     if (!activeAirline || pulse.flightCount === 0) return null;
-    const hubOpex = activeAirline.hubs.reduce(
-      (sum, hub) => sum + getHubPricingForIata(hub).monthlyOpex,
-      0,
+    const hubOpex = fpSum(
+      activeAirline.hubs.map((hub) => fp(getHubPricingForIata(hub)?.monthlyOpex ?? 0)),
     );
     const leaseAmounts = fleet
       .filter((ac) => ac.purchaseType === "lease")
       .map((ac) => getAircraftById(ac.modelId)?.monthlyLease ?? FP_ZERO);
     const totalMonthlyLease = leaseAmounts.length > 0 ? fpSum(leaseAmounts) : FP_ZERO;
-    const totalFixedCosts = fpAdd(fp(hubOpex), totalMonthlyLease);
+    const totalFixedCosts = fpAdd(hubOpex, totalMonthlyLease);
     if (totalFixedCosts === FP_ZERO) return null;
     const fixedCostsPerHour = fpDiv(totalFixedCosts, fp(30 * 24));
     const perHour = fpSub(pulse.netIncomeRate, fixedCostsPerHour);
@@ -61,6 +60,18 @@ export function Topbar() {
   const mobilePanelTitle = airline ? t("topbar.flightDeck") : t("topbar.identity");
   const mobilePanelLabel = mobilePanelTitle.toLowerCase();
   const canManageLocalKey = isEphemeral && !isViewingOther;
+
+  const openNotificationSettings = () => {
+    setMobileMenuOpen(false);
+    navigate({ to: "/corporate", search: { section: "overview" } });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById("notifications")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  };
 
   function renderMobileToggle(summary: React.ReactNode) {
     return (
@@ -489,6 +500,18 @@ export function Topbar() {
                   </span>
                 </button>
               )}
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  onClick={openNotificationSettings}
+                  className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" />
+                    {t("topbar.notifications")}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div
@@ -522,6 +545,14 @@ export function Topbar() {
                     {fpFormat(activeAirline.corporateBalance)}
                   </span>
                   {cashFlowTicker}
+                </span>
+              </div>
+              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
+                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
+                  {t("topbar.stockPrice")}
+                </span>
+                <span className="mt-1 font-mono text-sm font-bold text-primary">
+                  {fpFormat(activeAirline.stockPrice)}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
@@ -613,6 +644,18 @@ export function Topbar() {
                   </span>
                 </button>
               )}
+              {!isViewingOther && (
+                <button
+                  type="button"
+                  onClick={openNotificationSettings}
+                  className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sky-200 transition hover:bg-sky-500/20"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bell className="h-3.5 w-3.5" />
+                    {t("topbar.notifications")}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div
@@ -646,6 +689,14 @@ export function Topbar() {
                     {fpFormat(activeAirline.corporateBalance)}
                   </span>
                   {cashFlowTicker}
+                </span>
+              </div>
+              <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">
+                <span className="text-[10px] leading-none font-semibold uppercase text-muted-foreground">
+                  {t("topbar.stockPrice")}
+                </span>
+                <span className="mt-1 font-mono text-sm font-bold text-primary">
+                  {fpFormat(activeAirline.stockPrice)}
                 </span>
               </div>
               <div className="flex min-h-11 flex-col justify-center rounded-xl border border-border/60 bg-background/60 px-3 py-2 md:min-h-0 md:items-end md:border-0 md:bg-transparent md:p-0">

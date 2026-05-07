@@ -4,4 +4,5 @@
     <string name="title_activity_main">airtr</string>
     <string name="package_name">com.airtr.app</string>
     <string name="custom_url_scheme">com.airtr.app</string>
+    <string name="default_notification_channel_id">acars-critical</string>
 </resources>

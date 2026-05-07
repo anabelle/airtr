@@ -7,6 +7,8 @@ import "../index.css";
 // Initialize i18n (must be imported before any component that uses useTranslation)
 import "../i18n";
 import { BankruptcyOverlay } from "@/features/identity/components/BankruptcyOverlay";
+import { NotificationProvider } from "@/features/notifications/provider";
+import { TimelinePushBridge } from "@/features/notifications/TimelinePushBridge";
 import { TimelineToastBridge } from "@/shared/components/feedback/TimelineToastBridge";
 import { ToastHost } from "@/shared/components/feedback/ToastHost";
 import { ConfirmProvider } from "@/shared/lib/useConfirm";
@@ -28,10 +30,13 @@ if (!rootElement.innerHTML) {
   root.render(
     <React.StrictMode>
       <ConfirmProvider>
-        <RouterProvider router={router} />
-        <ToastHost />
-        <TimelineToastBridge />
-        <BankruptcyOverlay />
+        <NotificationProvider>
+          <RouterProvider router={router} />
+          <ToastHost />
+          <TimelineToastBridge />
+          <TimelinePushBridge />
+          <BankruptcyOverlay />
+        </NotificationProvider>
       </ConfirmProvider>
     </React.StrictMode>,
   );

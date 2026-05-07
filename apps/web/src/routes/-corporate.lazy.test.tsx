@@ -30,6 +30,10 @@ vi.mock("@/features/airline/components/Timeline", () => {
   };
 });
 
+vi.mock("@/features/notifications/components/NotificationSettingsCard", () => ({
+  NotificationSettingsCard: () => <div data-testid="notification-settings-card">Notifications</div>,
+}));
+
 const { routePerformanceMock, useVirtualizerMock } = vi.hoisted(() => ({
   routePerformanceMock: [] as Array<{
     routeId: string;
@@ -230,6 +234,11 @@ describe("Corporate route", () => {
   it("shows flight revenue rate when flights exist", () => {
     render(<CorporateRoute />);
     expect(screen.getByText("Flight Revenue Rate")).toBeInTheDocument();
+  });
+
+  it("renders the notification settings surface for your own airline", () => {
+    render(<CorporateRoute />);
+    expect(screen.getByTestId("notification-settings-card")).toBeInTheDocument();
   });
 
   it("shows billing cycle indicator", () => {
